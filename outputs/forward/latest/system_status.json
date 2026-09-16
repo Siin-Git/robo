@@ -1,0 +1,20 @@
+{
+  "profile": "live",
+  "database_path": "C:\\Users\\sind02\\Desktop\\valyuchain\\robo-advisor\\data\\forward_test.db",
+  "benchmark_model_date": "2026-09-12",
+  "benchmark_snapshot_date": "2026-09-11",
+  "forward_test_inception_at": null,
+  "first_execution_at": null,
+  "forward_test_inception": "NOT STARTED",
+  "first_execution": "NOT STARTED",
+  "latest_market_data_date": "2026-09-11",
+  "latest_valuation_date": null,
+  "benchmark_version": "CORE_V0.3",
+  "theme_universe_version": "THEME_UNIVERSE_V0.1",
+  "active_participants": 0,
+  "inactive_participants": 0,
+  "participant_count": 0,
+  "demo_contamination": false,
+  "pending_orders": 0,
+  "price_points": 39042
+}

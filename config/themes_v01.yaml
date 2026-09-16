@@ -1,0 +1,106 @@
+universe_version: THEME_UNIVERSE_V0.1
+valid_from: '2026-09-11'
+note: Single-ETF proxies only. No single stocks. Inactive entries are documented, never traded.
+
+themes:
+  - theme_id: semiconductor
+    display_name: Semiconductors
+    theme_type: sector
+    ticker: SOXX
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: ai
+    display_name: Artificial Intelligence
+    theme_type: theme
+    ticker: AIQ
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: optical_networking
+    display_name: Optical Networking
+    theme_type: subsector
+    ticker: null
+    market: null
+    currency: null
+    active: false
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+    inactive_reason: No suitable single-ETF proxy in V0; kept as registry placeholder, never tradable.
+  - theme_id: robotics
+    display_name: Robotics
+    theme_type: theme
+    ticker: BOTZ
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: defense
+    display_name: Defense / Aerospace
+    theme_type: sector
+    ticker: ITA
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: nuclear
+    display_name: Nuclear / Uranium
+    theme_type: theme
+    ticker: URA
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: power_grid
+    display_name: Power Grid Infrastructure
+    theme_type: theme
+    ticker: GRID
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: biotech
+    display_name: Biotechnology
+    theme_type: sector
+    ticker: IBB
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: cybersecurity
+    display_name: Cybersecurity
+    theme_type: theme
+    ticker: CIBR
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1
+  - theme_id: cloud_data_center
+    display_name: Cloud / Data Centers
+    theme_type: theme
+    ticker: SKYY
+    market: US
+    currency: USD
+    active: true
+    valid_from: '2026-09-11'
+    valid_to: null
+    universe_version: THEME_UNIVERSE_V0.1

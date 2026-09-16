@@ -1,0 +1,16 @@
+pandas>=1.5
+numpy>=1.23
+pyyaml>=6.0
+matplotlib>=3.5
+yfinance>=0.2.0
+scikit-learn>=1.2  # optional: used for LedoitWolf when available (pure-numpy fallback otherwise)
+scipy>=1.9         # optional: SLSQP when available (projected-gradient fallback otherwise)
+pytest>=7.0
+sqlalchemy>=2.0    # Phase 3A: PostgreSQL/SQLite DB layer (pure python)
+alembic>=1.12      # Phase 3A: migrations (pure python)
+psycopg>=3.1       # Phase 3A: PG driver (pure python; real PG also needs system libpq)
+python-dotenv>=1.0 # Phase 3A: .env config (optional but recommended)
+fastapi>=0.100    # Phase 3B: API layer (pure python)
+uvicorn>=0.20     # Phase 3B: ASGI server (pure python)
+httpx>=0.24       # Phase 3B: API tests (TestClient)
+argon2-cffi>=23.0 # Phase 3C: Argon2id password hashing (win32 wheel available)

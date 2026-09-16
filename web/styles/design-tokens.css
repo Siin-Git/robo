@@ -1,0 +1,26 @@
+/** Design tokens — single source of truth (§14). No ad-hoc colors elsewhere. */
+:root {
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --surface-subtle: #f9fafb;
+
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+
+  --brand: #2563eb;
+  --brand-hover: #1d4ed8;
+  --brand-soft: #eff6ff;
+
+  --positive: #15803d;
+  --positive-soft: #f0fdf4;
+
+  --negative: #b91c1c;
+  --negative-soft: #fef2f2;
+
+  --warning: #b45309;
+  --warning-soft: #fffbeb;
+}

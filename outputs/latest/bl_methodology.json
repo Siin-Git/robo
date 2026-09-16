@@ -1,0 +1,23 @@
+{
+  "model_version": "CORE_V0.3",
+  "prior_method": "reverse_optimization_neutral_policy",
+  "risk_free_rate": 0.03,
+  "tau": 0.05,
+  "primary_view_confidence": 0.25,
+  "confidence_grid": [
+    0.0,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "view_type": "absolute_external_cma",
+  "P": "identity",
+  "primary_covariance": "5Y weekly Ledoit-Wolf",
+  "risk_anchor": "neutral_60_40_volatility",
+  "delta": 3.4358314283295885,
+  "neutral_expected_return": 0.05736000000000001,
+  "neutral_volatility": 0.08923641664549675,
+  "expected_return_model": "black_litterman_v0"
+}

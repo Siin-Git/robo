@@ -1,0 +1,84 @@
+model_version: CORE_V0.3
+
+expected_return_convention: strategic_nominal_long_term_assumption
+
+expected_return_model: black_litterman_v0
+
+bl:
+  primary_confidence: 0.25
+  tau: 0.05
+  confidence_grid: [0.0, 0.10, 0.25, 0.50, 0.75, 1.0]
+
+data:
+  start: '2015-01-01'
+  end: null  # null = today
+  price_field: adjclose
+  max_fill_days: 5
+  weekly_rule: W-FRI
+  min_history_years: 5.0
+  freshness_days: 14
+  max_missing_fraction_3y: 0.05
+  mode: live  # live | snapshot
+  snapshot_dir: data/snapshots/SNAPSHOT_20260911_V0
+
+risk:
+  primary_lookback_years: 5
+  sensitivity_lookback_years: 3
+  lookback_years: 5  # legacy alias = primary
+  lookback_years_diag: 5
+  frequency: weekly
+  annualization_factor: 52
+  covariance_method: ledoit_wolf
+  random_seed: 42
+
+risk_free_rate: 0.03
+
+# Neutral 60/40 risk-anchor reference (Section 6). Risky sleeve sums to 0.95,
+# cash 0.05. Reference only - never used as invested weights.
+neutral_60_40:
+  us_equity: 0.30
+  developed_ex_us: 0.12
+  emerging_markets: 0.08
+  korea_equity: 0.10
+  us_treasury: 0.10
+  korea_treasury: 0.10
+  tips: 0.075
+  gold: 0.05
+  global_reit: 0.025
+  cash: 0.05
+
+weight_bounds:
+  us_equity: {min: 0.0, max: 0.35}
+  developed_ex_us: {min: 0.0, max: 0.25}
+  emerging_markets: {min: 0.0, max: 0.15}
+  korea_equity: {min: 0.0, max: 0.15}
+  us_treasury: {min: 0.0, max: 0.35}
+  korea_treasury: {min: 0.0, max: 0.35}
+  tips: {min: 0.0, max: 0.20}
+  gold: {min: 0.0, max: 0.15}
+  global_reit: {min: 0.0, max: 0.10}
+  cash: {min: 0.0, max: 0.20}
+
+group_constraints:
+  - name: equity_cap
+    assets: [us_equity, developed_ex_us, emerging_markets, korea_equity]
+    max: 0.70
+  - name: real_asset_cap
+    assets: [gold, global_reit]
+    max: 0.20
+
+optimizer:
+  frontier_points: 60
+  multi_start: 16
+  max_iter: 3000
+  tolerance: 1.0e-8
+  group_penalty: 1.0e6
+  target_penalty: 1.0e6
+  weight_sum_tol: 1.0e-6
+  bound_tol: 1.0e-8
+  group_tol: 1.0e-6
+  vol_target_tol: 5.0e-4
+
+sensitivity:
+  er_shocks: [-0.01, -0.005, 0.005, 0.01]
+  er_shock_display: 0.005

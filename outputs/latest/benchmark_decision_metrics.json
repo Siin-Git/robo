@@ -1,0 +1,15 @@
+{
+  "suggested_option": "FREEZE CORE_V0.3",
+  "good_signals": [
+    "fewer upper-bound hits than V0.2",
+    "median shock-sensitivity reduction 33%",
+    "smaller 3Y/5Y L1 than V0.2",
+    "neutral ER uplift 0.17%"
+  ],
+  "bad_signals": [
+    "confidence-path jump >= 20pp"
+  ],
+  "median_sensitivity_reduction": 0.3332935020453793,
+  "max_confidence_jump": 0.5273116542193853,
+  "uplift_v03": 0.0017309577003728482
+}

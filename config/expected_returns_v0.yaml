@@ -1,0 +1,82 @@
+model_version: ER_V0.1
+return_type: geometric
+annualization: annual
+effective_date: '2026-09-12'
+note: Strategic nominal geometric expected returns (V0 assumptions, not forecasts).
+
+risk_free_rate:
+  cash: 0.03
+
+expected_returns_geometric:
+  us_equity:
+    expected_return: 0.063
+    asset_id: us_equity
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  developed_ex_us:
+    expected_return: 0.06
+    asset_id: developed_ex_us
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  emerging_markets:
+    expected_return: 0.072
+    asset_id: emerging_markets
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  korea_equity:
+    expected_return: 0.068
+    asset_id: korea_equity
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  us_treasury:
+    expected_return: 0.049
+    asset_id: us_treasury
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  korea_treasury:
+    expected_return: 0.042
+    asset_id: korea_treasury
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  tips:
+    expected_return: 0.049
+    asset_id: tips
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  gold:
+    expected_return: 0.055
+    asset_id: gold
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0
+  global_reit:
+    expected_return: 0.067
+    asset_id: global_reit
+    return_type: geometric
+    annualization: annual
+    effective_date: '2026-09-12'
+    model_version: ER_V0.1
+    note: Strategic assumption V0

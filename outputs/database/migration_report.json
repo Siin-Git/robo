@@ -1,0 +1,57 @@
+{
+  "source": "C:\\Users\\Public\\Documents\\ESTsoft\\CreatorTemp\\pytest-of-sind02\\pytest-862\\test_migration_fails_on_orphan0\\orphan.db",
+  "destination": "sqlite:///C:\\Users\\Public\\Documents\\ESTsoft\\CreatorTemp\\pytest-of-sind02\\pytest-862\\test_migration_fails_on_orphan0/d.db",
+  "source_sha256_before": "6706155c4e2c17f394bd80cc240b2e799600d409587a05cc49f10ead8d3bbdc1",
+  "tables": {
+    "counters": {
+      "source_rows": 0
+    },
+    "participants": {
+      "source_rows": 0
+    },
+    "themes": {
+      "source_rows": 0
+    },
+    "accounts": {
+      "source_rows": 0
+    },
+    "views": {
+      "source_rows": 0
+    },
+    "portfolio_targets": {
+      "source_rows": 0
+    },
+    "orders": {
+      "source_rows": 1
+    },
+    "trades": {
+      "source_rows": 1
+    },
+    "holdings_daily": {
+      "source_rows": 0
+    },
+    "nav_daily": {
+      "source_rows": 0
+    },
+    "performance_daily": {
+      "source_rows": 0
+    },
+    "prices_daily": {
+      "source_rows": 0
+    },
+    "events": {
+      "source_rows": 0
+    },
+    "model_versions": {
+      "source_rows": 0
+    },
+    "forward_state": {
+      "source_rows": 0
+    }
+  },
+  "issues": [
+    "orphan FKs: [\"orders.account_id='A-missing' (parent accounts missing)\", \"trades.account_id='A-missing' (parent accounts missing)\"]"
+  ],
+  "warnings": [],
+  "completed_at": "2026-09-16T05:38:20.255108+00:00"
+}

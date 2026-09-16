@@ -1,0 +1,27 @@
+name: backup
+
+on:
+  schedule:
+    # Weekly backup, Sunday 01:00 UTC = Sunday 10:00 KST.
+    - cron: "0 1 * * 0"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: pg_dump (Neon)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          pg_dump "$DATABASE_URL" --format=custom --file=/tmp/robo_backup.dump
+          ls -la /tmp/robo_backup.dump
+      - name: Upload artifact (14-day retention, never committed to git)
+        uses: actions/upload-artifact@v4
+        with:
+          name: robo-backup
+          path: /tmp/robo_backup.dump
+          retention-days: 14

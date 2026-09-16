@@ -1,0 +1,40 @@
+name: daily-forward
+
+on:
+  schedule:
+    # 22:30 UTC = 07:30 KST next day (after US close, before KR open).
+    # Engine executes only on available prices; never invents future data.
+    - cron: "30 22 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Scheduled-for date YYYY-MM-DD (default: today KST)"
+        required: false
+      dry_run:
+        description: "Plan only, zero writes"
+        type: boolean
+        default: false
+
+concurrency:
+  group: forward-jobs
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Daily forward run
+        env:
+          APP_PROFILE: live
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: >
+          python -m src.forward.run_daily
+          ${{ inputs.date && format('--scheduled-for {0}', inputs.date) || '' }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}

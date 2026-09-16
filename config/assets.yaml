@@ -1,0 +1,67 @@
+assets:
+  - asset_id: us_equity
+    name: US Total Stock Market
+    ticker: VTI
+    currency: USD
+    asset_class: equity
+    fx_treatment: unhedged
+  - asset_id: developed_ex_us
+    name: Developed ex-US Equity (MSCI EAFE, ex-Korea by construction)
+    ticker: IEFA
+    currency: USD
+    asset_class: equity
+    fx_treatment: unhedged
+  - asset_id: emerging_markets
+    name: Emerging Markets Equity (FTSE, ex-Korea by construction)
+    ticker: VWO
+    currency: USD
+    asset_class: equity
+    fx_treatment: unhedged
+  - asset_id: korea_equity
+    name: Korea Equity (KOSPI 200)
+    ticker: 069500.KS
+    currency: KRW
+    asset_class: equity
+    fx_treatment: na
+  - asset_id: us_treasury
+    name: US Intermediate Treasury (KRW-hedged proxy = local USD return)
+    ticker: IEF
+    currency: USD
+    asset_class: bond
+    fx_treatment: hedged
+  - asset_id: korea_treasury
+    name: Korea Treasury Bond
+    ticker: 114260.KS
+    currency: KRW
+    asset_class: bond
+    fx_treatment: na
+  - asset_id: tips
+    name: US TIPS (KRW-hedged proxy = local USD return)
+    ticker: TIP
+    currency: USD
+    asset_class: bond
+    fx_treatment: hedged
+  - asset_id: gold
+    name: Gold
+    ticker: IAU
+    currency: USD
+    asset_class: real_asset
+    fx_treatment: unhedged
+  - asset_id: global_reit
+    name: Global REIT
+    ticker: REET
+    currency: USD
+    asset_class: real_asset
+    fx_treatment: unhedged
+
+fx:
+  pair: USDKRW
+  ticker: KRW=X
+  quote_convention: KRW_per_USD
+
+cash:
+  asset_id: cash
+  name: KRW Cash (risk-free proxy)
+  currency: KRW
+  expected_return: 0.03
+  volatility: 0.0

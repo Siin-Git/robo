@@ -1,0 +1,39 @@
+name: weekly-views
+
+on:
+  schedule:
+    # Friday 18:10 Asia/Seoul = Friday 09:10 UTC (buffer after the 18:00 KST cutoff).
+    - cron: "10 9 * * 5"
+  workflow_dispatch:
+    inputs:
+      week:
+        description: "Friday cycle YYYY-MM-DD (default: derived)"
+        required: false
+      dry_run:
+        description: "Plan only, zero writes"
+        type: boolean
+        default: false
+
+concurrency:
+  group: forward-jobs
+  cancel-in-progress: false
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Weekly view cycle
+        env:
+          APP_PROFILE: live
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: >
+          python -m src.forward.run_weekly
+          ${{ inputs.week && format('--week {0}', inputs.week) || '' }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}

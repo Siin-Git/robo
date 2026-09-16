@@ -1,0 +1,6 @@
+{
+  "from": "CORE_V0.1",
+  "to": "CORE_V0.3",
+  "v02": "strategic CMA direct; hedged IEF/TIP; IEFA; 5Y primary + 3Y sensitivity; 60/40-anchored max-return; cash optimizer variable",
+  "v03": "V0.2 method preserved; optimizer ER replaced by BL posterior (neutral-implied prior, tau=0.05, CMA views at 25% confidence)"
+}

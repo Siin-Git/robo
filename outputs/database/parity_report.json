@@ -1,0 +1,142 @@
+{
+  "tables": {
+    "counters": {
+      "sqlite_rows": 2,
+      "postgres_rows": 2,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "9b3b7b07f27ee0418b53f6d60afe7ecc310bcc7ebfebae297e0b432d06c53b6b",
+      "destination_hash": "9b3b7b07f27ee0418b53f6d60afe7ecc310bcc7ebfebae297e0b432d06c53b6b"
+    },
+    "participants": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "themes": {
+      "sqlite_rows": 10,
+      "postgres_rows": 10,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e2f7cd7807cdb4d909843a6da3ca55dbf8a73eabb94ebc1aec32dacf1253c5ee",
+      "destination_hash": "2f477659140776923ba49f90684494d4b330281963cf630710e0fa2ac53670ea"
+    },
+    "accounts": {
+      "sqlite_rows": 3,
+      "postgres_rows": 3,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "67141007904df7cd354af36af08d4f7a74471cb67fcd942baf53508ceac9db5c",
+      "destination_hash": "c5c120c4f3f2af6eb7d419a12bc733cb0287a18e733fe29b3d9df39eb52a3743"
+    },
+    "views": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "portfolio_targets": {
+      "sqlite_rows": 3,
+      "postgres_rows": 3,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "80de492d0f25925d2454fa917179458d44e91f96619b3e176a50d171d60d9968",
+      "destination_hash": "bea39f1472ae36b02402721a1e1fe118d6a2d36de724b7e1acb8bd353b35a800"
+    },
+    "orders": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "trades": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "holdings_daily": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "nav_daily": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "performance_daily": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prices_daily": {
+      "sqlite_rows": 39042,
+      "postgres_rows": 39042,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "47a45a02498928ea5128b6422a04641e29d73a5f2a2b20cd0c9add30c88adb5e",
+      "destination_hash": "6968f712a565bee1bc9679fa69592b9b580ad953be6cc3234f1480efe2234f0a"
+    },
+    "events": {
+      "sqlite_rows": 10,
+      "postgres_rows": 10,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "6e25598ee8346fa415a8e535c183bc04dde7c6536710adc4f0ae2e4787be4ad0",
+      "destination_hash": "1d97d35072a85d6dac994692af1aa31e0bdd570bb5ec575c32e13d97c27b9c14"
+    },
+    "model_versions": {
+      "sqlite_rows": 3,
+      "postgres_rows": 3,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "c5e9b1162436202a46e3253140966be4c59a726b2c3e6855fb84bef80c4440d0",
+      "destination_hash": "3cb58ec8f1df6079681a706163f65a4bd35461a4cf41f74cb95d4dc34c0177c4"
+    },
+    "forward_state": {
+      "sqlite_rows": 0,
+      "postgres_rows": 0,
+      "match": true,
+      "pk_match": true,
+      "field_mismatches": 0,
+      "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "orphans": 0,
+  "financial": {},
+  "pass": true
+}

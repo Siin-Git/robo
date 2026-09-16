@@ -1,0 +1,11 @@
+asset,weight,min,max,bound_hit
+us_equity,0.26633851854060797,0.0,0.35,none
+developed_ex_us,0.09252398628388153,0.0,0.25,none
+emerging_markets,0.07466939209357684,0.0,0.15,none
+korea_equity,0.11231074355224127,0.0,0.15,none
+us_treasury,0.24074287003245498,0.0,0.35,none
+korea_treasury,0.0,0.0,0.35,lower
+tips,0.09547554473728886,0.0,0.2,none
+gold,0.055832912205224766,0.0,0.15,none
+global_reit,0.06210603255472391,0.0,0.1,none
+cash,0.0,0.0,0.2,lower

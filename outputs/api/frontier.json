@@ -1,0 +1,2320 @@
+{
+  "frontier_version": "CORE_FRONTIER_V0.3",
+  "model_version": "CORE_V0.3",
+  "risk_model_version": "RISK_5Y_LW_FROZEN_V0",
+  "expected_return_model": "black_litterman_v0",
+  "generated_at": "2026-09-14T11:42:33.157138+00:00",
+  "min_volatility": 0.047070182462028286,
+  "max_volatility": 0.11170472853348819,
+  "benchmark_frontier_id": "F040",
+  "min_variance_frontier_id": "F001",
+  "tangency_frontier_id": "F010",
+  "points": [
+    {
+      "frontier_id": "F001",
+      "index": 0,
+      "expected_return": 0.04335723453048521,
+      "volatility": 0.047070182462028286,
+      "sharpe": 0.28377273747049,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.0
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.08040394779773856
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06791116160819458
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.0030925372469820488
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.32342105534579174
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.32121888796482956
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.13218433488507642
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.0717680751513871
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.0
+        }
+      ]
+    },
+    {
+      "frontier_id": "F002",
+      "index": 1,
+      "expected_return": 0.04585671293772257,
+      "volatility": 0.050251840226799904,
+      "sharpe": 0.31554492066672607,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.013122469436978715
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.14373478342359416
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06388309160695489
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.01756590964414652
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.23540210160958747
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.33432150451255993
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.15580655955021544
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.021239095879940554
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.014924484336022423
+        }
+      ]
+    },
+    {
+      "frontier_id": "F003",
+      "index": 2,
+      "expected_return": 0.04712371649254639,
+      "volatility": 0.05252835528741409,
+      "sharpe": 0.32598996101919203,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.11499863209105354
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.052954840346337954
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.047366594687897084
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.039952938951816896
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.3022740763819297
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.31108666544803837
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.08140691995893928
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.03803369509956717
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.01192563703442006
+        }
+      ]
+    },
+    {
+      "frontier_id": "F004",
+      "index": 3,
+      "expected_return": 0.04783474686010315,
+      "volatility": 0.053786214899266875,
+      "sharpe": 0.331585832792005,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.13469059643282066
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.080772131230219
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.025313062823737704
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.028484121472341035
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.20990001061162145
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.3308991801256598
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.1154115389052139
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.05606739009515204
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.018461968303234363
+        }
+      ]
+    },
+    {
+      "frontier_id": "F005",
+      "index": 4,
+      "expected_return": 0.04839908746939954,
+      "volatility": 0.05523949376766894,
+      "sharpe": 0.33307849537477696,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.13323303755397406
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.047676708576673964
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.07094404440181878
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.05544735963846722
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.2455428378543249
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.30864733898933766
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.07770290300932473
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.060805769976078734
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.0
+        }
+      ]
+    },
+    {
+      "frontier_id": "F006",
+      "index": 5,
+      "expected_return": 0.049114073570997036,
+      "volatility": 0.05724066752326198,
+      "sharpe": 0.33392471468347723,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.12996289644171724
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.026095387430248456
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06436724543166156
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.061659240776716126
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.17585824587526086
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.25273734549883436
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.1834501344463941
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06501397703710526
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.04085552706206208
+        }
+      ]
+    },
+    {
+      "frontier_id": "F007",
+      "index": 6,
+      "expected_return": 0.0494782887828257,
+      "volatility": 0.05839221287647388,
+      "sharpe": 0.33357682169078184,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.09618074711806139
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.04997464229092766
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.07174866099918747
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.06403167078718117
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1379072412572015
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.2599808125168779
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.2
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.05377943031904436
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.06639679471151849
+        }
+      ]
+    },
+    {
+      "frontier_id": "F008",
+      "index": 7,
+      "expected_return": 0.04989787619514183,
+      "volatility": 0.0597022208264427,
+      "sharpe": 0.33328536057286606,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.17766223002329729
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.0047946597232087565
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.10746203280572122
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.036436262376400755
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1867579979532002
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.2746637100295838
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.11557180228554276
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06569102990560183
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.03096027489744331
+        }
+      ]
+    },
+    {
+      "frontier_id": "F009",
+      "index": 8,
+      "expected_return": 0.050344191828999185,
+      "volatility": 0.06090259128704837,
+      "sharpe": 0.33404476556854834,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.1302370530096791
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.03976347874082286
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.05602552709122947
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.07191455951797823
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.12055728477283695
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.3197444619313398
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.1253816007423775
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.05112896030756872
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.08524707388616712
+        }
+      ]
+    },
+    {
+      "frontier_id": "F010",
+      "index": 9,
+      "expected_return": 0.050726482455262886,
+      "volatility": 0.06194573125761183,
+      "sharpe": 0.3345909723636693,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.16015046613395068
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.07889100256599363
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06935229753352265
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.05952339956101228
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.17254695978060738
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.32815298247320246
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.069628895734802
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.030680559231510068
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.031073436985398915
+        }
+      ]
+    },
+    {
+      "frontier_id": "F011",
+      "index": 10,
+      "expected_return": 0.05107381349154477,
+      "volatility": 0.06317007442351402,
+      "sharpe": 0.33360437966652756,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.14624378846929006
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.09810602400091456
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.07076034587447591
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.057517794624813
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.10622172744883132
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.2890276063227059
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.1366255430105786
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.07009714447364399
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.025400025774746766
+        }
+      ]
+    },
+    {
+      "frontier_id": "F012",
+      "index": 11,
+      "expected_return": 0.051535453330866544,
+      "volatility": 0.06461269118193998,
+      "sharpe": 0.33330067107444616,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2407140142892733
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.01397808053032433
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.04665443107340525
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.07512364083619931
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.20199483449917777
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.21023963512820465
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.14514392640745138
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06615143723596385
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.0
+        }
+      ]
+    },
+    {
+      "frontier_id": "F013",
+      "index": 12,
+      "expected_return": 0.05181840045066575,
+      "volatility": 0.0654510525422712,
+      "sharpe": 0.3333544626585563,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.1694902847263751
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.04713025654711756
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.096392821764196
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.04879421154692888
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1806690421615161
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.18733154464042112
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.15987931943795708
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06366856513888972
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.046643954036598594
+        }
+      ]
+    },
+    {
+      "frontier_id": "F014",
+      "index": 13,
+      "expected_return": 0.05210700883839463,
+      "volatility": 0.06654105906545871,
+      "sharpe": 0.332231093837073,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.1741844102935819
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.03759670177238236
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.05259099608082897
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.06989306850836872
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.24464619562504852
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.17793663849869254
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.11779957073606287
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.05052470608020598
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.07482771240482816
+        }
+      ]
+    },
+    {
+      "frontier_id": "F015",
+      "index": 14,
+      "expected_return": 0.052511634208207945,
+      "volatility": 0.06761375088774808,
+      "sharpe": 0.3329446142631788,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.14039470453725197
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.07420538468440974
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.0874103969924801
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.08680154808389265
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.18030390549238506
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.20367118812693874
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.11357593367005989
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06812068597099596
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.045516252441585955
+        }
+      ]
+    },
+    {
+      "frontier_id": "F016",
+      "index": 15,
+      "expected_return": 0.05276909056580567,
+      "volatility": 0.0685482937915722,
+      "sharpe": 0.3321613027311419,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.20053801102392418
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.07119297720930537
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.05733834299133743
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.09423371450825002
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.17927449855136707
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.26888572132461597
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.047042572543745595
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06548825551777031
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.016005906329684245
+        }
+      ]
+    },
+    {
+      "frontier_id": "F017",
+      "index": 16,
+      "expected_return": 0.05303611109987171,
+      "volatility": 0.06919564965442371,
+      "sharpe": 0.33291270787857985,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.19713023975128388
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.06115371466749304
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.10293009556117888
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.06797203935151266
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.25494162546444143
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.1591314812576972
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.10413128765861507
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.036390658832848484
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.0162188574549295
+        }
+      ]
+    },
+    {
+      "frontier_id": "F018",
+      "index": 17,
+      "expected_return": 0.05338448998108885,
+      "volatility": 0.07063127479137976,
+      "sharpe": 0.33107840754904266,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.19858184188785993
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.0148611875785081
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.12888762129730846
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.07776326718224844
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.20592139152546896
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.24896844174981256
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.024452869064855602
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.04006539204933646
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.060497987664601294
+        }
+      ]
+    },
+    {
+      "frontier_id": "F019",
+      "index": 18,
+      "expected_return": 0.05361167136493501,
+      "volatility": 0.0712192856058086,
+      "sharpe": 0.33153479656652524,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.23176097426063322
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.05573768010226355
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.030907041297413847
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.08995851010320502
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.2515501458002316
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.18755236290835048
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.045428187011113515
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.07364648453142941
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.03345861398535944
+        }
+      ]
+    },
+    {
+      "frontier_id": "F020",
+      "index": 19,
+      "expected_return": 0.053844085288787265,
+      "volatility": 0.07192696938428962,
+      "sharpe": 0.33150410051887047,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.17995294352303356
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.05836216552184295
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.0882166125350709
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.1028951638170703
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.16148962370534012
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.2171520678613504
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.08454796365908115
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.056750460156501314
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.05063299922070941
+        }
+      ]
+    },
+    {
+      "frontier_id": "F021",
+      "index": 20,
+      "expected_return": 0.05414632005445696,
+      "volatility": 0.07292455259357496,
+      "sharpe": 0.3311137222744426,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2435320888037534
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.03659441249370698
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06853627176143276
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.0808486204477788
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.23079488641757775
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.08175316098444182
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.16114595888340622
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.08166182355196133
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.015132776655941003
+        }
+      ]
+    },
+    {
+      "frontier_id": "F022",
+      "index": 21,
+      "expected_return": 0.05441169316683967,
+      "volatility": 0.07396981024268942,
+      "sharpe": 0.33002238462890104,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.17462144359244608
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.13262791075038008
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.04635846204576951
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.08229026266499853
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.2664386832856233
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.175097422396189
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.03410636397946037
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.033294505525089134
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.05516494576004389
+        }
+      ]
+    },
+    {
+      "frontier_id": "F023",
+      "index": 22,
+      "expected_return": 0.054576322242001825,
+      "volatility": 0.07442360943869368,
+      "sharpe": 0.3302221220840751,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.22866781167813618
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.0029739984746161886
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.09790477054517943
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.07697134499584732
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1775274347455692
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.10903814141962799
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.19002427315923945
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.0346019114789988
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.08229031350278534
+        }
+      ]
+    },
+    {
+      "frontier_id": "F024",
+      "index": 23,
+      "expected_return": 0.05481584637259876,
+      "volatility": 0.07521319983678906,
+      "sharpe": 0.3299400427910072,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.23422082351544268
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.006805319804394524
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.12671225110339635
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.0990845788117831
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.15013230717816836
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.1521902032612533
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.15282840509299683
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.03944729708585065
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.03857881414671398
+        }
+      ]
+    },
+    {
+      "frontier_id": "F025",
+      "index": 24,
+      "expected_return": 0.055033037820454586,
+      "volatility": 0.07584359967529129,
+      "sharpe": 0.3300613094266144,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2736941067976528
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.042842354675433174
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.05983796422379863
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.08012685383061752
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.2703982639159049
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.06956849773179791
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.14151237909812955
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.04178593429351266
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.020233645433152793
+        }
+      ]
+    },
+    {
+      "frontier_id": "F026",
+      "index": 25,
+      "expected_return": 0.0553516610872501,
+      "volatility": 0.07694873585615059,
+      "sharpe": 0.32946169687105675,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.22897611057921322
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.0020981536810885035
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.12985572167906692
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.09808449628133131
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.18575459906287764
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.1555439696138415
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.08673899081632594
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.04646005456625618
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.06648790371999891
+        }
+      ]
+    },
+    {
+      "frontier_id": "F027",
+      "index": 26,
+      "expected_return": 0.05558397718098958,
+      "volatility": 0.07764822664142923,
+      "sharpe": 0.3294856597193585,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.18462683847120154
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.07466967758193273
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.08242165001036791
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.11282525678868013
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1577540672640626
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.11472198286986443
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.14062259982393954
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06957735634558318
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.06278057084436772
+        }
+      ]
+    },
+    {
+      "frontier_id": "F028",
+      "index": 27,
+      "expected_return": 0.05571422130341653,
+      "volatility": 0.0782912403656556,
+      "sharpe": 0.32844314617215736,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.1885546078045534
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.15528705454024305
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.0461373103432369
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.08075085376410042
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.22858823364538433
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.09521082826202666
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.0844002003413883
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.08394348299464892
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.03712742830441798
+        }
+      ]
+    },
+    {
+      "frontier_id": "F029",
+      "index": 28,
+      "expected_return": 0.05599554279508401,
+      "volatility": 0.07896791932776588,
+      "sharpe": 0.32919118315864915,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.20305057998175374
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.0997518854918786
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06548458150603859
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.105075916982343
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.27704765177964574
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.03259149862971643
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.123619181804448
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.055673280129201204
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.037705423694974656
+        }
+      ]
+    },
+    {
+      "frontier_id": "F030",
+      "index": 29,
+      "expected_return": 0.05615654095515104,
+      "volatility": 0.07973207974171784,
+      "sharpe": 0.3280554206021203,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2053327313761415
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.06394497118833631
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.0668626184494105
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.12382685919285799
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.12584869211211958
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.11130930214128944
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.18312925301655655
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.04195230536755834
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.07779326715572989
+        }
+      ]
+    },
+    {
+      "frontier_id": "F031",
+      "index": 30,
+      "expected_return": 0.0564665462914373,
+      "volatility": 0.08043383211583885,
+      "sharpe": 0.32904743682137166,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2443069504261156
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.08382319937833119
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.10071495372891037
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.08089362192771193
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.22652356234769064
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.025461932150718066
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.16964598579505058
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.04700463581771527
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.021625158427756544
+        }
+      ]
+    },
+    {
+      "frontier_id": "F032",
+      "index": 31,
+      "expected_return": 0.05664962026568331,
+      "volatility": 0.08140623534775471,
+      "sharpe": 0.327365835698461,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.21035112342876214
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.10618220579341692
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.05334890851459811
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.12352195574028908
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.23194269425300684
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.07313723354921539
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.1248726318884937
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.024065339719912298
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.05257790711230535
+        }
+      ]
+    },
+    {
+      "frontier_id": "F033",
+      "index": 32,
+      "expected_return": 0.05701914635581629,
+      "volatility": 0.08248265903996846,
+      "sharpe": 0.32757365815187506,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.22723411268298854
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.12157055718037066
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.03415568699301649
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.10875895867076527
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1470964687939249
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.11600520835781902
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.12270846817050926
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.05790946887702763
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.06456107027357812
+        }
+      ]
+    },
+    {
+      "frontier_id": "F034",
+      "index": 33,
+      "expected_return": 0.057207379926569484,
+      "volatility": 0.08321877747533046,
+      "sharpe": 0.3269379910637944,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.21096430183394072
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.13697737168283247
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06291836570534065
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.09133756483381253
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.16617396550241148
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.024785401800830855
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.1740675883794524
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.08813825178735862
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.044637188474020345
+        }
+      ]
+    },
+    {
+      "frontier_id": "F035",
+      "index": 34,
+      "expected_return": 0.05747858843382274,
+      "volatility": 0.08418660155465886,
+      "sharpe": 0.32640097030145626,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.214356409641311
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.08576873006646557
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.12691261503762524
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.09562318371914517
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.17136181735431805
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.059071024232403874
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.11646837866218976
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.07543146007784002
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.05500638120870127
+        }
+      ]
+    },
+    {
+      "frontier_id": "F036",
+      "index": 35,
+      "expected_return": 0.05777592444417159,
+      "volatility": 0.08511805186830217,
+      "sharpe": 0.32632237033746425,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2658698283772785
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.086508674301958
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.10019532719117813
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.10186707639792902
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.14222183990189016
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.064715519090391
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.17600191411960175
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.03132418105257454
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.031295639567198864
+        }
+      ]
+    },
+    {
+      "frontier_id": "F037",
+      "index": 36,
+      "expected_return": 0.05794901716234476,
+      "volatility": 0.08563644103306439,
+      "sharpe": 0.326368270623876,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2862705142319578
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.08348577699314971
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.0824785174410616
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.11454420107826746
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.27288887943772194
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.0
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.12390863556824949
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.03642347524959204
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.0
+        }
+      ]
+    },
+    {
+      "frontier_id": "F038",
+      "index": 37,
+      "expected_return": 0.058220588927343074,
+      "volatility": 0.08676942741532986,
+      "sharpe": 0.32523654664980817,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.32198588004414147
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.05821123462577625
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.09972083587143032
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.07983374552174924
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.20976580449447532
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.020366268363475434
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.14036552878684552
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.049207608118277735
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.020543094173828613
+        }
+      ]
+    },
+    {
+      "frontier_id": "F039",
+      "index": 38,
+      "expected_return": 0.05856762760263196,
+      "volatility": 0.08763507137892415,
+      "sharpe": 0.32598395999597884,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.27042370292426643
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.08595245079054059
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.10145364932689477
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.10681220185358326
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.178545899969005
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.0040922573590190066
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.16375524210242165
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.05978602657602827
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.029178569098240886
+        }
+      ]
+    },
+    {
+      "frontier_id": "F040",
+      "index": 39,
+      "expected_return": 0.05888788255965981,
+      "volatility": 0.08863793259225354,
+      "sharpe": 0.32590880354292523,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.26419432957691746
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.1111120480451291
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.052708854500362876
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.10127474064415883
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.2682890886259203
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.004207998813810315
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.07635226994575182
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.05153343369745682
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.07032723615049241
+        }
+      ]
+    },
+    {
+      "frontier_id": "F041",
+      "index": 40,
+      "expected_return": 0.05912910181409987,
+      "volatility": 0.08987128350051099,
+      "sharpe": 0.3241202381841386,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.322216935098813
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.03631051822892792
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.05640880410981651
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.11675673237557008
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.19248501433466791
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.008947730710935384
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.16082782992575573
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.03228096709018648
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.07376546812532707
+        }
+      ]
+    },
+    {
+      "frontier_id": "F042",
+      "index": 41,
+      "expected_return": 0.05938651235710603,
+      "volatility": 0.09083804339456535,
+      "sharpe": 0.32350446199575633,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2517333245990314
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.08455807858055978
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.03062118206642111
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.14487228255802953
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.16320274116632857
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.02879636417804202
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.11534207980890218
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.08087394704268541
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.1
+        }
+      ]
+    },
+    {
+      "frontier_id": "F043",
+      "index": 42,
+      "expected_return": 0.05976650990153496,
+      "volatility": 0.09219875065133741,
+      "sharpe": 0.32285155374936936,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.31905933981170415
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.07674162319770361
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.09545449319204667
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.131262300512834
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.30791672404626635
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.006130376272902641
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.023888984086054322
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.033321602643486214
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.0062245562370019086
+        }
+      ]
+    },
+    {
+      "frontier_id": "F044",
+      "index": 43,
+      "expected_return": 0.060189662488495305,
+      "volatility": 0.093810750289314,
+      "sharpe": 0.3218145297355565,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.27598635416047124
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.1451533495908739
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.061691171173323706
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.1028632908003411
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.16043357373514455
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.03151664371181395
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.07419341824448639
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.09120287634346111
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.056959322240083876
+        }
+      ]
+    },
+    {
+      "frontier_id": "F045",
+      "index": 44,
+      "expected_return": 0.06065042929470851,
+      "volatility": 0.09548717536285184,
+      "sharpe": 0.320990009163395,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.31494013924657754
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.1294291828164731
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.028528615032247493
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.10611603110683038
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.15133126095204696
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.04748218335883637
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.07683397126178104
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.06843639329426764
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.07690222293093933
+        }
+      ]
+    },
+    {
+      "frontier_id": "F046",
+      "index": 45,
+      "expected_return": 0.06107913735225861,
+      "volatility": 0.096779242240682,
+      "sharpe": 0.32113433245289685,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.2398562128150934
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.1543466003100757
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.0905648945231886
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.1427235271549399
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.22538967621211264
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.011092416603238772
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.037203039934644286
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.036106682786367444
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.06271694966033932
+        }
+      ]
+    },
+    {
+      "frontier_id": "F047",
+      "index": 46,
+      "expected_return": 0.061736611277244065,
+      "volatility": 0.09905812865421673,
+      "sharpe": 0.32038371518229863,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.31588528579728925
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.10510527541806168
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.032087569002544065
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.147150677545053
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1872330508486381
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.018781338002948105
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.053975073257628715
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.04983650687648359
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.08994522325135351
+        }
+      ]
+    },
+    {
+      "frontier_id": "F048",
+      "index": 47,
+      "expected_return": 0.06228602796153763,
+      "volatility": 0.10164008139852208,
+      "sharpe": 0.3176505519997261,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.29839796872981217
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.13271376488671638
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.11288029602586425
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.12306552105287341
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.1858382128174879
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.0
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.0
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.10223206330335247
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.044872173183893374
+        }
+      ]
+    },
+    {
+      "frontier_id": "F049",
+      "index": 48,
+      "expected_return": 0.06288040907559145,
+      "volatility": 0.10485409351784583,
+      "sharpe": 0.3135825028137343,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.3061154402745399
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.21082277682310274
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.06779913740500984
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.09447076624788817
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.13422559385663807
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.0
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.028393726603446516
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.11297001429371276
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.045202544495661974
+        }
+      ]
+    },
+    {
+      "frontier_id": "F050",
+      "index": 49,
+      "expected_return": 0.06476858075050192,
+      "volatility": 0.11170472853348819,
+      "sharpe": 0.3112543328018435,
+      "weights": [
+        {
+          "asset_id": "us_equity",
+          "weight": 0.3016166391987246
+        },
+        {
+          "asset_id": "developed_ex_us",
+          "weight": 0.23456987120933628
+        },
+        {
+          "asset_id": "emerging_markets",
+          "weight": 0.025172771834055065
+        },
+        {
+          "asset_id": "korea_equity",
+          "weight": 0.13288006087020166
+        },
+        {
+          "asset_id": "us_treasury",
+          "weight": 0.06256612313459889
+        },
+        {
+          "asset_id": "korea_treasury",
+          "weight": 0.02581781614667688
+        },
+        {
+          "asset_id": "tips",
+          "weight": 0.025105775296222148
+        },
+        {
+          "asset_id": "gold",
+          "weight": 0.09227094231018443
+        },
+        {
+          "asset_id": "global_reit",
+          "weight": 0.1
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "asset_id": "us_equity",
+      "display_name": "\ubbf8\uad6d\uc8fc\uc2dd",
+      "expected_return": 0.07300662280459294,
+      "volatility": 0.16270976031763437
+    },
+    {
+      "asset_id": "developed_ex_us",
+      "display_name": "\uc120\uc9c4\uad6d ex-US",
+      "expected_return": 0.06859617100124875,
+      "volatility": 0.1505210695367325
+    },
+    {
+      "asset_id": "emerging_markets",
+      "display_name": "\uc2e0\ud765\uad6d",
+      "expected_return": 0.0632487791629022,
+      "volatility": 0.1493676042732193
+    },
+    {
+      "asset_id": "korea_equity",
+      "display_name": "\ud55c\uad6d\uc8fc\uc2dd",
+      "expected_return": 0.07128179954702124,
+      "volatility": 0.24347420589092664
+    },
+    {
+      "asset_id": "us_treasury",
+      "display_name": "\ubbf8\uad6d\uad6d\ucc44",
+      "expected_return": 0.04103550860663398,
+      "volatility": 0.07780895218815617
+    },
+    {
+      "asset_id": "korea_treasury",
+      "display_name": "\ud55c\uad6d\uad6d\ucc44",
+      "expected_return": 0.035190367275222685,
+      "volatility": 0.03816155412779948
+    },
+    {
+      "asset_id": "tips",
+      "display_name": "TIPS",
+      "expected_return": 0.04050853942035621,
+      "volatility": 0.06174502546028693
+    },
+    {
+      "asset_id": "gold",
+      "display_name": "\uae08",
+      "expected_return": 0.047318245664987366,
+      "volatility": 0.16622808809538675
+    },
+    {
+      "asset_id": "global_reit",
+      "display_name": "\uae00\ub85c\ubc8c REIT",
+      "expected_return": 0.06734828073261051,
+      "volatility": 0.16160807933561042
+    }
+  ]
+}

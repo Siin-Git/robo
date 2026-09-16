@@ -1,0 +1,44 @@
+{
+  "benchmark_version": "CORE_V0.3",
+  "frozen_from": "C:\\Users\\sind02\\Desktop\\valyuchain\\robo-advisor\\outputs\\latest\\core_v03_weights.csv",
+  "run_timestamp": "2026-09-12T12:40:44.174937+00:00",
+  "data_start": "2015-01-09",
+  "data_end": "2026-09-11",
+  "tickers": {
+    "us_equity": "VTI",
+    "developed_ex_us": "IEFA",
+    "emerging_markets": "VWO",
+    "korea_equity": "069500.KS",
+    "us_treasury": "IEF",
+    "korea_treasury": "114260.KS",
+    "tips": "TIP",
+    "gold": "IAU",
+    "global_reit": "REET",
+    "FX_USDKRW": "KRW=X"
+  },
+  "target_volatility": 0.08923641664549675,
+  "expected_return_model": "black_litterman_v0",
+  "bl": {
+    "model_version": "CORE_V0.3",
+    "prior_method": "reverse_optimization_neutral_policy",
+    "risk_free_rate": 0.03,
+    "tau": 0.05,
+    "primary_view_confidence": 0.25,
+    "confidence_grid": [
+      0.0,
+      0.1,
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "view_type": "absolute_external_cma",
+    "P": "identity",
+    "primary_covariance": "5Y weekly Ledoit-Wolf",
+    "risk_anchor": "neutral_60_40_volatility",
+    "delta": 3.4358314283295885,
+    "neutral_expected_return": 0.05736000000000001,
+    "neutral_volatility": 0.08923641664549675,
+    "expected_return_model": "black_litterman_v0"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "target_volatility": 0.08923641664549675,
+  "reference_return": 0.05736000000000001,
+  "covariance": "5Y Ledoit-Wolf primary",
+  "cash_volatility": 0.0,
+  "weights": {
+    "us_equity": 0.3,
+    "developed_ex_us": 0.12,
+    "emerging_markets": 0.08,
+    "korea_equity": 0.1,
+    "us_treasury": 0.1,
+    "korea_treasury": 0.1,
+    "tips": 0.075,
+    "gold": 0.05,
+    "global_reit": 0.025,
+    "cash": 0.05
+  }
+}

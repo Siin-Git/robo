@@ -1,0 +1,61 @@
+{
+  "model_version": "CORE_V0.1",
+  "run_timestamp": "2026-09-12T09:09:22.903407+00:00",
+  "risk_lookback_years": 3,
+  "frequency": "weekly",
+  "covariance_method": "ledoit_wolf",
+  "covariance_impl": "manual",
+  "risk_free_rate": 0.03,
+  "data_start": "2015-01-09",
+  "data_end": "2026-09-11",
+  "tickers": {
+    "us_equity": "VTI",
+    "developed_ex_us": "VEA",
+    "emerging_markets": "VWO",
+    "korea_equity": "069500.KS",
+    "us_treasury": "IEF",
+    "korea_treasury": "114260.KS",
+    "tips": "TIP",
+    "gold": "IAU",
+    "global_reit": "REET",
+    "FX_USDKRW": "KRW=X"
+  },
+  "diagnostics": {
+    "daily_rows_before": 3048,
+    "daily_start": "2015-01-02",
+    "daily_end": "2026-09-11",
+    "weekly_start": "2015-01-09",
+    "weekly_end": "2026-09-11",
+    "n_weekly": 610,
+    "missing_daily_before_fill": {
+      "us_equity": 108,
+      "developed_ex_us": 108,
+      "emerging_markets": 108,
+      "korea_equity": 209,
+      "us_treasury": 108,
+      "korea_treasury": 207,
+      "tips": 108,
+      "gold": 108,
+      "global_reit": 108,
+      "__FX__": 363
+    },
+    "missing_daily_after_fill": {
+      "us_equity": 1,
+      "developed_ex_us": 1,
+      "emerging_markets": 1,
+      "korea_equity": 2,
+      "us_treasury": 1,
+      "korea_treasury": 2,
+      "tips": 1,
+      "gold": 1,
+      "global_reit": 1,
+      "__FX__": 0
+    }
+  },
+  "status": "PASS",
+  "check_issues": [],
+  "comparator_notes": [
+    "equal_weight: global_reit above max: 0.111111 > 0.1",
+    "equal_weight: group real_asset_cap=0.222222 > 0.2"
+  ]
+}
