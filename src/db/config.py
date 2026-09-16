@@ -10,6 +10,12 @@ ROOT = Path(__file__).resolve().parents[2]
 def _load_dotenv() -> None:
     try:
         from dotenv import load_dotenv
+
+        # Shared defaults may live in .env. Developer-specific local values live
+        # in .env.local; both files are ignored by Git. Existing process
+        # variables always win, so deployment settings cannot be overwritten by
+        # a local file.
+        load_dotenv(ROOT / ".env.local")
         load_dotenv(ROOT / ".env")
     except Exception:
         pass

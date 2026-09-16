@@ -16,15 +16,24 @@
 필수 환경은 Python 3.10 이상과 Node.js 20.19 이상 또는 22.12 이상입니다.
 
 ```powershell
-cd C:\path\to\robo-advisor
+git clone https://github.com/Siin-Git/robo.git robo-advisor
+cd robo-advisor
+
+Copy-Item .env.local.example .env.local
+Copy-Item web\.env.example web\.env.local
+
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 cd web
 npm ci
 cd ..
-python scripts\start_local.py
+.\.venv\Scripts\python.exe scripts\start_local.py
 ```
+
+예시 환경변수에는 개인 키나 운영 비밀번호가 없습니다. 로컬 미리보기 계정은
+`localtest@example.com` / `robo-local-2026`이며 각 개발자의 로컬 SQLite에서만
+사용하세요. `.env.local` 파일은 Git에 포함되지 않습니다.
 
 Windows에서는 `scripts\start_local.ps1`을 실행해도 됩니다. 로컬 DB가 없으면 초기화를 안내하고, 백엔드 `http://127.0.0.1:8000`과 프론트엔드 `http://localhost:3000`을 시작합니다. 비밀번호나 실제 DB 파일은 저장소에 포함하지 않습니다.
 

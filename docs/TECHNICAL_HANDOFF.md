@@ -43,6 +43,9 @@ flowchart LR
 git clone <repository-url>
 cd robo-advisor
 
+Copy-Item .env.local.example .env.local
+Copy-Item web\.env.example web\.env.local
+
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -91,7 +94,12 @@ npm run dev
 - API 상태: `http://127.0.0.1:8000/health`
 - OpenAPI: `http://127.0.0.1:8000/docs`
 
-로컬 계정은 `.env.local`의 `LOCAL_TEST_*` 값으로 생성할 수 있습니다. `.env.local.example`을 복사해 사용하고 비밀번호를 Git에 올리지 마세요.
+백엔드는 루트의 `.env`와 `.env.local`을 읽고, 프론트엔드는
+`web/.env.local`을 읽습니다. 운영체제나 실행 명령에서 직접 지정한 환경변수가
+파일보다 우선합니다. 로컬 계정은 루트 `.env.local`의 `LOCAL_TEST_*` 값으로
+생성할 수 있습니다. `.env.local.example`을 복사해 사용하고 실제 운영 비밀번호를
+Git에 올리지 마세요. 저장소에 포함된 예시 로그인 정보는 개발자 개인의 로컬
+SQLite 미리보기에서만 사용합니다.
 
 ## 3. 주요 코드 위치
 
