@@ -13,7 +13,7 @@
 
 ### 로컬에서 가장 빠르게 실행
 
-필수 환경은 Python 3.10 이상과 Node.js 18 이상입니다.
+필수 환경은 Python 3.10 이상과 Node.js 20.19 이상 또는 22.12 이상입니다.
 
 ```powershell
 cd C:\path\to\robo-advisor

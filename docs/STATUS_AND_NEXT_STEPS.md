@@ -81,5 +81,6 @@
 | 프론트엔드 단위 테스트 | 32 passed |
 | TypeScript `--noEmit` | 통과 |
 | Next.js production build | 통과, 15개 정적 페이지 생성 |
+| npm dependency audit | 0 vulnerabilities |
 
 건너뛴 3개 테스트는 `TEST_DATABASE_URL`이 필요한 PostgreSQL 통합 테스트입니다. FastAPI/Starlette의 향후 버전 변경에 관한 deprecation warning이 있으므로 의존성 업그레이드 작업에서 정리해야 합니다.

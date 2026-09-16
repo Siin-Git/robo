@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND = process.env.FASTAPI_INTERNAL_URL ?? "http://127.0.0.1:8000";
+type RouteContext = { params: Promise<{ path?: string[] }> };
 
 async function proxy(req: NextRequest, params: { path?: string[] }) {
   const target = `${BACKEND}/api/v1/${(params.path ?? []).join("/")}${req.nextUrl.search}`;
@@ -47,18 +48,18 @@ async function proxy(req: NextRequest, params: { path?: string[] }) {
   return res;
 }
 
-export async function GET(req: NextRequest, ctx: { params: { path?: string[] } }) {
-  return proxy(req, ctx.params);
+export async function GET(req: NextRequest, ctx: RouteContext) {
+  return proxy(req, await ctx.params);
 }
-export async function POST(req: NextRequest, ctx: { params: { path?: string[] } }) {
-  return proxy(req, ctx.params);
+export async function POST(req: NextRequest, ctx: RouteContext) {
+  return proxy(req, await ctx.params);
 }
-export async function PUT(req: NextRequest, ctx: { params: { path?: string[] } }) {
-  return proxy(req, ctx.params);
+export async function PUT(req: NextRequest, ctx: RouteContext) {
+  return proxy(req, await ctx.params);
 }
-export async function PATCH(req: NextRequest, ctx: { params: { path?: string[] } }) {
-  return proxy(req, ctx.params);
+export async function PATCH(req: NextRequest, ctx: RouteContext) {
+  return proxy(req, await ctx.params);
 }
-export async function DELETE(req: NextRequest, ctx: { params: { path?: string[] } }) {
-  return proxy(req, ctx.params);
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
+  return proxy(req, await ctx.params);
 }

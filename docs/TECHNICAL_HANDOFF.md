@@ -6,7 +6,7 @@
 
 | 영역 | 기술 | 위치 |
 |---|---|---|
-| 웹 | Next.js 14 App Router, React 18, TypeScript, Tailwind, CSS Modules | `web/` |
+| 웹 | Next.js 15 App Router, React 18, TypeScript, Tailwind, CSS Modules | `web/` |
 | 차트 | Recharts + Efficient Frontier용 커스텀 SVG | `web/app/(app)/` |
 | API | FastAPI | `src/api/` |
 | 데이터 계층 | SQLAlchemy 2.x, SQLite 로컬 운영, PostgreSQL 이관 구조 | `src/db/`, `migrations/` |
@@ -33,7 +33,7 @@ flowchart LR
 ### 2.1 요구사항
 
 - Python 3.10 이상
-- Node.js 18 이상과 npm
+- Node.js 20.19 이상 또는 22.12 이상과 npm
 - 로컬 실행은 SQLite로 충분
 - PostgreSQL 통합 테스트와 배포는 별도 DB 필요
 
@@ -176,8 +176,11 @@ cd web
 npm test
 npm run build
 npx tsc --noEmit
+npm audit --audit-level=low
 ```
 
 PostgreSQL 통합 테스트는 `TEST_DATABASE_URL`이 없으면 건너뜁니다. Playwright E2E는 로컬 API와 테스트용 DB를 준비한 뒤 `npm run test:e2e`로 실행합니다.
 
 `next build`와 `tsc`를 동시에 실행하면 두 프로세스가 `.next/types`를 함께 갱신해 파일 없음 오류가 날 수 있으므로 순서대로 실행하세요.
+
+2026-09-16 전달본은 Next.js 15.5.24, Vitest 4.1.11, Vite 7.3.6을 사용하며 `npm audit` 0건을 확인했습니다. `postcss`는 Next.js의 고정 하위 버전 대신 보안 수정 버전 8.5.28을 사용하도록 `overrides`에 명시했습니다.
