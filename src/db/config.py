@@ -43,7 +43,8 @@ def get_database_url(backend: str | None = None) -> str:
     # Local profile has its own file; APP_PROFILE=local takes precedence over SQLITE_PATH.
     if os.environ.get("APP_PROFILE", "").strip().lower() == "local":
         if os.environ.get("CAPSTONE_DEMO") == "1":
-            return f"sqlite:///{ROOT / 'data' / 'capstone_demo.db'}"
+            demo_dir = Path(os.environ.get("CAPSTONE_DATA_DIR") or ROOT / "data")
+            return f"sqlite:///{demo_dir / 'capstone_demo.db'}"
         return f"sqlite:///{ROOT / 'data' / 'forward_local.db'}"
     path = os.environ.get("SQLITE_PATH", str(ROOT / "data" / "forward_test.db"))
     return f"sqlite:///{path}"

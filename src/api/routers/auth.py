@@ -34,7 +34,10 @@ def _cookie_conf():
     from ..services import _common as C
     cfg = C.load_forward_cfg().get("auth", {})
     secure = os.environ.get("APP_PROFILE", "live").strip().lower() == "live"
-    if os.environ.get("AUTH_COOKIE_SECURE", "").strip().lower() in ("0", "false", "no"):
+    override = os.environ.get("AUTH_COOKIE_SECURE", "").strip().lower()
+    if override in ("1", "true", "yes"):
+        secure = True
+    elif override in ("0", "false", "no"):
         secure = False
     return cfg.get("cookie_name", "ra_session"), cfg.get("csrf_cookie_name", "ra_csrf"), \
         int(cfg.get("session_ttl_days", 7)) * 86400, secure

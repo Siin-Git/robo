@@ -1,0 +1,57 @@
+# Demo only. Keep render.yaml for the original PostgreSQL/live deployment.
+# Select feat/capstone-demo-mvp and Blueprint Path: render.demo.yaml in Render.
+# Paid services: review the Render estimate before creating this Blueprint.
+services:
+  - type: pserv
+    name: robo-capstone-api
+    runtime: python
+    region: singapore
+    plan: starter
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.local.seed_capstone && python -m uvicorn src.api.main:app --host 0.0.0.0 --port 10000 --workers 1
+    disk:
+      name: capstone-demo-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: APP_PROFILE
+        value: local
+      - key: CAPSTONE_DEMO
+        value: "1"
+      - key: DATABASE_BACKEND
+        value: sqlite
+      - key: CAPSTONE_DATA_DIR
+        value: /var/data
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: ALLOW_PUBLIC_REGISTRATION
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+  - type: web
+    name: robo-capstone-web
+    runtime: node
+    region: singapore
+    plan: starter
+    numInstances: 1
+    autoDeployTrigger: "off"
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    startCommand: FASTAPI_INTERNAL_URL="http://$FASTAPI_INTERNAL_HOSTPORT" npx next start --hostname 0.0.0.0 --port "$PORT"
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_APP_PROFILE
+        value: local
+      - key: NEXT_PUBLIC_CAPSTONE_DEMO
+        value: "1"
+      - key: FASTAPI_INTERNAL_HOSTPORT
+        fromService:
+          type: pserv
+          name: robo-capstone-api
+          property: hostport

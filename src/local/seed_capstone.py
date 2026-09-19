@@ -116,12 +116,17 @@ def main():
     os.environ.update(APP_PROFILE="local", DATABASE_BACKEND="sqlite", CAPSTONE_DEMO="1")
     from ..db.session import create_app_engine, session_factory
     from ..db.base import Base
+    from ..db.config import get_database_url
+    from sqlalchemy.engine import make_url
+    from pathlib import Path
+    db_path = Path(make_url(get_database_url()).database)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_app_engine()
     Base.metadata.create_all(engine)
     with session_factory(engine)() as session:
         seed(session)
         session.commit()
-    print("13 demo accounts ready · data/capstone_demo.db")
+    print(f"13 demo accounts ready · {db_path}")
     print(f"capstone01@example.com … capstone13@example.com / {PASSWORD}")
 
 
