@@ -1,20 +1,17 @@
 # Demo only. Keep render.yaml for the original PostgreSQL/live deployment.
 # Select feat/capstone-demo-mvp and Blueprint Path: render.demo.yaml in Render.
-# Paid services: review the Render estimate before creating this Blueprint.
+# Free demo: ephemeral SQLite is recreated by the seed after instance resets.
 services:
-  - type: pserv
+  - type: web
     name: robo-capstone-api
     runtime: python
     region: singapore
-    plan: starter
+    plan: free
     numInstances: 1
     autoDeployTrigger: "off"
     buildCommand: pip install -r requirements.txt
     startCommand: python -m src.local.seed_capstone && python -m uvicorn src.api.main:app --host 0.0.0.0 --port 10000 --workers 1
-    disk:
-      name: capstone-demo-data
-      mountPath: /var/data
-      sizeGB: 1
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
@@ -25,7 +22,7 @@ services:
       - key: DATABASE_BACKEND
         value: sqlite
       - key: CAPSTONE_DATA_DIR
-        value: /var/data
+        value: /tmp/capstone-demo
       - key: AUTH_COOKIE_SECURE
         value: "true"
       - key: ALLOW_PUBLIC_REGISTRATION
@@ -36,12 +33,12 @@ services:
     name: robo-capstone-web
     runtime: node
     region: singapore
-    plan: starter
+    plan: free
     numInstances: 1
     autoDeployTrigger: "off"
     rootDir: web
     buildCommand: npm ci && npm run build
-    startCommand: FASTAPI_INTERNAL_URL="http://$FASTAPI_INTERNAL_HOSTPORT" npx next start --hostname 0.0.0.0 --port "$PORT"
+    startCommand: FASTAPI_INTERNAL_URL="https://$FASTAPI_EXTERNAL_HOSTNAME" npx next start --hostname 0.0.0.0 --port "$PORT"
     healthCheckPath: /login
     envVars:
       - key: NODE_VERSION
@@ -50,8 +47,8 @@ services:
         value: local
       - key: NEXT_PUBLIC_CAPSTONE_DEMO
         value: "1"
-      - key: FASTAPI_INTERNAL_HOSTPORT
+      - key: FASTAPI_EXTERNAL_HOSTNAME
         fromService:
-          type: pserv
+          type: web
           name: robo-capstone-api
-          property: hostport
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
