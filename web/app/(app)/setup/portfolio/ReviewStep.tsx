@@ -48,9 +48,31 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
   const limit = p.risk_comparison?.max_increase_pp;
   let offset = 0;
   return <div className={s.page}>
-    <header className={s.header}><div className={s.eyebrow}>03 / 최종 구성 확인</div><h1>내 투자 구성을 확인해 보세요</h1>
+    <header className={s.header}><div className={s.eyebrow}>BEFORE & AFTER</div><h1>인사이트가 포트폴리오를 어떻게 바꿨나요?</h1>
       <p>{p.themes.length ? <>기본 투자 구성에 <strong>{p.themes.map(t => themeName(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 투자 구성입니다."}</p>
     </header>
+
+    <div className="comparison-intro" aria-label="포트폴리오 설계 관계">
+      <div><span className="ui-eyebrow">BEFORE</span><h2>기본 포트폴리오</h2><p>선택한 위험 수준에 맞춘 자산배분을 출발점으로 삼습니다.</p></div>
+      <div><span className="ui-eyebrow">MY INSIGHT</span><h2>{p.themes.length ? p.themes.map(t => themeName(t.theme_id)).join(" · ") : "기본 구성 유지"}</h2><p>{p.themes.length ? "나의 전망을 기존 주식 비중 안에서 반영합니다." : "추가 테마 없이 선택한 자산배분을 유지합니다."}</p></div>
+      <div><span className="ui-eyebrow">AFTER</span><h2>최종 포트폴리오</h2><p>비중과 위험 변화를 확인하고 확정하면 모의운용 성과를 확인할 수 있습니다.</p></div>
+    </div>
+    <section className={s.changes} aria-labelledby="changes-heading">
+      <div className={s.sectionHeading}><div><h2 id="changes-heading">{p.themes.length ? "선택한 테마로 이렇게 달라졌어요" : "기본 구성으로 시작해요"}</h2><p>{p.themes.length ? "기존 주식의 일부를 선택한 테마로 재배분했습니다." : "테마를 추가하지 않아 자산별 비중은 그대로 유지됩니다."}</p></div></div>
+      {p.themes.length > 0 && <div className={s.themeChanges}>{p.themes.map(t => <div key={t.theme_id}><i style={{ background: color(t.theme_id) }} /><strong>{themeName(t.theme_id)}</strong><span>{t.ticker}</span><b>{fmtPct(rows.find(r => r.id === t.theme_id)?.final ?? 0)}</b></div>)}</div>}
+      {p.risk_guardrail_applied && <div className={s.adjustment}><ShieldCheck size={20} /><p><strong>위험 수준에 맞춰 테마 비중을 조정했어요.</strong><span>선택한 테마는 최종 합계 {fmtPct(themeTotal)}로 반영됩니다.</span></p></div>}
+      <div className={s.changeGrid}>
+        <div className={s.comparison}>
+          {[{name:"변경 전", groups:p.base.groups, base:true},{name:"변경 후", groups:p.personalized.groups, base:false}].map(item => <div className={s.barRow} key={item.name}><strong>{item.name}</strong><div className={s.bar} role="img" aria-label={`${item.name}: ${GROUPS.map(g => `${g.name} ${fmtPct(item.groups[item.base ? g.base : g.key] ?? 0)}`).join(", ")}`}>{GROUPS.map(g => <div key={g.key} title={`${g.name} ${fmtPct(item.groups[item.base ? g.base : g.key] ?? 0)}`} style={{ width: `${(item.groups[item.base ? g.base : g.key] ?? 0) * 100}%`, background: g.color }} />)}</div></div>)}
+          <div className={s.legend}>{GROUPS.filter(g => (p.base.groups[g.base] ?? 0) + (p.personalized.groups[g.key] ?? 0) > 0).map(g => <span key={g.key}><i style={{background:g.color}} />{g.name}</span>)}</div>
+        </div>
+        <div className={s.risk}>
+          <h3>예상 변동성의 변화</h3><div className={s.riskValues}><div><span>기본 구성</span><strong>{fmtPct(beforeVol)}</strong></div><ArrowRight size={20} /><div><span>최종 구성</span><strong>{fmtPct(afterVol)}</strong></div></div>
+          <p>{delta == null ? "같은 기준의 위험 지표를 산출할 데이터가 부족합니다." : <>기본 구성 대비 <b>{fmtActivePp(delta)}</b></>}</p>
+          <small>{p.risk_comparison?.as_of && `${p.risk_comparison.as_of.slice(0,10).replaceAll("-", ".")} 기준 · `}두 구성에 동일한 기간과 위험 모형을 적용합니다.</small>
+        </div>
+      </div>
+    </section>
 
     <section className={s.composition} aria-labelledby="final-composition-heading">
       <div className={s.sectionHeading}><div><h2 id="final-composition-heading">나의 최종 포트폴리오</h2><p>자산 위에 커서를 올려 비중을 확인해 보세요.</p></div><span className={s.totalBadge}><Check size={15} /> 총 {fmtPct(total, 0)}</span></div>
@@ -81,26 +103,9 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
       </div>
     </section>
 
-    <section className={s.changes} aria-labelledby="changes-heading">
-      <div className={s.sectionHeading}><div><h2 id="changes-heading">{p.themes.length ? "선택한 테마로 이렇게 달라졌어요" : "기본 구성으로 시작해요"}</h2><p>{p.themes.length ? "기존 주식의 일부를 선택한 테마로 재배분했습니다." : "테마를 추가하지 않아 자산별 비중은 그대로 유지됩니다."}</p></div></div>
-      {p.themes.length > 0 && <div className={s.themeChanges}>{p.themes.map(t => <div key={t.theme_id}><i style={{ background: color(t.theme_id) }} /><strong>{themeName(t.theme_id)}</strong><span>{t.ticker}</span><b>{fmtPct(rows.find(r => r.id === t.theme_id)?.final ?? 0)}</b></div>)}</div>}
-      {p.risk_guardrail_applied && <div className={s.adjustment}><ShieldCheck size={20} /><p><strong>위험 수준에 맞춰 테마 비중을 조정했어요.</strong><span>선택한 테마는 최종 합계 {fmtPct(themeTotal)}로 반영됩니다.</span></p></div>}
-      <div className={s.changeGrid}>
-        <div className={s.comparison}>
-          {[{name:"기본 구성", groups:p.base.groups, base:true},{name:"최종 구성", groups:p.personalized.groups, base:false}].map(item => <div className={s.barRow} key={item.name}><strong>{item.name}</strong><div className={s.bar} role="img" aria-label={`${item.name}: ${GROUPS.map(g => `${g.name} ${fmtPct(item.groups[item.base ? g.base : g.key] ?? 0)}`).join(", ")}`}>{GROUPS.map(g => <div key={g.key} title={`${g.name} ${fmtPct(item.groups[item.base ? g.base : g.key] ?? 0)}`} style={{ width: `${(item.groups[item.base ? g.base : g.key] ?? 0) * 100}%`, background: g.color }} />)}</div></div>)}
-          <div className={s.legend}>{GROUPS.filter(g => (p.base.groups[g.base] ?? 0) + (p.personalized.groups[g.key] ?? 0) > 0).map(g => <span key={g.key}><i style={{background:g.color}} />{g.name}</span>)}</div>
-        </div>
-        <div className={s.risk}>
-          <h3>예상 변동성의 변화</h3><div className={s.riskValues}><div><span>기본 구성</span><strong>{fmtPct(beforeVol)}</strong></div><ArrowRight size={20} /><div><span>최종 구성</span><strong>{fmtPct(afterVol)}</strong></div></div>
-          <p>{delta == null ? "같은 기준의 위험 지표를 산출할 데이터가 부족합니다." : <>기본 구성 대비 <b>{fmtActivePp(delta)}</b></>}</p>
-          <small>{p.risk_comparison?.as_of && `${p.risk_comparison.as_of.slice(0,10).replaceAll("-", ".")} 기준 · `}두 구성에 동일한 기간과 위험 모형을 적용합니다.</small>
-        </div>
-      </div>
-    </section>
-
-    <details className={s.details}><summary>자산별 변경 내역 보기<span>기본 비중 · 최종 비중 · 변화</span></summary><div className={s.tableWrap}><table><thead><tr><th>자산</th><th>기본 비중</th><th>최종 비중</th><th>변화</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} data-theme={row.isTheme}><th scope="row">{row.name}{row.isTheme && <small>선택 테마</small>}</th><td>{fmtPct(row.base)}</td><td>{fmtPct(row.final)}</td><td>{Math.abs(row.change) < 1e-9 ? "변동 없음" : fmtActivePp(row.change)}</td></tr>)}</tbody></table></div></details>
+    <details open className={s.details}><summary>자산별 변경 내역 보기<span>기본 비중 · 최종 비중 · 변화</span></summary><div className={s.tableWrap}><table><thead><tr><th>자산</th><th>기본 비중</th><th>최종 비중</th><th>변화</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} data-theme={row.isTheme}><th scope="row">{row.name}{row.isTheme && <small>선택 테마</small>}</th><td>{fmtPct(row.base)}</td><td>{fmtPct(row.final)}</td><td>{Math.abs(row.change) < 1e-9 ? "변동 없음" : fmtActivePp(row.change)}</td></tr>)}</tbody></table></div></details>
     <p className={s.explanation}>예상 변동성은 모형의 추정치이며 실제 결과와 다를 수 있습니다.{limit != null && ` 테마 반영에 따른 변동성 증가는 같은 모형으로 계산한 기본 구성 대비 ${limit.toFixed(1)}%p 이내로 관리합니다.`}</p>
-    <footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : "이 구성으로 시작하기"}<ArrowRight size={17} /></button></div></footer>
+    <footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : "포트폴리오 확정 · 성과 확인"}<ArrowRight size={17} /></button></div></footer>
     {error && <p className={s.error} role="alert">구성을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
   </div>;
 }

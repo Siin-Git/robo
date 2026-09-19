@@ -58,9 +58,9 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
     { label: "현금", value: p.personalized.groups.cash ?? 0, color: "#c2cad6" },
   ] : [];
   return <div className={s.page}>
-    <div className={s.eyebrow}>02 / 관심 분야 선택</div>
-    <h1 className={s.heading}>어떤 분야의 미래에 관심이 있나요?</h1>
-    <p className={s.intro}>관심 있는 테마를 최대 2개 골라보세요. 내 기본 투자 구성에 반영해 드립니다.</p>
+    <div className={s.eyebrow}>INVESTMENT INSIGHT</div>
+    <h1 className={s.heading}>나의 투자 인사이트를 반영하세요</h1>
+    <p className={s.intro}>“AI 산업이 성장할 것 같다”는 나의 전망을 테마로 표현해 보세요. 최대 2개를 선택하면 기본 포트폴리오의 주식 일부를 해당 테마에 배분합니다.</p>
 
     <section className={s.newsBanner} aria-label="최신 이슈 안내">
       <div className={s.newsLead}><Newspaper size={27} /><div><strong>요즘 어떤 변화가 일어나고 있을까요?</strong><p>최근 소식과 생각할 거리를 보고, 관심 있는 분야를 찾아보세요.</p></div></div>
@@ -72,7 +72,7 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
         <nav id="theme-categories" className={s.categories} aria-label="테마 카테고리">
           {CATEGORIES.map(c => <button key={c} className={s.category} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}
         </nav>
-        <div className={s.catalogHeading}><h2>{category === "전체" ? "모든 테마" : `${category} 테마`} <span>{visible.length}</span></h2><span>{selected.length >= 2 ? "2개 선택 완료 · 선택한 테마를 눌러 변경" : "관심 있는 테마를 눌러 선택하세요"}</span></div>
+        <div className={s.catalogHeading}><h2>{category === "전체" ? "테마 둘러보기" : `${category} 테마`} <span>{visible.length}</span></h2><span>{selected.length >= 2 ? "2개 선택 완료 · 선택한 테마를 눌러 변경" : "관심 있는 테마를 눌러 선택하세요"}</span></div>
         {visible.length === 0 && <EmptyState title="이 카테고리에는 아직 테마가 없습니다." />}
         <div className={s.grid}>
           {visible.map(t => {
@@ -95,7 +95,7 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
       </div>
 
       <aside className={s.sidebar} aria-label="선택한 테마와 투자 구성">
-        <div className={s.sideHeader}><h2>내가 고른 테마</h2><span className={s.count}>{selected.length} / 2</span></div>
+        <div className={s.sideHeader}><h2>내가 반영할 인사이트</h2><span className={s.count}>{selected.length} / 2</span></div>
         <p className={s.muted}>기본 포트폴리오의 주식 비중 안에서<br />선택한 테마를 반영합니다.</p>
         {selected.length === 0 ? <div className={s.empty}>관심 있는 분야를 골라보세요.<br />테마 없이 시작해도 괜찮습니다.</div> : selected.map(id => {
           const t = themes.find(t => t.theme_id === id);
@@ -117,7 +117,7 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
         </div>
         <details className={s.impact}><summary className={s.muted}>어떻게 반영되나요?</summary><p className={s.muted}>테마는 최대 2개, 전체 투자금의 합계 15%, 한 테마당 10% 이내로 반영합니다. 위험 한도에 따라 비중이 줄어들 수 있습니다.</p></details>
         {saveError && <p className={s.error} role="alert">선택 내용을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
-        <button className={s.primary} onClick={() => onNext()} disabled={pending || invalidSelected}>{pending ? "선택 내용 저장 중…" : "최종 구성 확인하기"}<ArrowRight size={17} /></button>
+        <button className={s.primary} onClick={() => onNext()} disabled={pending || invalidSelected}>{pending ? "선택 내용 저장 중…" : "다음: 변경 전·후 비교"}<ArrowRight size={17} /></button>
         {selected.length > 0 && <button className={s.skip} disabled={pending} onClick={() => onNext([])}>테마 없이 기본 구성으로 계속하기</button>}
       </aside>
     </div>

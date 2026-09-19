@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
   // Keep parallel local previews from sharing generated build files.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // Backend address stays server-side (thin proxy route); browsers only

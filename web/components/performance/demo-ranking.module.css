@@ -1,0 +1,83 @@
+.page { display:flex; flex-direction:column; gap:22px; padding-bottom:40px; }
+.header { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+.header h1 { margin-top:6px; }
+.context { display:flex; flex-wrap:wrap; gap:10px 24px; font-size:12px; color:var(--text-secondary); }
+.panel { background:white; border:1px solid var(--border); border-radius:12px; padding:22px; }
+.toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.toolbar h2 { font-size:18px; font-weight:650; }
+.toolbar h2 span { font-size:13px; color:var(--brand); margin-left:8px; }
+.toolbar p { font-size:12px; color:var(--text-secondary); margin-top:6px; }
+.toolbar label { display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--text-secondary); }
+.toolbar select { min-width:265px; }
+.sortHint { min-height:35px; margin-top:15px; font-size:12px; color:var(--text-secondary); line-height:1.7; }
+.row { cursor:pointer; }
+.row td { height:52px; }
+.row:hover td { background:#edf3fb; }
+.topRow td { background:#f5f8fc; }
+.topRow td:first-child { box-shadow:inset 3px 0 #6b8bbc; }
+.rank,.topRank { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; }
+.rank { color:var(--text-secondary); }
+.topRank { color:var(--brand); background:#e4edf9; border-radius:5px; font-weight:700; }
+.person { display:flex; align-items:center; gap:7px; font-weight:600; white-space:nowrap; }
+.person svg { color:#8293a7; }
+.person small { border-radius:4px; font-size:10px; padding:1px 4px; background:var(--brand-soft); color:var(--brand); }
+.themes { font-size:12px; color:var(--text-secondary); white-space:nowrap; }
+.selectedMetric { font-weight:700; color:var(--brand); }
+.footnote { font-size:11px; color:var(--text-secondary); line-height:1.8; margin-top:12px; }
+@media(max-width:800px) { .header,.toolbar { flex-direction:column; align-items:flex-start; } .header h1 { font-size:25px; } .panel { padding:14px; } .toolbar label,.toolbar select { width:100%; } }
+
+/* Ranking presentation: retain the shared table and existing behavior. */
+.page { gap:20px; min-width:0; }
+.header h1 { margin-top:8px; font-size:32px; letter-spacing:-1px; line-height:1.2; }
+.header > a { flex-shrink:0; }
+.context { align-items:center; justify-content:space-between; gap:20px; padding:20px 22px; background:var(--surface); border:1px solid var(--border); border-radius:12px; }
+.conditions { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; }
+.conditions > span { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+.conditions strong { font-weight:650; color:var(--text-primary); }
+.conditions small { font-size:11px; }
+.benchmark { display:flex; align-items:center; gap:20px; padding-left:22px; border-left:1px solid var(--border); flex-shrink:0; }
+.benchmark > div { display:flex; flex-direction:column; gap:5px; }
+.benchmark span { font-size:12px; font-weight:600; color:var(--text-primary); }
+.benchmark small { font-size:11px; }
+.benchmark > strong { font-size:26px; font-weight:650; letter-spacing:-.6px; color:var(--brand); font-variant-numeric:tabular-nums; }
+.panel { min-width:0; }
+.toolbar h2 span { font-size:12px; background:var(--brand-soft); padding:3px 8px; border-radius:20px; }
+.toolbar p { margin-top:8px; }
+.toolbar label { gap:7px; font-size:11px; font-weight:600; }
+.selectWrap { position:relative; display:block; }
+.selectWrap select { min-width:280px; padding:10px 36px 10px 12px; min-height:42px; font-size:12px; font-weight:500; color:var(--text-primary); border-color:var(--border-strong); border-radius:8px; appearance:none; cursor:pointer; background:var(--surface); }
+.selectWrap select:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
+.selectWrap svg { position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--text-secondary); }
+.panel > :global(.overflow-x-auto) { border:0; border-radius:8px; }
+.panel :global(.fin-table) thead th { height:42px; background:var(--surface-subtle); font-size:11px; letter-spacing:.2px; }
+.panel :global(.fin-table) thead th:nth-child(4), .panel :global(.fin-table) thead th:nth-child(5) { color:var(--text-primary); }
+.panel :global(.fin-table) thead th[aria-sort] { color:var(--brand); }
+.panel :global(.fin-table) tbody td { height:56px; font-size:14px; border-bottom-color:#edf1f6; }
+.panel :global(.fin-table) tbody tr:last-child td { border-bottom:0; }
+.panel :global(.fin-table) .row:hover td { background:#edf3fb; }
+.topRow td:first-child { box-shadow:inset 2px 0 #9bb6dc; }
+.rank,.topRank { width:28px; height:28px; font-size:12px; }
+.topRank { color:#315b96; border:1px solid #dbe6f5; border-radius:7px; }
+.person small { font-size:9px; letter-spacing:.3px; line-height:16px; padding:0 4px; border:1px solid #dbeafe; }
+.themes { display:flex; align-items:center; gap:5px; }
+.themeChip { display:inline-flex; align-items:center; padding:3px 8px; border:1px solid #dfe7f0; border-radius:20px; background:#f8fafc; font-size:11px; line-height:18px; font-weight:500; color:#4b6380; }
+.primaryMetric { font-size:15px; font-weight:650; color:var(--text-primary); }
+.secondaryMetric { font-size:13px; color:var(--text-secondary); }
+.selectedMetric { font-weight:700; color:var(--brand); }
+.guide { padding:0 4px; color:var(--text-secondary); }
+.guide dl { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+.guide dt { font-size:11px; font-weight:650; color:var(--text-primary); margin-bottom:5px; }
+.guide dd, .guide > p { font-size:11px; line-height:1.7; }
+.guide > p { margin-top:14px; }
+@media(max-width:1200px) { .benchmark { padding-left:0; border-left:0; } }
+@media(max-width:800px) {
+  .header h1 { font-size:27px; }
+  .context { padding:16px; gap:16px; }
+  .conditions { gap:12px 18px; }
+  .benchmark { width:100%; border-top:1px solid var(--border); padding-top:14px; justify-content:space-between; gap:10px; }
+  .benchmark > strong { font-size:24px; }
+  .selectWrap,.selectWrap select { width:100%; min-width:0; }
+  .sortHint { margin-bottom:10px; }
+  .guide dl { grid-template-columns:1fr; gap:12px; }
+  .guide dt { margin-bottom:2px; }
+}

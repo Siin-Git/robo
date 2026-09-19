@@ -38,7 +38,7 @@ describe("saved themes while catalog loads", () => {
     expect(screen.queryByRole("button", { name: "최종 구성 확인하기" })).not.toBeInTheDocument();
     state.ready = true; state.pending = false;
     rerender(<SetupStyleProvider><SetupPortfolioPage /></SetupStyleProvider>);
-    expect(screen.getByText("내가 고른 테마")).toBeInTheDocument();
+    expect(screen.getByText("내가 반영할 인사이트")).toBeInTheDocument();
     expect(screen.getAllByText("인공지능")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "인공지능 선택 해제" })).toHaveAttribute("aria-pressed", "true");
   });

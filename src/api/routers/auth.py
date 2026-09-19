@@ -55,6 +55,9 @@ def _clear_auth_cookies(resp: Response) -> None:
 
 
 def _registration_allowed() -> bool:
+    from ...local.capstone import enabled
+    if enabled():
+        return False
     if os.environ.get("APP_PROFILE", "").strip().lower() == "local":
         return True
     return os.environ.get("ALLOW_PUBLIC_REGISTRATION", "false").strip().lower() == "true"

@@ -4,6 +4,12 @@ const PUBLIC_PATHS = ["/login", "/signup"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (process.env.NEXT_PUBLIC_CAPSTONE_DEMO === "1") {
+    if (pathname === "/signup") return NextResponse.redirect(new URL("/login", req.url));
+    if (["/setup", "/views", "/performance", "/portfolio"].some(p => pathname === p || pathname.startsWith(p + "/"))) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+  }
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();
   }
@@ -14,7 +20,8 @@ export function middleware(req: NextRequest) {
   if (!session) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", pathname);
+    url.search = "";
+    url.searchParams.set("next", pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
   // NOTE: page-level admin gating is enforced server-side by the API (403);

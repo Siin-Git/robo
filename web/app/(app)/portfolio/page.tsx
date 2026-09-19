@@ -52,11 +52,11 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
   const delta = before != null && after != null ? after - before : null;
   const currentVol = after ?? p.personalized.volatility;
   let offset = 0;
-  if (!allocations.length) return <div className={s.page}><EmptyState title="아직 투자 구성이 없어요" hint="위험 수준과 관심 테마를 선택해 내 포트폴리오를 만들어 보세요." /><Link className={s.edit} href="/setup/portfolio?step=risk">투자 구성 만들기<ArrowRight size={16} /></Link></div>;
+  if (!p.base.frontier_id || !allocations.length) return <div className={s.page}><EmptyState title="아직 투자 구성이 없어요" hint="위험 수준과 관심 테마를 선택해 내 포트폴리오를 만들어 보세요." /><Link className={s.edit} href="/setup/portfolio?step=risk">투자 구성 만들기<ArrowRight size={16} /></Link></div>;
 
   return <div className={s.page}>
     <header className={s.header}>
-      <div><span className={s.eyebrow}>MY PORTFOLIO</span><h1>내 포트폴리오</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
+      <div><span className={s.eyebrow}>CONFIRMED ALLOCATION</span><h1>내 포트폴리오</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
       <Link className={s.edit} href="/setup/portfolio?step=risk"><SlidersHorizontal size={16} />구성 변경</Link>
     </header>
 
@@ -118,6 +118,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       <div><h3>기준 포트폴리오와의 차이</h3><strong>{fmtPct(p.personalized.tracking_error)}</strong><p>추적오차는 시스템 기준 포트폴리오(CORE)와 수익률이 얼마나 다르게 움직이는지 나타냅니다.</p></div>
       <div><h3>테마 반영 방식</h3><p>선택한 테마의 비중은 기존 주식 안에서 배분합니다. 설정 시 테마 비중과 변동성 한도를 확인하고 필요한 경우 비중을 조정합니다.</p></div>
     </div></details>
-    <p className={s.note}>표시된 비중은 현재 적용된 목표 비중입니다. 예상 수익률과 변동성은 모형의 추정치이며 실제 투자 결과와 다를 수 있습니다.</p>
+    <div className="ui-actions mt-[24px]"><Link className="btn-primary" href="/dashboard">운용 성과 확인<ArrowRight size={16} /></Link><Link className="btn-secondary" href="/ranking">참여자 성과 비교</Link></div>
+    <p className={s.note}>표시된 비중은 현재 적용된 목표 비중이며 실제 보유 수량과 다를 수 있습니다. 예상 수익률과 변동성은 모형의 추정치이며 실제 투자 결과와 다를 수 있습니다.</p>
   </div>;
 }

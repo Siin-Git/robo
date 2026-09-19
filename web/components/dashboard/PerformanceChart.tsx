@@ -30,11 +30,15 @@ export function PerformanceChart({
   series,
   height = 360,
   yFormat = (v: number) => v.toFixed(1),
+  animate = true,
+  curve = "monotone",
 }: {
   data: Record<string, number | string | null>[];
   series: Series[];
   height?: number;
   yFormat?: (v: number) => string;
+  animate?: boolean;
+  curve?: "monotone" | "linear";
 }) {
   return (
     <div className="border border-border bg-white p-[20px]">
@@ -55,14 +59,14 @@ export function PerformanceChart({
               domain={["auto", "auto"]}
             />
             <Tooltip
-              formatter={(value) => [yFormat(Number(value)), ""]}
+              formatter={(value, name) => [yFormat(Number(value)), name]}
               labelFormatter={(d) => fmtDate(String(d))}
             />
             <Legend verticalAlign="top" height={28} />
             {series.map((s) => (
               <Line
                 key={s.key}
-                type="monotone"
+                type={curve}
                 dataKey={s.dataKey}
                 name={s.label}
                 stroke={s.color}
@@ -70,6 +74,7 @@ export function PerformanceChart({
                 dot={false}
                 activeDot={{ r: 3 }}
                 connectNulls
+                isAnimationActive={animate}
               />
             ))}
           </LineChart>

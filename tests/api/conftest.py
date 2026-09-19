@@ -21,7 +21,11 @@ THEME_SEED = [
 
 
 @pytest.fixture()
-def env(tmp_path):
+def env(tmp_path, monkeypatch):
+    # Tests must not inherit a developer's .env.local auth policy.
+    monkeypatch.setenv("APP_PROFILE", "demo")
+    monkeypatch.delenv("CAPSTONE_DEMO", raising=False)
+    monkeypatch.delenv("AUTH_COOKIE_SECURE", raising=False)
     dbfile = tmp_path / "api.db"
     engine = create_engine(f"sqlite:///{dbfile}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)

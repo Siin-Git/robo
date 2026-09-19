@@ -18,13 +18,13 @@ export function AppShell({
 }) {
   const user = useCurrentUser();
   if (setup) return (
-    <div className="min-h-screen bg-[#edf1f6]">
+    <div className="min-h-screen bg-background">
       <AppHeader title="Robo Advisor" right={<nav aria-label="사용자 메뉴" className="flex items-center gap-[24px] text-[14px] text-text-secondary"><Link href="/portfolio">내 포트폴리오</Link><Link href="/account">계정</Link></nav>} />
-      <main className="mx-auto w-full max-w-[1480px] px-[20px] pb-[32px] pt-[20px] md:px-[40px]">{children}</main>
+      <main className="mx-auto w-full max-w-[1480px] px-[20px] pb-[32px] pt-[24px] md:px-[40px]">{children}</main>
     </div>
   );
   return (
-    <div className={`flex min-h-screen ${softBackground ? "flex-col bg-[#edf1f6] md:flex-row" : ""}`}>
+    <div className="app-shell">
       <AppSidebar user={user} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader title={headerTitle} right={headerRight} />

@@ -11,6 +11,7 @@ venv/
 htmlcov/
 node_modules/
 .next/
+.next-capstone*/
 .next-design*/
 web/test-results/
 web/playwright-report/

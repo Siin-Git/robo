@@ -60,4 +60,7 @@ def require_csrf(request: Request, db=Depends(get_db), user=Depends(get_current_
     cookie = request.cookies.get(_cfg().get("auth", {}).get("csrf_cookie_name", "ra_csrf"))
     if row is None or not auth.verify_csrf(row, header, cookie):
         raise ApiError("CSRF_INVALID", "Missing or invalid CSRF token.", 403)
+    from ..local.capstone import enabled
+    if enabled() and not request.url.path.startswith("/api/v1/auth/"):
+        raise ApiError("DEMO_READ_ONLY", "Demo portfolio and views are fixed for comparison.", 409)
     return user

@@ -15,6 +15,12 @@ from ..services import view_service as views
 router = APIRouter(prefix="/me", tags=["me"])
 
 
+@router.get("/comparison", summary="Own demo comparison snapshot")
+def me_comparison_snapshot(db=Depends(get_db), user=Depends(get_current_user)):
+    from ..services.comparison_service import detail
+    return detail(db, _pid(user))
+
+
 def _pid(user) -> str:
     if not user.participant_id:
         raise ApiError("NO_PARTICIPANT", "User has no linked participant.", 409)

@@ -2,21 +2,39 @@ import { render,screen,fireEvent,cleanup,within } from "@testing-library/react";
 import { afterEach,describe,expect,it,vi } from "vitest";
 import DashboardPage from "@/app/(app)/dashboard/page";
 import { exampleReport,contributionView,PERIODS } from "@/app/(app)/dashboard/performance-data";
-vi.mock("@tanstack/react-query",()=>({useQuery:()=>({data:{status:"INSUFFICIENT_HISTORY",series:[],assets:[],metrics:{},quality:{unresolved_intervals:0,stale_observations:0,missing_nav_dates:0}},isLoading:false,isError:false})}));
+const baseState = vi.hoisted(()=>({status:"active",isError:false}));
+vi.mock("@tanstack/react-query",()=>({useQuery:({queryKey}:{queryKey:string[]})=>queryKey[0]==="base-portfolio"?{data:baseState.isError?undefined:{status:baseState.status},isError:baseState.isError}:({data:{status:"INSUFFICIENT_HISTORY",series:[],assets:[],metrics:{},quality:{unresolved_intervals:0,stale_observations:0,missing_nav_dates:0}},isLoading:false,isError:false})}));
 vi.mock("@/components/layout/AppShell",()=>({AppShell:({children}:{children:React.ReactNode})=><div>{children}</div>}));
-vi.mock("@/app/(app)/dashboard/performance-panels",()=>({PerformancePanels:()=> <div>성과 차트</div>}));
-afterEach(cleanup);
+vi.mock("@/app/(app)/dashboard/performance-panels",()=>({PerformancePanels:({riskPanel}:{riskPanel:React.ReactNode})=> <div>성과 차트{riskPanel}</div>}));
+afterEach(()=>{cleanup();baseState.status="active";baseState.isError=false;});
 describe("performance dashboard",()=>{
   it("does not mix example performance into the empty real account",()=>{
     render(<DashboardPage/>);
-    expect(screen.getByText("성과 데이터를 쌓고 있어요")).toBeInTheDocument();
+    expect(screen.getByText("포트폴리오는 저장되어 있어요")).toBeInTheDocument();
     expect(screen.queryByText("성과 차트")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button",{name:"예시 데이터로 화면 살펴보기"}));
-    expect(screen.getByText("화면 예시 · 실제 투자 성과가 아닙니다.")).toBeInTheDocument();
+    expect(screen.getByText("DEMO / EXAMPLE · 가상 데이터")).toBeInTheDocument();
     expect(screen.getByText("성과 차트")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button",{name:"실제 데이터로 돌아가기"}));
+    fireEvent.click(screen.getByRole("button",{name:"내 모의운용 기록으로 돌아가기"}));
     expect(screen.queryByText("성과 차트")).not.toBeInTheDocument();
-    expect(screen.getByText("성과 데이터를 쌓고 있어요")).toBeInTheDocument();
+    expect(screen.getByText("포트폴리오는 저장되어 있어요")).toBeInTheDocument();
+  });
+  it("guides a saved account to its portfolio instead of showing empty return metrics",()=>{
+    render(<DashboardPage/>);
+    expect(screen.getByRole("link",{name:"저장된 포트폴리오 확인"})).toHaveAttribute("href","/portfolio");
+    expect(screen.queryByText("내 누적수익률")).not.toBeInTheDocument();
+  });
+  it("guides a new account to setup without claiming it was saved",()=>{
+    baseState.status="not_selected";
+    render(<DashboardPage/>);
+    expect(screen.getByRole("link",{name:"기본 포트폴리오 설계 시작"})).toHaveAttribute("href","/setup/portfolio?step=risk");
+    expect(screen.queryByText("포트폴리오는 저장되어 있어요")).not.toBeInTheDocument();
+  });
+  it("does not claim a saved portfolio when the status request fails",()=>{
+    baseState.isError=true;
+    render(<DashboardPage/>);
+    expect(screen.getByRole("button",{name:"저장 상태 다시 확인"})).toBeInTheDocument();
+    expect(screen.queryByText("포트폴리오는 저장되어 있어요")).not.toBeInTheDocument();
   });
   it("recalculates displayed example period and keeps risk unavailable for short history",()=>{
     render(<DashboardPage/>);

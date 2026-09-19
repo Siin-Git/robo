@@ -129,10 +129,10 @@ def _sha(p):
 def test_replay_does_not_touch_live_or_demo_db(monkeypatch):
     import scripts.replay_validation as _replay
     from pathlib import Path as _P
-    live = _P("C:/Users/sind02/Desktop/valyuchain/robo-advisor/data/forward_test.db")
-    demo = _P("C:/Users/sind02/Desktop/valyuchain/robo-advisor/data/forward_demo.db")
+    live = _replay.ROOT / "data/forward_test.db"
+    demo = _replay.ROOT / "data/forward_demo.db"
     before = (_sha(live), _sha(demo))
     monkeypatch.setenv("APP_PROFILE", "live")
     assert _replay.main() == 0
     assert (_sha(live), _sha(demo)) == before
-    assert _P("C:/Users/sind02/Desktop/valyuchain/robo-advisor/data/forward_validation.db").exists()
+    assert (_replay.ROOT / "data/forward_validation.db").exists()

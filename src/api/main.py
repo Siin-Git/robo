@@ -50,7 +50,8 @@ async def lifespan(app: FastAPI):
     print(f"PROFILE: {get_runtime_profile().upper()}", flush=True)
     print(f"DATABASE_BACKEND: {get_backend().upper()}", flush=True)
     try:
-        print(f"DATABASE: {get_database_path().relative_to(ROOT)}", flush=True)
+        from src.local.capstone import enabled
+        print(f"DATABASE: {'data/capstone_demo.db' if enabled() else get_database_path().relative_to(ROOT)}", flush=True)
     except ValueError:
         print(f"DATABASE: {get_database_path()}", flush=True)
     print("API VERSION: v1", flush=True)

@@ -11,6 +11,13 @@ from ..services import performance_service as svc
 router = APIRouter(tags=["performance"])
 
 
+@router.get("/comparison/rankings", summary="Demo cohort, common period, five ranking criteria")
+def comparison_rankings(basis: str = Query(default="return"), db=Depends(get_db),
+                        user=Depends(get_current_user)):
+    from ..services.comparison_service import rankings
+    return rankings(db, basis)
+
+
 @router.get("/participants/{participant_id}/performance", summary="Performance summary")
 def get_performance(participant_id: str, start: str | None = Query(default=None),
                     end: str | None = Query(default=None), db=Depends(get_db),
