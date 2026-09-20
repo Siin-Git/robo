@@ -10,11 +10,13 @@ venv/
 .coverage
 htmlcov/
 node_modules/
+.vercel/
 .next/
 .next-capstone*/
 .next-design*/
 .next-unified*/
 .next-enrollment-e2e/
+.next-integration*/
 web/test-results/
 web/playwright-report/
 web/coverage/

@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowRight, ChartNoAxesCombined, Info } from "lucide-react";
@@ -14,7 +15,12 @@ import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
 
 export default function DashboardPage() {
-  return DEMO_MODE ? <ParticipantPerformance/> : <LegacyDashboardPage/>;
+  return DEMO_MODE ? <Suspense fallback={<LoadingSkeleton rows={6}/>}><DashboardRoute/></Suspense> : <LegacyDashboardPage/>;
+}
+
+function DashboardRoute() {
+  const params = useSearchParams();
+  return params.get("workspace") === "design" ? <LegacyDashboardPage/> : <ParticipantPerformance/>;
 }
 
 function LegacyDashboardPage() {
@@ -29,8 +35,9 @@ function LegacyDashboardPage() {
   const report=example?exampleReport(period):query.data;
   const ready=!!report&&report.series.length>1;
   const m=report?.metrics;
+  const portfolioHref = DEMO_MODE ? "/portfolio?workspace=design" : "/portfolio";
   return <AppShell headerTitle="포트폴리오 운용 성과" softBackground><div className={s.page}>
-    <header className={s.header}><div><span className={s.eyebrow}>PERFORMANCE OVERVIEW</span><h1>포트폴리오 운용 성과</h1><p>확정한 포트폴리오의 모의운용 성과를 CORE와 비교하고, 위험과 수익 기여도를 확인합니다.</p></div><div className="ui-actions"><Link className={s.outlineLink} href="/portfolio">내 포트폴리오</Link><Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
+    <header className={s.header}><div><span className={s.eyebrow}>PERFORMANCE OVERVIEW</span><h1>포트폴리오 운용 성과</h1><p>확정한 포트폴리오의 모의운용 성과를 CORE와 비교하고, 위험과 수익 기여도를 확인합니다.</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link><Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
     <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시":"설정 이후 모의운용"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
     {example&&<div className={s.exampleBanner} role="status"><Info size={19}/><div><strong>DEMO / EXAMPLE · 가상 데이터</strong><span>확정한 포트폴리오의 성과가 아닙니다. 시연용 가상 데이터이며 랭킹에 반영되지 않습니다.</span></div><button onClick={()=>{setExample(false);setSelected(null);}}>내 모의운용 기록으로 돌아가기</button></div>}
     {!example&&query.isLoading?<LoadingSkeleton rows={6}/>:!example&&query.isError?<ErrorState message="성과 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/>:<>
@@ -44,7 +51,7 @@ function LegacyDashboardPage() {
         <h2>{needsSetup ? "나의 기본 포트폴리오부터 설계해 보세요" : hasPortfolio ? "포트폴리오는 저장되어 있어요" : "포트폴리오 상태를 확인하고 있어요"}</h2>
         <p>{needsSetup ? "위험 수준 선택 → 투자 인사이트 반영 → 비교 및 확정 순서로 나의 투자 구성을 만듭니다." : hasPortfolio ? <>현재 조회 기간에는 수익률을 표시할 운용 기록이 부족합니다.<br/>다시 설계할 필요 없이 저장된 투자 구성을 먼저 확인할 수 있어요.<br/>모의운용 평가액이 두 날짜 이상 기록되면 성과가 표시됩니다.</> : base.isError ? "저장 상태를 불러오지 못했습니다. 다시 확인해 주세요." : "저장된 투자 구성을 확인한 뒤 다음 단계를 안내합니다."}</p>
         {needsSetup && <Link className="btn-primary" href="/setup/portfolio?step=risk">기본 포트폴리오 설계 시작<ArrowRight size={17}/></Link>}
-        {hasPortfolio && <Link className="btn-primary" href="/portfolio">저장된 포트폴리오 확인<ArrowRight size={17}/></Link>}
+        {hasPortfolio && <Link className="btn-primary" href={portfolioHref}>저장된 포트폴리오 확인<ArrowRight size={17}/></Link>}
         {base.isError && <button className="btn-secondary" onClick={()=>base.refetch()}>저장 상태 다시 확인</button>}
         <button className="btn-secondary" onClick={()=>setExample(true)}>예시 데이터로 화면 살펴보기<ArrowRight size={17}/></button>
       </section>:<>

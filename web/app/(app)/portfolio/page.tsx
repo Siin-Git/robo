@@ -130,7 +130,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       <div><h3>기준 포트폴리오와의 차이</h3><strong>{fmtPct(p.personalized.tracking_error)}</strong><p>추적오차는 시스템 기준 포트폴리오(CORE)와 수익률이 얼마나 다르게 움직이는지 나타냅니다.</p></div>
       <div><h3>테마 반영 방식</h3><p>선택한 테마의 비중은 기존 주식 안에서 배분합니다. 설정 시 테마 비중과 변동성 한도를 확인하고 필요한 경우 비중을 조정합니다.</p></div>
     </div></details>
-    <div className="ui-actions mt-[24px]"><Link className="btn-primary" href="/dashboard">운용 성과 확인<ArrowRight size={16} /></Link><Link className="btn-secondary" href="/ranking">참여자 성과 비교</Link></div>
+    <div className="ui-actions mt-[24px]"><Link className="btn-primary" href={DEMO_MODE ? "/dashboard?workspace=design" : "/dashboard"}>운용 성과 확인<ArrowRight size={16} /></Link><Link className="btn-secondary" href="/ranking">참여자 성과 비교</Link></div>
     <p className={s.note}>표시된 비중은 현재 적용된 목표 비중이며 실제 보유 수량과 다를 수 있습니다. 예상 수익률과 변동성은 모형의 추정치이며 실제 투자 결과와 다를 수 있습니다.</p>
   </div>;
 }

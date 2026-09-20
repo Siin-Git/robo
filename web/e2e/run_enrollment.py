@@ -47,6 +47,8 @@ def main():
         "--email", "browser-first@example.com", "--email", "browser-second@example.com",
         "--out", env["E2E_INVITE_FILE"]], cwd=ROOT, env=env, check=True, stdout=subprocess.DEVNULL)
     processes = []
+    if (ROOT / "data/forward_local.db").is_file():
+        env["DESIGN_PRICE_SOURCE"] = str(ROOT / "data/forward_local.db")
     print(f"Isolated browser validation · scratch logs: {scratch}", flush=True)
     with (scratch / "api.log").open("w") as api_log, (scratch / "web.log").open("w") as web_log:
         try:
@@ -56,7 +58,7 @@ def main():
                 cwd=ROOT / "web", env=env, stdout=web_log, stderr=web_log))
             wait(f"http://127.0.0.1:{api_port}/health", processes[0])
             wait(f"http://127.0.0.1:{web_port}/signup", processes[1])
-            result = subprocess.run(["npx", "playwright", "test", "--config", "playwright.enrollment.config.ts"], cwd=ROOT / "web", env=env)
+            result = subprocess.run(["npx", "playwright", "test", "--config", os.environ.get("E2E_CONFIG", "playwright.enrollment.config.ts")], cwd=ROOT / "web", env=env)
             if result.returncode == 0:
                 import httpx
                 sys.path.insert(0, str(ROOT))

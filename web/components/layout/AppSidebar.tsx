@@ -25,8 +25,8 @@ const GROUPS = [
     { href: "/views", label: "주간 투자 의견", icon: Vote },
     { href: "/performance", label: "포트폴리오 성과", icon: BarChart3 },
   ] },
-  { label: "성과 비교", items: [
-    { href: "/dashboard", label: DEMO_MODE ? "성과 대시보드" : "운용 성과", icon: LayoutDashboard },
+  { label: "성과 분석", items: [
+    { href: "/dashboard", label: "성과 대시보드", icon: LayoutDashboard },
     { href: "/ranking", label: "참여자 비교·랭킹", icon: Trophy },
   ] },
 ];
