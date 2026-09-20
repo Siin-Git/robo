@@ -22,7 +22,7 @@ const OPTIONS: {value:RankingBasis;label:string;hint:string}[] = [
   {value:"excess",label:"Excess · 초과수익률 높은 순",hint:"개인 수익률 − CORE 수익률의 %p 차이입니다. 같은 CORE이므로 Return과 순위가 같습니다."},
   {value:"mdd",label:"MDD · 최대 낙폭 작은 순",hint:"MDD는 음수로 표시합니다. 0에 가까울수록 낙폭이 작습니다."},
   {value:"volatility",label:"Volatility · 변동성 낮은 순",hint:"같은 기간의 실현 변동성이 낮은 순서입니다."},
-  {value:"sharpe",label:"Sharpe · 위험 대비 수익 높은 순",hint:"가상 NAV 기준 실현 Sharpe입니다. 무위험수익률 0, 연율화 252일을 적용합니다."},
+  {value:"sharpe",label:"Sharpe · 위험 대비 수익 높은 순",hint:"비교 NAV 기준 Sharpe입니다. 무위험수익률 0, 연율화 252일을 적용합니다."},
   {value:"te",label:"TE · 추적오차 낮은 순",hint:"같은 기간의 일별 초과수익률 변동성 · 연율"},
   {value:"ir",label:"IR · 정보비율 높은 순",hint:"Backend의 동일 기간 일별 상대성과 기준 정보비율"},
 ];
@@ -57,8 +57,8 @@ export function DemoRanking() {
     ]),
   ];
   return <AppShell headerTitle="참여자 성과 비교" softBackground><div className={s.page}>
-    <header className={s.header}><div><p className="ui-eyebrow">SAME CORE · DIFFERENT VIEWS</p><h1 className="page-title">참여자 비교·랭킹</h1><p className="page-desc">같은 CORE와 기간에서 서로 다른 View 조합에 배정된 시연 성과를 비교합니다.</p></div><Link href="/dashboard" className="btn-secondary">내 성과 보기</Link></header>
-    <DemoNote/>
+    <header className={s.header}><div><p className="ui-eyebrow">SAME CORE · DIFFERENT VIEWS</p><h1 className="page-title">참여자 비교·랭킹</h1><p className="page-desc">{query.data?.data_source === "MARKET_PRICE_REPLAY" ? "각 참가자가 저장한 현재 구성을 같은 기간의 시장 가격과 공통 CORE로 비교합니다." : "같은 CORE와 기간에서 서로 다른 View 조합에 배정된 시연 성과를 비교합니다."}</p></div><Link href="/dashboard" className="btn-secondary">내 성과 보기</Link></header>
+    <DemoNote market={query.data?.data_source === "MARKET_PRICE_REPLAY"}/>
     <section className={s.context} aria-label="공통 실험 조건">
       <div className={s.conditions}>
         <span><strong>{query.data?.registered ?? "—"} / {query.data?.capacity ?? 13}</strong> 등록 인원</span>

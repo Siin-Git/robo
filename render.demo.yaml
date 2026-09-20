@@ -19,6 +19,8 @@ services:
         value: local
       - key: CAPSTONE_DEMO
         value: "1"
+      - key: CAPSTONE_MARKET_COMPARISON
+        value: "1"
       - key: DATABASE_BACKEND
         value: sqlite
       - key: CAPSTONE_DATA_DIR

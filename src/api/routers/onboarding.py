@@ -8,6 +8,7 @@ from ..authz import get_current_user
 from ..design_workspace import get_design_db, require_design_csrf
 from ..services import onboarding_service as svc
 from ..errors import ApiError
+from ..dependencies import get_db
 
 router = APIRouter(prefix="/me/onboarding", tags=["onboarding"])
 
@@ -32,9 +33,15 @@ def _pid(user):
     return user.participant_id
 
 @router.get("/draft", summary="Get onboarding draft")
-def get_draft(db=Depends(get_design_db), user=Depends(get_current_user)):
+def get_draft(db=Depends(get_design_db), user=Depends(get_current_user), auth_db=Depends(get_db)):
     d = svc.get_draft(db, user.user_id)
     if d is None:
+        from ..services import market_comparison, enrollment_service
+        if market_comparison.enabled():
+            cfg = market_comparison.configuration(auth_db, user, enrollment_service.own(auth_db, user))
+            return {"status": "saved", "frontier_id": cfg["frontier_id"],
+                "theme_ids": [a[6:] for a in cfg["weights"] if a.startswith("theme:") and cfg["weights"][a] > 0],
+                "reason": cfg["reason"], "current_step": "risk"}
         return {"status": "not_started"}
     return {"status": "draft", **d}
 

@@ -1,0 +1,33 @@
+{
+  "version": "MARKET_20260911_V1",
+  "source": "Yahoo chart adjusted close; existing snapshot+provider-bootstrap price store",
+  "provenance": "src/forward/prices.py:bootstrap_from_snapshot and data/snapshots/SNAPSHOT_20260911_V0/snapshot_meta.json",
+  "currency": "KRW; IEF/TIP retain existing hedged proxy convention",
+  "start": "2018-05-16",
+  "end": "2026-09-11",
+  "observations": 2169,
+  "assets": [
+    "developed_ex_us",
+    "emerging_markets",
+    "global_reit",
+    "gold",
+    "korea_equity",
+    "korea_treasury",
+    "theme:ai",
+    "theme:biotech",
+    "theme:cloud_data_center",
+    "theme:cybersecurity",
+    "theme:defense",
+    "theme:nuclear",
+    "theme:power_grid",
+    "theme:robotics",
+    "theme:semiconductor",
+    "tips",
+    "us_equity",
+    "us_treasury"
+  ],
+  "sha256": "c39c9f5d01887680c7b46cb39aa1c0deeb966d87364dbcf7da996e20f17f01a1",
+  "comparison_start": "2026-04-01",
+  "comparison_end": "2026-09-11",
+  "notice": "Retrospective evaluation of current weights, not account history or an out-of-sample strategy backtest. Buy and hold from common start; fees and taxes excluded."
+}

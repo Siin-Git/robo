@@ -48,6 +48,9 @@ def core(session) -> dict:
 
 
 def _cov_asof(session, asset_ids: list[str], asof, weeks: int = 260):
+    from . import market_comparison
+    if market_comparison.enabled():
+        return market_comparison.risk_cov(asset_ids, asof, weeks)
     frames = {}
     for aid in asset_ids:
         rows = PriceRepository(session).series(aid, end=asof)
@@ -95,6 +98,9 @@ def personalized(session, participant_id: str, user_id: str | None = None) -> di
     asof = C.as_date(tgt.effective_date)
     vol = te = base_vol = None
     risk_date = C.latest_price_date(session)
+    from . import market_comparison
+    if market_comparison.enabled():
+        risk_date = market_comparison.price_date()
     try:
         asset_ids = list(dict.fromkeys(a for a in [*base_w, *weights] if a != "cash"))
         cov = _cov_asof(session, asset_ids, risk_date) if risk_date else None

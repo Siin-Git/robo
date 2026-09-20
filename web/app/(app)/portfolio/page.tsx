@@ -2,6 +2,7 @@
 
 import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
+import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import Link from "next/link";
@@ -37,7 +38,10 @@ export default function PortfolioPage() {
 
 function DemoPortfolioRoute() {
   const params=useSearchParams();
-  return params.get("workspace")==="design" ? <DesignPortfolioPage/> : <ParticipantPerformance portfolioOnly/>;
+  const mode = useComparisonMode();
+  if(mode.isLoading)return <LoadingSkeleton rows={6}/>;
+  if(mode.isError)return <ErrorState message="비교 설정을 불러오지 못했습니다." onRetry={()=>mode.refetch()}/>;
+  return params.get("workspace")==="design" && !mode.data?.market_comparison ? <DesignPortfolioPage/> : <ParticipantPerformance portfolioOnly/>;
 }
 
 function DesignPortfolioPage() {
