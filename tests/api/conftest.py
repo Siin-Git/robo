@@ -1,7 +1,9 @@
 """Shared API test fixtures: isolated SQLite DB + seeded themes per test."""
 from datetime import date
+from http.cookies import SimpleCookie
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -18,6 +20,25 @@ THEME_SEED = [
     ("nuclear", "Nuclear", "theme", "URA"),
     ("optical_networking", None, "theme", None),
 ]
+
+
+class ExplicitCookieClient(TestClient):
+    """A requested test identity replaces, rather than merges with, the jar.
+
+    httpx/Starlette versions differ in how request cookies merge domain-scoped
+    login cookies. Real users have separate browser jars. These multi-user API
+    tests pass an explicit cookie set, so send exactly that set on the wire.
+    """
+    def request(self, method, url, **kwargs):
+        cookies = kwargs.pop("cookies", None)
+        if cookies is not None:
+            jar = SimpleCookie()
+            for key, value in cookies.items():
+                jar[key] = value
+            headers = httpx.Headers(kwargs.get("headers") or {})
+            headers["Cookie"] = jar.output(header="", sep=";").strip()
+            kwargs["headers"] = headers
+        return super().request(method, url, **kwargs)
 
 
 @pytest.fixture()
@@ -52,7 +73,7 @@ def env(tmp_path, monkeypatch):
                         universe_version="THEME_UNIVERSE_V0.1",
                         inactive_reason=None if ticker else "no acceptable single ETF proxy"))
         s.commit()
-    with TestClient(app) as c:
+    with ExplicitCookieClient(app) as c:
         yield SimpleNamespace(client=c, factory=factory, dbfile=dbfile)
     app.dependency_overrides.clear()
 

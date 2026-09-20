@@ -24,6 +24,7 @@ def users(env, monkeypatch):
         r = login(env.client, email)
         assert r.status_code == 200
         me = env.client.get("/api/v1/auth/me", cookies=dict(r.cookies)).json()
+        assert me["email"] == email
         out[name] = {"cookies": dict(r.cookies), "csrf": r.cookies.get("ra_csrf"),
                      "pid": me["participant_id"], "uid": me["user_id"]}
     return out
