@@ -4,7 +4,8 @@
 
 - 원본 `main`: `d2b31f7`. 원격 origin과 Render fork의 main이 같은 커밋임을 확인했다.
 - 검증된 캡스톤 구현: `cdd86ab`. `origin/feat/capstone-demo-mvp`에 먼저 푸시하여 보존했다.
-- 통합 작업: `integration/v1-capstone`. 두 기존 브랜치를 직접 수정하지 않았다.
+- 통합 작업: `integration/v1-capstone`. 별도 브랜치에서 검증 후 PR #2를 통해 main에 병합했다. 원래 feature 브랜치는 보존했다.
+- 병합 커밋: `cfa4a0f`. origin/main과 Render fork main에 같은 커밋을 반영했고 병합 후 GitHub CI도 통과했다.
 - main은 캡스톤 브랜치의 조상이다. 따라서 Git 텍스트 충돌은 없고, main merge 결과는 `Already up to date`였다. 코드의 기능 경로·데이터 경계를 검증하는 방식으로 통합했다.
 
 ## 보존한 기능과 주요 파일 검토
@@ -71,7 +72,7 @@ APP_PROFILE=local CAPSTONE_DEMO=1 DATABASE_BACKEND=sqlite \
 
 ## 로컬 검증
 
-- Backend 전체: **143 passed, 3 skipped**. 선택적 PostgreSQL 검증은 환경 미제공으로 skip. 기존 라이브러리 deprecation 경고 존재.
+- Backend 전체: **144 passed, 3 skipped**. 선택적 PostgreSQL 검증은 환경 미제공으로 skip. 기존 라이브러리 deprecation 경고 존재.
 - Frontend unit: **45 passed**.
 - Production build: `NEXT_PUBLIC_CAPSTONE_DEMO=1`과 `0`을 각각 별도 빌드 디렉터리에서 통과했다. Next의 lint/type 검사도 함께 통과했다.
 - `python web/e2e/run_integration.py`: 캡스톤 3개 + 원래 일반 프로필 1개 브라우저 테스트 통과.
@@ -83,13 +84,20 @@ APP_PROFILE=local CAPSTONE_DEMO=1 DATABASE_BACKEND=sqlite \
 - GitHub CI에서 라이브러리 버전에 따라 API 테스트의 요청별 쿠키가 공유 cookie jar와 중복되어 다른 테스트 계정으로 요청되는 문제가 발견됐다. 테스트 전용 클라이언트가 명시한 쿠키 세트만 HTTP 헤더로 전송하도록 수정했다. 실제 인증 서비스나 권한 검증을 완화하지 않았다. 계정 fixture에서 응답 이메일도 확인한다.
 - 깨끗한 CI 환경에서 기존 daily dry-run 테스트가 임시 DB 대신 기본 DB를 읽던 문제도 확인했다. 함수 내부에서 가져오는 실제 runtime 경로 resolver를 테스트에서 교체하고, 임시 DB 외의 경로를 열면 즉시 실패하도록 했다. 금융 실행 코드는 변경하지 않았다.
 
-## 배포 대상 확인과 남은 작업
+## 단기 시연 배포
 
-읽기 전용으로 확인한 기존 대상은 Vercel `robo-q3o3` (`https://robo-q3o3.vercel.app`)과 Render `robo-capstone-api` (`https://robo-capstone-api.onrender.com`)이다. Render는 `MinchoLover/robo` fork의 `feat/capstone-demo-mvp`, 기존 성공 배포 `04e4938`에 연결되어 있다. origin은 `Siin-Git/robo`이므로 origin push만으로 Render가 갱신되지는 않는다. Render 자동 배포는 꺼져 있다.
+2026-09-20 사용자가 Render 임시 저장소의 재배포 시 데이터 소실 가능성을 확인하고 단기 시연 배포를 승인했다. 로컬 DB는 삭제·초기화·이전하지 않았다. 유료 인프라와 PostgreSQL migration도 실행하지 않았다.
 
-이 문서 작성 시점에는 통합 코드 Production 배포·원격 신규 가입 흐름을 아직 실행하지 않았다. 로컬 검증 결과와 기존 원격 서비스의 응답 확인을 구분한다. Production 배포 전 임시 저장소의 기존 데이터 보존/손실 조건을 확인해야 한다.
+- PR [#2](https://github.com/Siin-Git/robo/pull/2)를 main에 병합. Render fork도 fast-forward 동기화했다.
+- Vercel `robo-q3o3`: Production 배포 `dpl_FMbePDp5gGn5P9CUY369NjSNVped`가 READY. 기존 주소 https://robo-q3o3.vercel.app 유지. `/signup` 200 확인.
+- Git에 추적된 Frontend 파일만 임시 디렉터리에 내보내 배포했다. 로컬 DB·초대 파일·개발 캐시는 업로드하지 않았다. 기존 Root Directory `web` 설정을 유지했다.
+- Render `robo-capstone-api`: 기존 무료 서비스를 유지하고 배포 브랜치를 `main`으로 변경. 서버 전용 `CAPSTONE_INVITATIONS_JSON`에는 초대 원문 대신 SHA-256 해시를 저장한다.
+- 단기 시연 운영자가 시작 명령에 `seed_capstone` 다음 `demo_cohort --from-env`를 명시했다. 같은 DB가 유지되면 이 준비 명령은 기존 사용자·초안·확정을 변경하지 않는다. 임시 DB가 사라졌을 때만 고정된 준비 참가자와 예약 슬롯이 다시 생성되며, 사라진 신규 사용자 데이터는 복구되지 않는다.
+- Render 통합 커밋 `cfa4a0f` 배포 성공. 원격 신규 가입 2명(데스크톱/모바일), 초안 복원·생성·13명·Dashboard/Ranking/Detail·재로그인·계정 전환 브라우저 검증 통과(2.2분).
+- 동시 브라우저 검증 중 무료 Render의 SQLite 기본 5초 잠금 대기 초과를 로그에서 확인했다. 시연 프로필의 대기만 30초로 늘리고 독립 연결 잠금을 5.3초 넘게 유지한 뒤 복구되는 회귀 테스트를 추가했다. 슬롯 직렬화·인증·금융 계산은 유지했다. 보완 후 Backend 전체 144 passed.
+- 기존 계정 테스트의 로그아웃 URL 검증은 정상 인증 가드가 붙이는 `?next=`도 허용한다. 실제 세션·계정 검증은 유지한다.
 
-기존 원격 서비스의 읽기 검증: Vercel `/login`은 200, `/signup`은 이전 구현의 `/login`으로 리다이렉트된다. Render `/health`는 cold start 이후 200, `/ready`는 `503 / no market data`다. 이는 통합 배포 성공을 의미하지 않는다. 현 상태에서 가격 이력이 필요한 설계 위험값까지 원격에서 검증됐다고 보고하지 않는다. Vercel Production의 `FASTAPI_INTERNAL_URL`, `NEXT_PUBLIC_CAPSTONE_DEMO=1` 연결 설정은 존재한다. DB 비밀 환경변수는 출력하거나 새 클라이언트 변수로 이동하지 않았다.
+원격에는 기존 v1 가격 이력이 아직 주입되지 않았다. 가상 NAV 비교는 별도 데이터로 제공되며, 자유 설계의 가격 이력이 필요한 예상 위험값은 미지원으로 표시될 수 있다. 로컬의 가격 참조 DB가 있는 환경에서 완료한 v1 검증과 구분한다.
 
 ## 유지한 Analytics와 미지원 요구사항
 

@@ -52,7 +52,7 @@ test("four professor demo scenarios, data parity, refresh and responsive UI", as
   await expect(page.locator("h1")).toContainText("참여자 01");
   expect(await page.locator("[data-metric]").allTextContents()).toEqual(values);
   await page.getByRole("button",{name:"로그아웃",exact:true}).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login(?:\?next=[^#]*)?$/);
   await login(page,3);
   await page.reload();
   await expect(page.locator("h1")).toContainText("참여자 03");

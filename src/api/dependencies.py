@@ -26,7 +26,12 @@ def get_db() -> Iterator:
     try:
         from ..local.capstone import enabled
         if enabled() and session.get_bind().dialect.name == "sqlite":
-            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            connection = session.connection()
+            # The free hosted instance can spend several seconds serving a
+            # comparison. Keep enrollment serialized, but let concurrent tabs
+            # wait past SQLite's default five seconds instead of failing.
+            connection.exec_driver_sql("PRAGMA busy_timeout=30000")
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
         yield session
         session.commit()
     except Exception:
