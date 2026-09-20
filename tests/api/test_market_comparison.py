@@ -132,3 +132,59 @@ def test_cash_and_invalid_weights():
     for weights in ({"cash": .5}, {"cash": float("nan")}, {"cash": 2, "us_equity": -1}):
         with pytest.raises(ApiError):
             market_comparison.evaluate(weights)
+
+
+def test_reset_keeps_identity_and_slot_then_recreates_without_old_design(market):
+    env, invitation = market
+    c = env.client
+    headers = login(c)
+    baseline = c.get('/api/v1/comparison/analytics').json()['reports']
+    assert c.post('/api/v1/me/experiment/reset', json={'confirm': True}, headers=headers).status_code == 403
+    r = c.post('/api/v1/auth/register', json={**invitation, 'password': PASSWORD, 'display_name': '초기화 검증'})
+    identity = r.json()
+    assert r.status_code == 201
+    headers = login(c, invitation['email'])
+    first = {'core_id': 'CORE_V0.3', 'theme_ids': ['ai'], 'reason': '최초 구성'}
+    assert c.post('/api/v1/me/experiment/complete', json=first, headers=headers).status_code == 200
+    frontier = c.get('/api/v1/me/frontier').json()
+    redesign = {'frontier_id': frontier['min_variance_frontier_id'], 'theme_ids': ['cloud_data_center', 'biotech'], 'reason': '이전 자유 설계'}
+    assert c.post('/api/v1/me/onboarding/complete', json=redesign, headers=headers).status_code == 200
+    assert c.put('/api/v1/me/onboarding/draft', json={**redesign, 'reason': '남은 초안'}, headers=headers).status_code == 200
+    with env.factory() as s:
+        users = [(u.user_id, u.participant_id, u.password_hash) for u in s.scalars(select(User))]
+        nav = [(n.account_id, n.date, float(n.nav)) for n in s.scalars(select(NavDaily))]
+        targets = [(t.target_id, dict(t.weights_json)) for t in s.scalars(select(PortfolioTarget))]
+    assert c.post('/api/v1/me/experiment/reset', json={'confirm': True}).status_code == 403
+    assert c.post('/api/v1/me/experiment/reset', json={'confirm': False}, headers=headers).status_code == 422
+    assert c.post('/api/v1/me/experiment/reset', json={'confirm': True, 'participant_id': 'P001'}, headers=headers).status_code == 422
+    r = c.post('/api/v1/me/experiment/reset', json={'confirm': True}, headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()['status'] == 'setup_required'
+    assert (r.json()['registered'], r.json()['reserved'], r.json()['claimed']) == (12, 1, 1)
+    assert r.json()['draft']['theme_ids'] == [] and r.json()['draft']['reason'] == ''
+    assert c.get('/api/v1/me/comparison').status_code == 409
+    assert c.get('/api/v1/comparison/analytics').json()['reports'] == baseline
+    assert c.get('/api/v1/me/onboarding/draft').json() == {'status': 'not_started'}
+    assert c.get('/api/v1/me/views/current').json()['items'] == []
+    assert c.post('/api/v1/me/onboarding/complete', json=redesign, headers=headers).status_code == 409
+    with env.factory() as s:
+        assert users == [(u.user_id, u.participant_id, u.password_hash) for u in s.scalars(select(User))]
+        assert nav == [(n.account_id, n.date, float(n.nav)) for n in s.scalars(select(NavDaily))]
+        assert targets == [(t.target_id, dict(t.weights_json)) for t in s.scalars(select(PortfolioTarget))]
+        slot = s.get(DemoSlot, 'market-test:1')
+        assert slot.user_id == identity['user_id']
+        assert slot.invite_hash == __import__('hashlib').sha256(invitation['invitation_code'].encode()).hexdigest()
+    # A repeated reset is safe, and the original identity can sign in again.
+    assert c.post('/api/v1/me/experiment/reset', json={'confirm': True}, headers=headers).status_code == 200
+    headers = login(c, invitation['email'])
+    new = {**first, 'theme_ids': ['biotech'], 'reason': '초기화 후 새 구성'}
+    assert c.post('/api/v1/me/experiment/complete', json=new, headers=headers).status_code == 200
+    report = c.get('/api/v1/me/comparison').json()
+    assert report['participant_id'] == identity['participant_id']
+    assert report['themes'] == ['biotech'] and report['reason'] == new['reason']
+    saved = c.get('/api/v1/me/onboarding/draft').json()
+    assert saved['theme_ids'] == ['biotech'] and saved['reason'] == new['reason']
+    assert c.get('/api/v1/comparison/rankings').json()['total'] == 13
+    assert c.post('/api/v1/me/onboarding/complete', json=redesign, headers=headers).status_code == 200
+    assert c.get('/api/v1/me/comparison').json()['reason'] == redesign['reason']
+    assert c.get('/api/v1/comparison/analytics').json()['reports'][:12] == baseline

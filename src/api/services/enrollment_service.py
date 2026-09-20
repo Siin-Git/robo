@@ -93,7 +93,36 @@ def status(session, user):
             in_active_cohort=bool(group and group.cohort_id == slot.cohort_id))
     from . import market_comparison
     out["market_comparison"] = market_comparison.enabled()
+    out["can_reset"] = bool(market_comparison.enabled() and slot and group
+        and slot.cohort_id == group.cohort_id and not slot.forward_started_at)
     return out
+
+
+def latest_reset(session, participant_id):
+    from ...db.models.event import Event
+    return session.scalar(select(Event).where(Event.participant_id == participant_id,
+        Event.event_type == "DEMO_PORTFOLIO_RESET").order_by(Event.timestamp.desc(), Event.event_id.desc()))
+
+
+def reset_portfolio(session, user):
+    """Restart the caller's reserved setup; keep identity, reservation and history."""
+    from . import market_comparison
+    if not market_comparison.enabled():
+        raise ApiError("RESET_NOT_AVAILABLE", "이 환경에서는 포트폴리오 초기화를 지원하지 않습니다.", 403)
+    slot = require_slot(session, user)
+    session.execute(update(DemoSlot).where(DemoSlot.slot_id == slot.slot_id).values(slot_number=slot.slot_number))
+    session.refresh(slot)
+    if slot.forward_started_at:
+        raise ApiError("RESET_NOT_AVAILABLE", "운용이 시작된 포트폴리오는 초기화할 수 없습니다.", 409)
+    C.log_event(session, "DEMO_PORTFOLIO_RESET", "CORE_V0.3", participant_id=user.participant_id,
+        payload={"cohort_id": slot.cohort_id, "configuration": slot.configuration_json,
+                 "draft": slot.draft_json, "report": slot.report_json})
+    slot.configuration_json = None
+    slot.report_json = None
+    slot.confirmed_at = None
+    slot.draft_json = {"core_id": "CORE_V0.3", "theme_ids": [], "reason": "", "current_step": "risk"}
+    session.flush()
+    return status(session, user)
 
 
 def validate(session, data, final=False):

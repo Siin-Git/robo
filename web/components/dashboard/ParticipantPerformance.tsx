@@ -13,6 +13,7 @@ import { themeLabel } from "@/lib/constants";
 import { fmtActivePp, fmtDate, fmtNav, fmtPct, fmtReturn } from "@/lib/format";
 import { RiskReturnMap, useComparisonAnalytics } from "@/components/performance/ComparisonAnalytics";
 import type { ExperimentStatus } from "@/lib/api/experiment";
+import { ResetPortfolioButton } from "@/components/portfolio/ResetPortfolioButton";
 import s from "./demo.module.css";
 
 export function DemoNote({market = false}: {market?: boolean}) {
@@ -49,7 +50,7 @@ export function ParticipantPerformance({ participantId, portfolioOnly = false }:
       </header>
       {r.status!=="awaiting_performance"&&<DemoNote market={market}/>}
       {r.confirmed_at&&<p className="ui-note">구성 저장: {fmtDate(r.confirmed_at.slice(0,10))}{!market&&<> · 실제 Forward Test 시작: 성과 집계 대기{r.scenario_id&&<> · 시연 시나리오 {r.scenario_id}</>}<br/>가입 이전의 NAV는 신규 사용자의 운용 이력이 아닙니다.</>}</p>}
-      {market&&<section className="ui-note"><strong>현재 비교에 반영된 구성</strong><p>선택 이유: {r.reason || "입력한 이유가 없습니다."}</p>{!detail&&<><Link className="btn-secondary" href="/setup/portfolio?step=risk">포트폴리오 재구성</Link><p>기본 비중·Theme·선택 이유를 변경하고 저장하면 내 성과와 순위가 함께 갱신됩니다.</p></>}</section>}
+      {market&&<section className="ui-note"><strong>현재 비교에 반영된 구성</strong><p>선택 이유: {r.reason || "입력한 이유가 없습니다."}</p>{!detail&&<><Link className="btn-secondary" href="/setup/portfolio?step=risk">포트폴리오 재구성</Link>{experiment.data?.can_reset && <ResetPortfolioButton/>}<p>기본 비중·Theme·선택 이유를 변경하고 저장하면 내 성과와 순위가 함께 갱신됩니다.</p></>}</section>}
       {!detail&&!market&&<p><Link className="btn-secondary" href="/portfolio?workspace=design">저장한 자유 설계 보기</Link></p>}
       {!detail&&!market&&experiment.data?.configuration&&<section className="ui-note"><strong>확정된 실험 구성</strong><p>선택 이유: {experiment.data.configuration.reason}</p><Link className="btn-secondary" href="/setup/portfolio?step=risk">자유 포트폴리오 설계</Link></section>}
       {r.status==="awaiting_performance"&&<section className="ui-panel"><h2>성과 집계 대기</h2><p>선택 조합에 맞는 시연 시나리오가 없습니다. 실제 시작일과 평가 기록이 준비되면 같은 기간끼리 비교합니다. 과거 실적은 소급 생성하지 않습니다.</p></section>}

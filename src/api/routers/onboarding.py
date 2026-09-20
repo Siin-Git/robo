@@ -34,6 +34,10 @@ def _pid(user):
 
 @router.get("/draft", summary="Get onboarding draft")
 def get_draft(db=Depends(get_design_db), user=Depends(get_current_user), auth_db=Depends(get_db)):
+    from ..services.enrollment_service import own
+    slot = own(auth_db, user)
+    if slot and not slot.confirmed_at:
+        return {"status": "not_started"}
     d = svc.get_draft(db, user.user_id)
     if d is None:
         from ..services import market_comparison, enrollment_service

@@ -68,6 +68,8 @@ def design_configuration(session, user):
     if not path.is_file():
         return None
     engine = create_engine(f"sqlite:///file:{path}?mode=ro&uri=true")
+    from .enrollment_service import latest_reset
+    reset = latest_reset(session, user.participant_id)
     try:
         with Session(engine) as db:
             selection = db.scalar(select(BasePortfolioSelection).where(BasePortfolioSelection.user_id == user.user_id,
@@ -79,6 +81,8 @@ def design_configuration(session, user):
             target = db.scalar(select(PortfolioTarget).where(PortfolioTarget.account_id == account.account_id)
                 .order_by(PortfolioTarget.created_at.desc(), PortfolioTarget.target_id.desc())) if account else None
             if not target:
+                return None
+            if reset and target.created_at.replace(tzinfo=None) <= reset.timestamp.replace(tzinfo=None):
                 return None
             # The reason belongs to this saved target, never a newer unfinished draft.
             from ...db.models.event import Event
@@ -95,6 +99,8 @@ def design_configuration(session, user):
 
 
 def configuration(session, user, slot=None):
+    if slot and not slot.confirmed_at:
+        raise ApiError("SETUP_REQUIRED", "포트폴리오 선택을 먼저 완료해 주세요.", 409)
     selected = design_configuration(session, user)
     if selected:
         return selected

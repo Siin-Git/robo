@@ -24,6 +24,40 @@ from ..local.capstone import enabled
 _lock = RLock()
 
 
+def _apply_portfolio_reset(db, auth_db, user):
+    """Apply the committed reset once, without deleting prior designs or trades."""
+    from .services.enrollment_service import latest_reset
+    from ..db.models.operational import ForwardState
+    from ..db.models.base_selection import BasePortfolioSelection
+    from ..db.models.onboarding import OnboardingDraft
+    from ..db.models.view import View
+    reset = latest_reset(auth_db, user.participant_id)
+    if reset is None:
+        return
+    key = f"portfolio_reset:{user.user_id}"
+    receipt = db.get(ForwardState, key)
+    if receipt and receipt.value == reset.event_id:
+        return
+    for selection in db.scalars(select(BasePortfolioSelection).where(
+            BasePortfolioSelection.user_id == user.user_id, BasePortfolioSelection.status == "active")):
+        selection.status = "superseded"
+    for view in db.scalars(select(View).where(View.participant_id == user.participant_id,
+            View.end_at.is_(None), View.status.in_(["new", "hold"]))):
+        view.status = "closed"
+        view.end_at = reset.timestamp
+    draft = db.get(OnboardingDraft, user.user_id)
+    if draft:
+        C.log_event(db, "ONBOARDING_RESET", "CORE_V0.3", participant_id=user.participant_id,
+            payload={"frontier_id": draft.frontier_id, "theme_ids": draft.theme_ids_json, "reason": draft.reason})
+        draft.frontier_id = None
+        draft.theme_ids_json = []
+        draft.reason = ""
+        draft.completed_at = reset.timestamp
+        draft.updated_at = reset.timestamp
+        draft.current_step = "reset"
+    db.merge(ForwardState(key=key, value=reset.event_id, updated_at=reset.timestamp))
+
+
 @lru_cache(maxsize=8)
 def _factory(path: str):
     engine = create_app_engine(f"sqlite:///{path}")
@@ -62,6 +96,7 @@ def get_design_db(auth_db=Depends(get_db), user=Depends(get_current_user)):
                             email=user.email, email_normalized=user.email_normalized,
                             password_hash="!identity-reference-only", status="disabled",
                             role="user", created_at=now, updated_at=now))
+            _apply_portfolio_reset(db, auth_db, user)
             db.commit()
     with factory() as db:
         try:
@@ -72,6 +107,10 @@ def get_design_db(auth_db=Depends(get_db), user=Depends(get_current_user)):
             raise
 
 
-def require_design_csrf(user=Depends(require_authenticated_csrf), db=Depends(get_design_db)):
+def require_design_csrf(user=Depends(require_authenticated_csrf), db=Depends(get_design_db), auth_db=Depends(get_db)):
     """Original session/CSRF validation, with writes confined to the design store."""
+    from .services.enrollment_service import own
+    slot = own(auth_db, user)
+    if slot and not slot.confirmed_at:
+        raise ApiError("SETUP_REQUIRED", "먼저 공통 CORE와 Theme의 첫 설정을 완료해 주세요.", 409)
     return user
