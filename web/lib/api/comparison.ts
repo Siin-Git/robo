@@ -7,6 +7,7 @@ export interface ComparisonMetrics {
   tracking_error: number | null; information_ratio: number | null; sortino: number | null;
 }
 export interface ReadyComparison {
+  reason?: string; frontier_id?: string;
   participant_id: string; display_name: string; themes: string[];
   benchmark: string; data_source: string; risk_free_rate: number;
   start: string; end: string; observations: number; metrics: ComparisonMetrics;
@@ -27,6 +28,7 @@ export interface ComparisonRow {
 }
 export type RankingBasis = "return" | "excess" | "mdd" | "volatility" | "sharpe" | "te" | "ir";
 export interface ComparisonRanking {
+  data_source?: string;
   basis: RankingBasis; total: number; registered: number; reserved: number; capacity: number; cohort_id: string; pending: {participant_id:string; display_name:string; themes:string[]}[]; start: string; end: string; items: ComparisonRow[];
 }
 

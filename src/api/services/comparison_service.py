@@ -81,6 +81,11 @@ def detail(session, participant_id):
     from .enrollment_service import own
     user = session.scalar(select(User).where(User.participant_id == participant_id))
     slot = own(session, user) if user else None
+    from . import market_comparison
+    if market_comparison.enabled():
+        if not user or (not slot and participant_id not in {p.participant_id for p in cohort(session)}):
+            raise ApiError("PARTICIPANT_NOT_FOUND", "비교할 참가자가 없습니다.", 404)
+        return market_comparison.report(session, user, slot)
     if slot:
         if not slot.confirmed_at:
             raise ApiError("SETUP_REQUIRED", "공통 CORE와 Theme 선택을 먼저 완료해 주세요.", 409)
@@ -105,7 +110,7 @@ def reports(session):
         prepared_emails = EMAILS[:group.prepared_count]
         pids = set(session.scalars(select(User.participant_id).where(User.email_normalized.in_(prepared_emails))))
         people = [p for p in people if p.participant_id in pids]
-    result = [legacy_detail(session, p.participant_id) for p in people]
+    result = [detail(session, p.participant_id) for p in people]
     if group:
         for slot in slots(session, group):
             if slot.confirmed_at:
@@ -136,7 +141,7 @@ def rankings(session, basis="return"):
     items = reports(session)
     ranked = sorted_reports(items, basis)
     group = active(session)
-    return {"basis": basis, "total": len(ranked), "registered": len(items), "capacity": 13,
+    return {"data_source": items[0]["data_source"] if items else None, "basis": basis, "total": len(ranked), "registered": len(items), "capacity": 13,
         "cohort_id": group.cohort_id if group else "legacy", "reserved": sum(s.confirmed_at is None for s in slots(session, group)) if group else 0,
         "start": "2026-04-01" if ranked else None, "end": "2026-09-11" if ranked else None,
         "pending": [{k: r[k] for k in ("participant_id", "display_name", "themes")} for r in items if not r.get("metrics")],

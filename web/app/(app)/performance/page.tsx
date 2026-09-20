@@ -15,6 +15,9 @@ import { EmptyState, ErrorState, LoadingSkeleton, MetricCard } from "@/component
 import { get } from "@/lib/api/client";
 import type { NavPoint, Performance } from "@/lib/api/types";
 import { fmtDate, fmtReturn } from "@/lib/format";
+import { DEMO_MODE } from "@/lib/api/comparison";
+import { useComparisonMode } from "@/lib/api/use-comparison-mode";
+import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
 
 const PERIODS = [
   { key: "1M", days: 30 },
@@ -37,6 +40,13 @@ function filterPeriod<T extends { date: string }>(items: T[], days: number): T[]
 }
 
 export default function PerformancePage() {
+  const mode = useComparisonMode();
+  if(DEMO_MODE && mode.isLoading)return <LoadingSkeleton rows={6}/>;
+  if(DEMO_MODE && mode.isError)return <ErrorState message="비교 설정을 불러오지 못했습니다." onRetry={()=>mode.refetch()}/>;
+  return mode.data?.market_comparison ? <ParticipantPerformance/> : <LegacyPerformancePage/>;
+}
+
+function LegacyPerformancePage() {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(PERIODS[4]);
   const perf = useQuery({
     queryKey: ["perf-full"],

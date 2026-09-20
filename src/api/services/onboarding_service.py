@@ -88,6 +88,9 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
 
     from ...db.models.price import PriceDaily as _Px
     latest = session.scalars(select(_Px.date).order_by(_Px.date.desc())).first()
+    from . import market_comparison
+    if market_comparison.enabled():
+        latest = market_comparison.price_date()
     theme_asset_ids = [theme_asset_id(t) for t in theme_ids]
     comparison_base_vol = None
     risk_limit_pp = None
@@ -203,6 +206,9 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
     }
 
 def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None):
+    from . import market_comparison
+    if market_comparison.enabled() and not (reason or "").strip():
+        raise ApiError("REASON_REQUIRED", "선택 이유를 입력해 주세요.", 422)
     prev = preview(session, user_id, participant_id, frontier_id, theme_ids)
     from ...db.models.base_selection import BasePortfolioSelection as _BPS
     from ...db.models.onboarding import OnboardingDraft as _OD
@@ -210,7 +216,8 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
     if existing and existing.frontier_id == frontier_id:
         from ...db.models.view import View as _V
         cur_themes = sorted([v.theme_id for v in session.scalars(select(_V).where(_V.participant_id == participant_id, _V.status.in_(["new", "hold"]), _V.end_at.is_(None))).all()])
-        if sorted(theme_ids) == cur_themes:
+        previous_draft = session.get(_OD, user_id)
+        if sorted(theme_ids) == cur_themes and previous_draft and previous_draft.completed_at and previous_draft.reason == reason:
             return {"already_completed": True, "selection_id": existing.selection_id}
     from ...db.models.account import Account as _A
     from ...db.models.portfolio import PortfolioTarget as _PT
@@ -242,6 +249,12 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
         tgt_id = C.new_id(session, "G")
         pers_weights = {w["asset_id"]: w["weight"] for w in prev["personalized"]["weights"]}
         session.add(_PT(target_id=tgt_id, account_id=acc.account_id, effective_date=now.date(), kind="personal", weights_json=dict(pers_weights), core_version="CORE_V0.3", theme_universe_version="THEME_UNIVERSE_V0.1", risk_model_version="RISK_5Y_LW_FROZEN_V0", created_at=now))
+    # Close the old choice instead of accumulating every prior Theme as active.
+    from ...db.models.view import View as _V
+    for view in session.scalars(select(_V).where(_V.participant_id == participant_id,
+            _V.end_at.is_(None), _V.status.in_(["new", "hold"]))):
+        view.end_at = now
+        view.status = "closed"
     if theme_ids:
         from ...forward.views import resolve_view_schedule
         from ...db.models.view import View as _V
@@ -255,11 +268,15 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
             session.add(_V(view_id=vid, participant_id=participant_id, theme_id=tid, status="new", submitted_at=now, effective_at=eff, end_at=None, reason=reason or "", theme_universe_version="THEME_UNIVERSE_V0.1", cycle_week=cycle_d, cycle_date=cycle_d))
     draft = session.get(_OD, user_id)
     if draft:
+        draft.frontier_id = frontier_id
+        draft.frontier_version = FRONTIER_VERSION
+        draft.theme_ids_json = list(theme_ids)
+        draft.reason = reason
         draft.completed_at = now
         draft.updated_at = now
         draft.current_step = "completed"
     else:
         session.add(_OD(user_id=user_id, participant_id=participant_id, frontier_id=frontier_id, frontier_version=FRONTIER_VERSION, theme_ids_json=list(theme_ids), reason=reason, current_step="completed", created_at=now, updated_at=now, completed_at=now))
-    C.log_event(session, "ONBOARDING_COMPLETED", "CORE_V0.3", participant_id=participant_id, payload={"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids})
+    C.log_event(session, "ONBOARDING_COMPLETED", "CORE_V0.3", participant_id=participant_id, payload={"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids, "reason": reason})
     session.flush()
     return {"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids}

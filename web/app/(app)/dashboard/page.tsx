@@ -13,6 +13,7 @@ import { Report, Period, PERIODS, exampleReport, assetName } from "./performance
 import s from "./dashboard.module.css";
 import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
+import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 
 export default function DashboardPage() {
   return DEMO_MODE ? <Suspense fallback={<LoadingSkeleton rows={6}/>}><DashboardRoute/></Suspense> : <LegacyDashboardPage/>;
@@ -20,7 +21,10 @@ export default function DashboardPage() {
 
 function DashboardRoute() {
   const params = useSearchParams();
-  return params.get("workspace") === "design" ? <LegacyDashboardPage/> : <ParticipantPerformance/>;
+  const mode = useComparisonMode();
+  if(mode.isLoading)return <LoadingSkeleton rows={6}/>;
+  if(mode.isError)return <ErrorState message="비교 설정을 불러오지 못했습니다." onRetry={()=>mode.refetch()}/>;
+  return params.get("workspace") === "design" && !mode.data?.market_comparison ? <LegacyDashboardPage/> : <ParticipantPerformance/>;
 }
 
 function LegacyDashboardPage() {

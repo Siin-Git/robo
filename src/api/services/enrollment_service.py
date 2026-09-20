@@ -68,7 +68,8 @@ def register(session, email, password, name, invite):
 def conditions(session):
     weights, meta = C.frozen_bundle()
     ft = C.load_forward_cfg()["forward_test"]
-    return {"benchmark": ft["benchmark_version"], "core_allocation": _legs(weights, _tickers(session)),
+    from . import market_comparison
+    return {"market_comparison": market_comparison.enabled(), "benchmark": ft["benchmark_version"], "core_allocation": _legs(weights, _tickers(session)),
         "target_volatility": meta.get("target_volatility"),
         "selection_basis": meta.get("bl", {}).get("risk_anchor"),
         "risk_method": meta.get("bl", {}).get("primary_covariance"),
@@ -90,6 +91,8 @@ def status(session, user):
             configuration=slot.configuration_json, confirmed_at=slot.confirmed_at,
             forward_started_at=slot.forward_started_at, membership_cohort_id=slot.cohort_id,
             in_active_cohort=bool(group and group.cohort_id == slot.cohort_id))
+    from . import market_comparison
+    out["market_comparison"] = market_comparison.enabled()
     return out
 
 
@@ -139,18 +142,30 @@ def preview(session, data):
             "alternatives": sum(w.get(a, 0) for a in ("gold", "global_reit")),
             "cash": w.get("cash", 0), "themes": sum(v for k, v in w.items() if k.startswith("theme:"))}
     final_weights = {**funded, **tw}
+    from . import market_comparison
+    risk = None
+    if market_comparison.enabled():
+        from ...forward.portfolio import build_personalized
+        assets = [a for a in [*weights, *tw] if a != "cash"]
+        risk = build_personalized(weights, list(tw), C.load_forward_cfg(), market_comparison.risk_cov(assets, market_comparison.price_date()))
+        final_weights = risk["weights"]
+        tw = risk["theme_weights"]
+        scenario = None
     tickers = _tickers(session)
-    return {"base": {"frontier_id": data["core_id"], "expected_return": None, "volatility": None,
+    return {"base": {"frontier_id": data["core_id"], "expected_return": None, "volatility": risk["core_vol"] if risk else None,
                 "weights": [{"asset_id": k, "weight": v} for k, v in weights.items()], "groups": groups(weights)},
-            "personalized": {"volatility": None, "tracking_error": None,
+            "personalized": {"volatility": risk["vol"] if risk else None, "tracking_error": risk["te"] if risk else None,
                 "weights": [{"asset_id": k, "weight": v} for k, v in final_weights.items()], "groups": groups(final_weights)},
             "themes": [{"theme_id": tid, "ticker": tickers.get(tid), "target_weight": tw.get(f"theme:{tid}", 0)} for tid in ids],
-            "risk_guardrail_applied": False,
+            "risk_guardrail_applied": risk["scaled"] if risk else False,
+            "risk_comparison": {"base_volatility": risk["core_vol"], "personalized_volatility": risk["vol"],
+                "max_increase_pp": C.load_forward_cfg()["forward_test"]["risk_guardrail"]["max_vol_increase_pp"],
+                "as_of": market_comparison.price_date().isoformat(), "method": "5Y weekly Ledoit-Wolf"} if risk else None,
             "core_id": data["core_id"], "theme_ids": ids, "reason": data.get("reason", ""),
-        "allocation": _legs({**funded, **tw}, _tickers(session)),
+        "allocation": _legs(final_weights, _tickers(session)),
         "core_allocation": _legs(weights, _tickers(session)), "scenario_id": scenario,
-        "performance_status": "DEMO_SCENARIO" if scenario else "AWAITING_PERFORMANCE",
-        "risk_guardrail_status": "시연용 고정 목표 비중 · 실제 실행 시 Backend 위험 검증 필요"}
+        "performance_status": "MARKET_PRICE_REPLAY" if risk else "DEMO_SCENARIO" if scenario else "AWAITING_PERFORMANCE",
+        "risk_guardrail_status": "시장 가격 기반 위험 한도 적용" if risk else "시연용 고정 목표 비중 · 실제 실행 시 Backend 위험 검증 필요"}
 
 
 def complete(session, user, data):

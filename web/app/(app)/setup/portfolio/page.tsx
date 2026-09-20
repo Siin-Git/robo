@@ -59,7 +59,7 @@ function groupsOf(weights: { asset_id: string; weight: number }[]) {
   return { equity, fixed, alt, cash };
 }
 
-function SetupPortfolioInner() {
+function SetupPortfolioInner({market = false}: {market?: boolean}) {
   const { risk: styles } = useSetupStyles();
   const router = useRouter();
   const params = useSearchParams();
@@ -136,8 +136,8 @@ function SetupPortfolioInner() {
     mutationFn: (body: { frontier_id: string; theme_ids: string[]; reason?: string }) =>
       post("/api/v1/me/onboarding/complete", body),
     onSuccess: () => {
-      for (const key of ["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views"]) qc.invalidateQueries({ queryKey: [key] });
-      router.push(DEMO_MODE ? "/portfolio?workspace=design" : "/portfolio");
+      for (const key of ["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment"]) qc.invalidateQueries({ queryKey: [key] });
+      router.push(DEMO_MODE && !market ? "/portfolio?workspace=design" : "/portfolio");
     },
   });
 
@@ -167,7 +167,7 @@ function SetupPortfolioInner() {
     }
   }
   function goNext(ids?: string[]) {
-    void saveAndNavigate(step === "risk" ? "themes" : "review", ids, ids?.length === 0);
+    void saveAndNavigate(step === "risk" ? "themes" : "review", ids, !market && ids?.length === 0);
   }
   function goBack() {
     if (step === "themes") {
@@ -317,6 +317,7 @@ function SetupPortfolioInner() {
           saveError={saveError}
           initialCategory={params.get("category")}
           selectedBase={selected}
+          selectionReason={market ? {value: reason, onChange: setReason} : undefined}
         />
       )}
 
@@ -341,7 +342,7 @@ export default function SetupPortfolioPage() {
   if(experiment.data?.status==="setup_required")return <ExperimentSetup status={experiment.data}/>;
   return (
     <Suspense fallback={<AppShell headerTitle="내 기본 포트폴리오 선택" setup><LoadingSkeleton rows={6} /></AppShell>}>
-      <SetupPortfolioInner />
+      <SetupPortfolioInner market={experiment.data?.market_comparison} />
     </Suspense>
   );
 }

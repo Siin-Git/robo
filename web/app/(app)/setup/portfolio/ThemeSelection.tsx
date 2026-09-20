@@ -18,6 +18,7 @@ interface Props {
   pending: boolean; saveError: boolean;
   initialCategory?: string | null;
   selectedBase: { frontier_id: string; expected_return?: number; volatility?: number };
+  selectionReason?: {value: string; onChange: (value: string) => void};
   experiment?: { reason: string; onReason: (value:string)=>void; notice: ReactNode; catalog: ReactNode };
 
 }
@@ -37,7 +38,7 @@ export function ThemesStep(props: Props) {
   return <ThemeCatalog {...props} themes={props.themesQ.data.items} />;
 }
 
-function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues, pending, saveError, selectedBase, initialCategory, experiment }: Props & { themes: Theme[] }) {
+function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues, pending, saveError, selectedBase, initialCategory, experiment, selectionReason }: Props & { themes: Theme[] }) {
   const { theme: s } = useSetupStyles();
   const [category, setCategory] = useState<Category>(validCategory(initialCategory));
   useEffect(() => setCategory(validCategory(initialCategory)), [initialCategory]);
@@ -93,6 +94,7 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
             </article>;
           })}
         </div>
+        {selectionReason&&<label className={s.note}><span>선택 이유</span><textarea aria-label="선택 이유" maxLength={1024} value={selectionReason.value} onChange={e=>selectionReason.onChange(e.target.value)} placeholder="이 구성을 선택한 이유를 입력해 주세요."/></label>}
         {experiment&&<><label className={s.note}><span>선택 이유</span><textarea aria-label="선택 이유" maxLength={1024} value={experiment.reason} onChange={e=>experiment.onReason(e.target.value)} placeholder="이 Theme 조합을 선택한 이유를 입력해 주세요."/></label>{experiment.catalog}</>}
         <button className={s.back} disabled={pending} onClick={onBack}><ArrowLeft size={16} /> 위험 수준 다시 보기</button>
       </div>
@@ -120,8 +122,8 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
         </div>
         <details className={s.impact}><summary className={s.muted}>어떻게 반영되나요?</summary><p className={s.muted}>테마는 최대 2개, 전체 투자금의 합계 15%, 한 테마당 10% 이내로 반영합니다. 위험 한도에 따라 비중이 줄어들 수 있습니다.</p></details>
         {saveError && <p className={s.error} role="alert">선택 내용을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
-        <button className={s.primary} onClick={() => onNext()} disabled={pending || invalidSelected || !!experiment&&!experiment.reason.trim()}>{pending ? "선택 내용 저장 중…" : experiment ? "구성·비중 확인" : "다음: 변경 전·후 비교"}<ArrowRight size={17} /></button>
-        {selected.length > 0 && <button className={s.skip} disabled={pending || !!experiment&&!experiment.reason.trim()} onClick={() => onNext([])}>테마 없이 기본 구성으로 계속하기</button>}
+        <button className={s.primary} onClick={() => onNext()} disabled={pending || invalidSelected || !!experiment&&!experiment.reason.trim() || !!selectionReason&&!selectionReason.value.trim()}>{pending ? "선택 내용 저장 중…" : experiment ? "구성·비중 확인" : "다음: 변경 전·후 비교"}<ArrowRight size={17} /></button>
+        {selected.length > 0 && <button className={s.skip} disabled={pending || !!experiment&&!experiment.reason.trim() || !!selectionReason&&!selectionReason.value.trim()} onClick={() => onNext([])}>테마 없이 기본 구성으로 계속하기</button>}
       </aside>
     </div>
   </div>;

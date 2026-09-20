@@ -98,6 +98,9 @@ def ready():
         return JSONResponse(status_code=503, content={
             "status": "not_ready", "reason": str(e)})
     from src.forward.state import get_state as _gs
+    from src.api.services import market_comparison
+    if market_comparison.enabled():
+        px = market_comparison.price_date()
     problems = []
     if px is None:
         problems.append("no market data")

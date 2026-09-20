@@ -44,7 +44,7 @@ function LoginForm() {
         <ol className="auth-journey"><li>{DEMO_MODE ? "01 가입·CORE 확인" : "01 기본 설계"}</li><li>{DEMO_MODE ? "02 Theme 선택·생성" : "02 인사이트 반영"}</li><li>{DEMO_MODE ? "03 성과 비교" : "03 성과 확인"}</li></ol>
         {process.env.NEXT_PUBLIC_APP_PROFILE === "local" ? (
           <p className="ui-note">
-            {DEMO_MODE ? "DEMO · 가상 NAV로 실험 구조를 보여주는 로컬 시연입니다." : "로컬 시연 환경입니다. 테스트 계정으로 로그인하거나 새 계정을 만들 수 있습니다."}
+            {DEMO_MODE ? "모의 포트폴리오 비교 환경입니다. 실제 계좌의 운용 성과가 아닙니다." : "로컬 시연 환경입니다. 테스트 계정으로 로그인하거나 새 계정을 만들 수 있습니다."}
           </p>
         ) : null}
         <form aria-busy={busy} onSubmit={submit} className="mt-[20px] flex flex-col gap-[12px]">
