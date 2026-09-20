@@ -18,6 +18,7 @@ class RegisterBody(BaseModel):
     email: str
     password: str
     display_name: str = Field(min_length=1, max_length=128)
+    invitation_code: str | None = Field(default=None, max_length=256)
 
 
 class LoginBody(BaseModel):
@@ -68,6 +69,10 @@ def _registration_allowed() -> bool:
 
 @router.post("/register", status_code=201, summary="Public registration (config-gated)")
 def register(body: RegisterBody, db=Depends(get_db)):
+    from ...local.capstone import enabled
+    if enabled():
+        from ..services import enrollment_service
+        return enrollment_service.register(db, body.email, body.password, body.display_name, body.invitation_code)
     if not _registration_allowed():
         raise ApiError("REGISTRATION_DISABLED", "Public registration is disabled.", 403)
     return auth.register(db, body.email, body.password, body.display_name)

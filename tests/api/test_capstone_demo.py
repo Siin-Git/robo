@@ -102,8 +102,7 @@ def test_comparison_privacy_readonly_and_account_switch(demo, monkeypatch):
     assert c.get(f"/api/v1/participants/{a}/performance").status_code == 403
     assert c.get("/api/v1/participants/unknown/comparison").status_code == 404
     csrf = {"X-CSRF-Token": c.cookies["ra_csrf"]}
-    assert c.post("/api/v1/me/base-portfolio", json={"frontier_id":"test"}, headers=csrf).status_code == 409
-    assert c.post("/api/v1/me/views", json={"theme_ids":["ai"],"reason":"demo"}, headers=csrf).status_code == 409
+    assert c.post(f"/api/v1/participants/{b}/views", json={"theme_ids":["ai"],"reason":"demo"}, headers=csrf).status_code == 409
     assert c.post("/api/v1/auth/register",json={"email":"new@example.com","password":PASSWORD,"display_name":"new"}).status_code == 403
     assert c.post("/api/v1/auth/logout", headers=csrf).status_code == 200
     assert c.get("/api/v1/me/comparison").status_code == 401
@@ -114,3 +113,50 @@ def test_comparison_privacy_readonly_and_account_switch(demo, monkeypatch):
     assert c.get("/api/v1/me/comparison").json() == other
     monkeypatch.delenv("CAPSTONE_DEMO")
     assert c.get(f"/api/v1/participants/{a}/comparison").status_code == 404
+
+
+def test_editable_design_is_isolated_from_comparison_and_other_users(demo):
+    from src.api.design_workspace import _factory
+    from src.db.models.session import Session
+    c = demo.client
+    first = login(c, EMAILS[0])
+    snapshots = {pid: c.get(f"/api/v1/participants/{pid}/comparison").json()
+                 for pid in [f"P{i:03d}" for i in range(1, 14)]}
+    rankings = {basis: c.get(f"/api/v1/comparison/rankings?basis={basis}").json()
+                for basis in ["return", "excess", "mdd", "volatility", "sharpe"]}
+    assert c.get("/api/v1/me/base-portfolio").json()["status"] == "not_selected"
+    assert c.get("/api/v1/me/views/current").json()["items"] == []
+    frontier = c.get("/api/v1/me/frontier").json()
+    fid = frontier["min_variance_frontier_id"]
+    body = {"frontier_id": fid, "theme_ids": ["ai"], "reason": "separate design"}
+    assert c.post("/api/v1/me/onboarding/complete", json=body).status_code == 403
+    csrf = {"X-CSRF-Token": c.cookies["ra_csrf"]}
+    assert c.put("/api/v1/me/onboarding/draft", json=body, headers=csrf).status_code == 200
+    assert c.post("/api/v1/me/onboarding/preview", json=body).status_code == 200
+    completed = c.post("/api/v1/me/onboarding/complete", json=body, headers=csrf)
+    assert completed.status_code == 200, completed.text
+    assert c.get("/api/v1/me/base-portfolio").json()["frontier_id"] == fid
+    assert c.get("/api/v1/me/portfolio/summary").status_code == 200
+    assert c.post("/api/v1/me/views", json={"theme_ids":["ai"], "reason":"weekly"}, headers=csrf).status_code == 201
+    for pid, before in snapshots.items():
+        assert c.get(f"/api/v1/participants/{pid}/comparison").json() == before
+    for basis, before in rankings.items():
+        assert c.get(f"/api/v1/comparison/rankings?basis={basis}").json() == before
+    second = login(c, EMAILS[1])
+    assert second != first
+    assert c.get("/api/v1/me/onboarding/draft").json()["status"] == "not_started"
+    assert c.get("/api/v1/me/base-portfolio").json()["status"] == "not_selected"
+    assert c.get("/api/v1/me/views/current").json()["items"] == []
+    login(c, EMAILS[0])
+    assert c.get("/api/v1/me/base-portfolio").json()["frontier_id"] == fid
+    assert c.get("/api/v1/me/comparison").json() == snapshots[first]
+    factory = _factory(str(demo.dbfile.with_name("portfolio_design.db").resolve()))
+    with factory() as s:
+        assert s.scalar(select(func.count()).select_from(NavDaily)) == 0
+        assert s.scalar(select(func.count()).select_from(Session)) == 0
+        assert all(u.status == "disabled" and u.password_hash == "!identity-reference-only"
+                   for u in s.scalars(select(User)))
+    csrf = {"X-CSRF-Token": c.cookies["ra_csrf"]}
+    assert c.post("/api/v1/auth/logout", headers=csrf).status_code == 200
+    assert c.get("/api/v1/me/portfolio/summary").status_code == 401
+    assert c.get("/api/v1/me/comparison").status_code == 401

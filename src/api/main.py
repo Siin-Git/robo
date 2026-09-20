@@ -126,3 +126,6 @@ app.include_router(portfolios.router, prefix="/api/v1")
 app.include_router(performance.router, prefix="/api/v1")
 app.include_router(benchmarks.router, prefix="/api/v1")
 app.include_router(system.router, prefix="/api/v1")
+
+from src.api.routers import enrollment
+app.include_router(enrollment.router, prefix="/api/v1")

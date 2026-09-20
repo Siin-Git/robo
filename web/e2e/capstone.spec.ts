@@ -31,21 +31,22 @@ test("four professor demo scenarios, data parity, refresh and responsive UI", as
   await expect(page.locator('[data-metric="nav"]')).toContainText(own.metrics.nav.toFixed(2));
   await page.screenshot({path:"test-results/capstone-dashboard.png",fullPage:true});
 
-  await page.getByRole("link", {name:"13명 성과 비교"}).click();
-  await expect(page.locator("tbody tr")).toHaveCount(13);
+  await page.getByRole("link", {name:"참여자 성과 비교"}).click();
+  await expect(page.getByRole("region",{name:"순위표",exact:true}).locator("tbody tr")).toHaveCount((await (await page.request.get("/api/v1/comparison/rankings")).json()).total);
   for (const [basis, expected] of [["return","참여자 01"],["sharpe","참여자 03"],["mdd","참여자 13"],["volatility","참여자 13"],["excess","참여자 01"]]) {
     await page.getByLabel("정렬 기준").selectOption(basis);
-    await expect(page.locator("tbody tr").first()).toContainText(expected);
-    await expect(page.locator("tbody tr").first().locator("td").first()).toHaveText("01");
+    const top=(await (await page.request.get(`/api/v1/comparison/rankings?basis=${basis}`)).json()).items[0].display_name;
+    await expect(page.getByRole("region",{name:"순위표",exact:true}).locator("tbody tr").first()).toContainText(top);
+    await expect(page.getByRole("region",{name:"순위표",exact:true}).locator("tbody tr").first().locator("td").first()).toHaveText("01");
   }
   await page.screenshot({path:"test-results/capstone-ranking.png",fullPage:true});
   // Click the metric cell, not just the name link: the whole row must navigate.
-  await page.locator("tbody tr").filter({has:page.getByRole("link", {name:/참여자 02/})}).locator("td").last().click();
+  await page.getByRole("region",{name:"순위표",exact:true}).locator("tbody tr").filter({has:page.getByRole("link", {name:/참여자 02/})}).locator("td").last().click();
   await expect(page).toHaveURL(/\/participants\//);
   await expect(page.locator("h1")).toContainText("참여자 02");
   await expect(page.getByText("+ 방산",{exact:true})).toBeVisible();
   await expect(page.getByText("+ 원자력",{exact:true})).toBeVisible();
-  await expect(page.getByRole("region", {name:"현재 Personalized Portfolio 구성"})).toBeVisible();
+  await expect(page.getByRole("region", {name:"확정 Personalized Portfolio 구성"})).toBeVisible();
   await page.screenshot({path:"test-results/capstone-detail.png",fullPage:true});
   await page.goto(`/participants/${own.participant_id}`);
   await expect(page.locator("h1")).toContainText("참여자 01");
@@ -64,8 +65,8 @@ test("four professor demo scenarios, data parity, refresh and responsive UI", as
   await page.screenshot({path:"test-results/capstone-mobile.png",fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.getByRole("button", {name:"메뉴 열기"}).click();
-  await page.getByRole("link",{name:"참여자 성과 비교",exact:true}).click();
-  await expect(page.locator("tbody tr")).toHaveCount(13);
+  await page.getByRole("link",{name:"참여자 비교·랭킹",exact:true}).click();
+  await expect(page.getByRole("region",{name:"순위표",exact:true}).locator("tbody tr")).toHaveCount((await (await page.request.get("/api/v1/comparison/rankings")).json()).total);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   expect(errors).toEqual([]);
 });

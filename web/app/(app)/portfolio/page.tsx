@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { DEMO_MODE } from "@/lib/api/comparison";
+import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, SlidersHorizontal, Layers3 } from "lucide-react";
@@ -29,8 +32,17 @@ const GROUPS = [
 ];
 
 export default function PortfolioPage() {
+  return DEMO_MODE ? <Suspense fallback={<LoadingSkeleton rows={6}/>}><DemoPortfolioRoute/></Suspense> : <DesignPortfolioPage/>;
+}
+
+function DemoPortfolioRoute() {
+  const params=useSearchParams();
+  return params.get("workspace")==="design" ? <DesignPortfolioPage/> : <ParticipantPerformance portfolioOnly/>;
+}
+
+function DesignPortfolioPage() {
   const summary = useQuery({ queryKey: ["summary-portfolio"], queryFn: () => get<PortfolioSummary>("/api/v1/me/portfolio/summary") });
-  return <AppShell headerTitle="내 포트폴리오" softBackground>
+  return <AppShell headerTitle={DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"} softBackground>
     {summary.isLoading ? <LoadingSkeleton rows={6} /> : summary.isError || !summary.data ?
       <ErrorState message="포트폴리오를 불러오지 못했습니다." onRetry={() => summary.refetch()} /> :
       <PortfolioOverview data={summary.data} />}
@@ -56,7 +68,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
 
   return <div className={s.page}>
     <header className={s.header}>
-      <div><span className={s.eyebrow}>CONFIRMED ALLOCATION</span><h1>내 포트폴리오</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
+      <div><span className={s.eyebrow}>CONFIRMED ALLOCATION</span><h1>{DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"}</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
       <Link className={s.edit} href="/setup/portfolio?step=risk"><SlidersHorizontal size={16} />구성 변경</Link>
     </header>
 

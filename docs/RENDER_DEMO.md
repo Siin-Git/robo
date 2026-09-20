@@ -1,3 +1,5 @@
+> 통합 가입 시연 추가: 현재 임시 SQLite 배포는 신규 가입·설정의 재배포 후 보존을 보장하지 않습니다. 자동 seed는 새 계정을 복구하지 않습니다. [통합 운영 안내](UNIFIED_DEMO.md)의 저장·배포 제한을 먼저 확인하세요.
+
 # Render 데모 배포
 
 기존 `render.yaml`은 일반 PostgreSQL 모드입니다. 이번 시연은 **`render.demo.yaml`**을 사용합니다.

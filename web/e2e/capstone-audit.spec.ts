@@ -9,6 +9,7 @@ const ret = (n:number) => `${n>0?'+':''}${pct(n)}`;
 const excess = (n:number) => `${n>0?'+':''}${(n*100).toFixed(2)}%p`;
 function rendered(r:Comparison) {
  const m=r.metrics;
+ if(!m) throw new Error("This audit requires a ready scenario report");
  return {nav:m.nav.toFixed(2),cumulative_return:ret(m.cumulative_return),core_return:ret(m.core_return),
   excess_return:excess(m.excess_return),mdd:pct(m.mdd),volatility:pct(m.volatility!),sharpe:m.sharpe!.toFixed(2)};
 }

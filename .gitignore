@@ -13,6 +13,8 @@ node_modules/
 .next/
 .next-capstone*/
 .next-design*/
+.next-unified*/
+.next-enrollment-e2e/
 web/test-results/
 web/playwright-report/
 web/coverage/

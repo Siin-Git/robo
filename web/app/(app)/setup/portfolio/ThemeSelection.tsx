@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Atom, Bot, BrainCircuit, Check, Cpu, Dna, Globe2, Network, Newspaper, Server, ShieldCheck, X, Zap } from "lucide-react";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/ui";
@@ -17,7 +17,9 @@ interface Props {
   onBack: () => void; onNext: (ids?: string[]) => void; onIssues: () => void;
   pending: boolean; saveError: boolean;
   initialCategory?: string | null;
-  selectedBase: { frontier_id: string; expected_return: number; volatility: number };
+  selectedBase: { frontier_id: string; expected_return?: number; volatility?: number };
+  experiment?: { reason: string; onReason: (value:string)=>void; notice: ReactNode; catalog: ReactNode };
+
 }
 interface Impact {
   base: { groups: Record<string, number> };
@@ -35,14 +37,14 @@ export function ThemesStep(props: Props) {
   return <ThemeCatalog {...props} themes={props.themesQ.data.items} />;
 }
 
-function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues, pending, saveError, selectedBase, initialCategory }: Props & { themes: Theme[] }) {
+function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues, pending, saveError, selectedBase, initialCategory, experiment }: Props & { themes: Theme[] }) {
   const { theme: s } = useSetupStyles();
   const [category, setCategory] = useState<Category>(validCategory(initialCategory));
   useEffect(() => setCategory(validCategory(initialCategory)), [initialCategory]);
   const invalidSelected = selected.some(id => !themes.some(t => t.theme_id === id && t.active && t.ticker));
   const impact = useQuery({
-    queryKey: ["theme-selection-preview", selectedBase.frontier_id, [...selected].sort().join(",")],
-    queryFn: () => post<Impact>("/api/v1/me/onboarding/preview", { frontier_id: selectedBase.frontier_id, theme_ids: selected }),
+    queryKey: [experiment ? "experiment-theme-preview" : "theme-selection-preview", selectedBase.frontier_id, [...selected].sort().join(",")],
+    queryFn: () => post<Impact>(experiment ? "/api/v1/me/experiment/preview" : "/api/v1/me/onboarding/preview", experiment ? {core_id:selectedBase.frontier_id, theme_ids:selected} : { frontier_id: selectedBase.frontier_id, theme_ids: selected }),
     enabled: !invalidSelected,
     staleTime: 60_000,
   });
@@ -62,10 +64,10 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
     <h1 className={s.heading}>나의 투자 인사이트를 반영하세요</h1>
     <p className={s.intro}>“AI 산업이 성장할 것 같다”는 나의 전망을 테마로 표현해 보세요. 최대 2개를 선택하면 기본 포트폴리오의 주식 일부를 해당 테마에 배분합니다.</p>
 
-    <section className={s.newsBanner} aria-label="최신 이슈 안내">
+    {experiment ? <section className={s.newsBanner}><div>{experiment.notice}</div></section> : <section className={s.newsBanner} aria-label="최신 이슈 안내">
       <div className={s.newsLead}><Newspaper size={27} /><div><strong>요즘 어떤 변화가 일어나고 있을까요?</strong><p>최근 소식과 생각할 거리를 보고, 관심 있는 분야를 찾아보세요.</p></div></div>
       <button className={s.textButton} onClick={onIssues} disabled={pending}>최신 이슈 보러가기 <ArrowRight size={17} /></button>
-    </section>
+    </section>}
 
     <div className={s.layout}>
       <div>
@@ -91,6 +93,7 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
             </article>;
           })}
         </div>
+        {experiment&&<><label className={s.note}><span>선택 이유</span><textarea aria-label="선택 이유" maxLength={1024} value={experiment.reason} onChange={e=>experiment.onReason(e.target.value)} placeholder="이 Theme 조합을 선택한 이유를 입력해 주세요."/></label>{experiment.catalog}</>}
         <button className={s.back} disabled={pending} onClick={onBack}><ArrowLeft size={16} /> 위험 수준 다시 보기</button>
       </div>
 
@@ -112,13 +115,13 @@ function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues,
             <div className={s.stat}><span>기본 예상 변동성</span><strong>{fmtPct(p.risk_comparison?.base_volatility)}</strong></div>
             <div className={s.stat}><span>반영 후 예상 변동성</span><strong>{p.personalized.volatility == null ? "산출 전" : fmtPct(p.personalized.volatility)}</strong></div>
             {p.risk_guardrail_applied && <p className={s.muted}>위험 한도에 맞춰 테마 비중이 조정되었습니다.</p>}
-            {p.personalized.volatility == null && <p className={s.muted}>위험 지표를 산출할 데이터가 부족해 목표 비중만 표시합니다.</p>}
+            {p.personalized.volatility == null && <p className={s.muted}>{experiment ? "시연의 고정 목표 비중입니다. 실제 실행 전 Backend 위험 검증이 필요합니다." : "위험 지표를 산출할 데이터가 부족해 목표 비중만 표시합니다."}</p>}
           </>}
         </div>
         <details className={s.impact}><summary className={s.muted}>어떻게 반영되나요?</summary><p className={s.muted}>테마는 최대 2개, 전체 투자금의 합계 15%, 한 테마당 10% 이내로 반영합니다. 위험 한도에 따라 비중이 줄어들 수 있습니다.</p></details>
         {saveError && <p className={s.error} role="alert">선택 내용을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
-        <button className={s.primary} onClick={() => onNext()} disabled={pending || invalidSelected}>{pending ? "선택 내용 저장 중…" : "다음: 변경 전·후 비교"}<ArrowRight size={17} /></button>
-        {selected.length > 0 && <button className={s.skip} disabled={pending} onClick={() => onNext([])}>테마 없이 기본 구성으로 계속하기</button>}
+        <button className={s.primary} onClick={() => onNext()} disabled={pending || invalidSelected || !!experiment&&!experiment.reason.trim()}>{pending ? "선택 내용 저장 중…" : experiment ? "구성·비중 확인" : "다음: 변경 전·후 비교"}<ArrowRight size={17} /></button>
+        {selected.length > 0 && <button className={s.skip} disabled={pending || !!experiment&&!experiment.reason.trim()} onClick={() => onNext([])}>테마 없이 기본 구성으로 계속하기</button>}
       </aside>
     </div>
   </div>;

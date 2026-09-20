@@ -81,3 +81,6 @@
   .guide dl { grid-template-columns:1fr; gap:12px; }
   .guide dt { margin-bottom:2px; }
 }
+
+.mobileMetric { display: none; }
+@media(max-width:800px) { .mobileMetric { display:block; color:var(--brand); font-weight:650; font-size:12px; margin-top:6px; } }

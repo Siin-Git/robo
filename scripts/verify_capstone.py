@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import math
+import os
 import statistics
 import sys
 from pathlib import Path
@@ -26,10 +27,10 @@ def independently_calculate(series):
 
 
 def main():
-    output = ROOT / '.work/capstone_audit.json'
+    output = Path(os.environ.get('CAPSTONE_AUDIT_PATH', str(ROOT / '.work/capstone_audit.json')))
     frozen = json.loads((ROOT/'outputs/frozen/CORE_V0.3/weights.json').read_text())
     reports, accounts, errors = [], [], {}
-    with httpx.Client(base_url='http://127.0.0.1:3001',timeout=30) as c:
+    with httpx.Client(base_url=os.environ.get('CAPSTONE_BASE_URL', 'http://127.0.0.1:3001'),timeout=60) as c:
         for email,(name,themes) in zip(EMAILS,COHORT):
             assert c.get('/api/v1/me/comparison').status_code == 401
             login = c.post('/api/v1/auth/login',json=dict(email=email,password=PASSWORD))
@@ -79,11 +80,26 @@ def main():
             response = c.get('/api/v1/comparison/rankings',params={'basis':basis})
             assert response.status_code == 200
             rows = response.json()['items']
-            expected = sorted(reports,key=lambda r:((1 if basis=='volatility' else -1)*r['independent_metrics'][key],r['participant_id']))
-            assert [r['participant_id'] for r in rows] == [r['participant_id'] for r in expected]
-            assert [r['rank'] for r in rows] == list(range(1,14))
+            active_reports = []
             for row in rows:
-                original=next(r for r in reports if r['participant_id']==row['participant_id'])
+                report = next((r for r in reports if r['participant_id']==row['participant_id']), None)
+                if report is None:
+                    report = c.get(f"/api/v1/participants/{row['participant_id']}/comparison").json()
+                    report['independent_metrics'] = independently_calculate(report['series'])
+                active_reports.append(report)
+            assert len(rows) == response.json()['total'] <= response.json()['registered'] <= 13
+            expected = sorted(active_reports,key=lambda r:((1 if basis=='volatility' else -1)*r['independent_metrics'][key],r['participant_id']))
+            assert [r['participant_id'] for r in rows] == [r['participant_id'] for r in expected]
+            expected_ranks, previous, rank = [], None, 0
+            for i, r in enumerate(expected, 1):
+                value = r['metrics'][key]
+                if previous is None or value != previous:
+                    rank = i
+                expected_ranks.append(rank)
+                previous = value
+            assert [r['rank'] for r in rows] == expected_ranks
+            for row in rows:
+                original=next(r for r in active_reports if r['participant_id']==row['participant_id'])
                 assert row['metrics']==original['metrics'] and row['themes']==original['themes']
             rankings[basis] = rows
         assert c.get('/api/v1/participants/unknown/comparison').status_code == 404

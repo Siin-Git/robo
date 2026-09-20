@@ -4,12 +4,6 @@ const PUBLIC_PATHS = ["/login", "/signup"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (process.env.NEXT_PUBLIC_CAPSTONE_DEMO === "1") {
-    if (pathname === "/signup") return NextResponse.redirect(new URL("/login", req.url));
-    if (["/setup", "/views", "/performance", "/portfolio"].some(p => pathname === p || pathname.startsWith(p + "/"))) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-  }
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();
   }

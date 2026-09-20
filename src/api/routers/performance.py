@@ -69,3 +69,9 @@ def get_rankings(period: str = Query(default="weekly"),
                        "te": i.get("te")} for i in full["items"]],
             "period": full["period"], "basis": full["basis"],
             "comparison": full["comparison"]}
+
+
+@router.get("/comparison/analytics", summary="Existing NAV and Backend metrics for race, scatter and theme selectors")
+def comparison_analytics(db=Depends(get_db), user=Depends(get_current_user)):
+    from ..services.comparison_service import analytics
+    return analytics(db)

@@ -24,6 +24,9 @@ def get_db() -> Iterator:
     factory = get_session_factory()
     session = factory()
     try:
+        from ..local.capstone import enabled
+        if enabled() and session.get_bind().dialect.name == "sqlite":
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
         yield session
         session.commit()
     except Exception:

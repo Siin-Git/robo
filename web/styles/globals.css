@@ -210,3 +210,17 @@ button:disabled { cursor: not-allowed; }
   .auth-card { padding:26px; }
   .ui-panel { padding:20px 16px; }
 }
+
+.experiment-page { max-width: 1080px; margin: 0 auto; padding-bottom: 48px; display: grid; gap: 24px; }
+.experiment-page .ui-panel { display: grid; gap: 20px; padding: 24px; }
+.experiment-page h2 { font-size: 20px; font-weight: 650; }
+.experiment-page p { line-height: 1.7; }
+.scenario-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.analytics-panel { border: 1px solid var(--border, #e2e8f0); border-radius: 14px; background: white; padding: 24px; margin: 24px 0; min-width: 0; }
+.analytics-panel h2 { font-size: 20px; font-weight: 650; margin-bottom: 8px; }
+.analytics-panel .chart { height: 340px; width: 100%; min-width: 0; }
+.analytics-kpis { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 20px 0; }
+.analytics-kpis strong { display: block; font-size: 24px; }
+.analytics-tooltip { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; font-size: 12px; max-width: 260px; }
+.analytics-my-row { background: #eaf2ff !important; outline: 1px solid #a8c7fa; outline-offset: -1px; }
+@media(max-width:640px) { .analytics-panel,.experiment-page .ui-panel { padding: 16px; } .analytics-kpis {grid-template-columns: repeat(2,minmax(0,1fr));} }

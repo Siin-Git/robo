@@ -22,6 +22,9 @@ def main():
             return 1
     env = dict(os.environ, APP_PROFILE="local", DATABASE_BACKEND="sqlite", CAPSTONE_DEMO="1",
                AUTH_COOKIE_SECURE="false", ALLOW_PUBLIC_REGISTRATION="false")
+    price_source = ROOT / "data" / "forward_local.db"
+    if price_source.is_file():
+        env.setdefault("DESIGN_PRICE_SOURCE", str(price_source))
     subprocess.run([sys.executable, "-m", "src.local.seed_capstone"], cwd=ROOT, env=env, check=True)
     web_env = dict(env, NEXT_PUBLIC_APP_PROFILE="local", NEXT_PUBLIC_CAPSTONE_DEMO="1",
                    FASTAPI_INTERNAL_URL="http://127.0.0.1:8001", NEXT_DIST_DIR=".next-capstone")

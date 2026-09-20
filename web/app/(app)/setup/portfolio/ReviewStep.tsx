@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/ui";
@@ -20,14 +20,15 @@ const GROUPS = [
   { key: "cash", base: "cash", name: "현금", color: "#c2cad6" },
 ];
 
-export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, error }: {
+export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, error, experiment }: {
   basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean;
+  experiment?: { reason: string; notice: ReactNode };
 }) {
   const { review: s } = useSetupStyles();
   const [activeId, setActiveId] = useState<string | null>(null);
   const preview = useQuery({
-    queryKey: ["onboarding-preview", basePoint.frontier_id, themeIds.join(",")],
-    queryFn: () => post<ReviewData>("/api/v1/me/onboarding/preview", { frontier_id: basePoint.frontier_id, theme_ids: themeIds }),
+    queryKey: [experiment ? "experiment-review-preview" : "onboarding-preview", basePoint.frontier_id, themeIds.join(",")],
+    queryFn: () => post<ReviewData>(experiment ? "/api/v1/me/experiment/preview" : "/api/v1/me/onboarding/preview", experiment ? {core_id:basePoint.frontier_id, theme_ids:themeIds} : { frontier_id: basePoint.frontier_id, theme_ids: themeIds }),
   });
   if (preview.isLoading) return <LoadingSkeleton rows={6} />;
   if (preview.isError || !preview.data) return <div><ErrorState message="최종 구성을 불러오지 못했습니다." onRetry={() => preview.refetch()} /><button className="btn-secondary" onClick={onBack}>테마 다시 고르기</button></div>;
@@ -55,7 +56,7 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
     <div className="comparison-intro" aria-label="포트폴리오 설계 관계">
       <div><span className="ui-eyebrow">BEFORE</span><h2>기본 포트폴리오</h2><p>선택한 위험 수준에 맞춘 자산배분을 출발점으로 삼습니다.</p></div>
       <div><span className="ui-eyebrow">MY INSIGHT</span><h2>{p.themes.length ? p.themes.map(t => themeName(t.theme_id)).join(" · ") : "기본 구성 유지"}</h2><p>{p.themes.length ? "나의 전망을 기존 주식 비중 안에서 반영합니다." : "추가 테마 없이 선택한 자산배분을 유지합니다."}</p></div>
-      <div><span className="ui-eyebrow">AFTER</span><h2>최종 포트폴리오</h2><p>비중과 위험 변화를 확인하고 확정하면 모의운용 성과를 확인할 수 있습니다.</p></div>
+      <div><span className="ui-eyebrow">AFTER</span><h2>최종 포트폴리오</h2><p>비중과 위험 변화를 확인하고 확정합니다. 성과는 연결된 데이터가 있을 때 표시됩니다.</p></div>
     </div>
     <section className={s.changes} aria-labelledby="changes-heading">
       <div className={s.sectionHeading}><div><h2 id="changes-heading">{p.themes.length ? "선택한 테마로 이렇게 달라졌어요" : "기본 구성으로 시작해요"}</h2><p>{p.themes.length ? "기존 주식의 일부를 선택한 테마로 재배분했습니다." : "테마를 추가하지 않아 자산별 비중은 그대로 유지됩니다."}</p></div></div>
@@ -68,7 +69,7 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
         </div>
         <div className={s.risk}>
           <h3>예상 변동성의 변화</h3><div className={s.riskValues}><div><span>기본 구성</span><strong>{fmtPct(beforeVol)}</strong></div><ArrowRight size={20} /><div><span>최종 구성</span><strong>{fmtPct(afterVol)}</strong></div></div>
-          <p>{delta == null ? "같은 기준의 위험 지표를 산출할 데이터가 부족합니다." : <>기본 구성 대비 <b>{fmtActivePp(delta)}</b></>}</p>
+          <p>{delta == null ? (experiment ? "시연의 고정 목표 비중입니다. 실제 실행 전 Backend 위험 검증이 필요합니다." : "같은 기준의 위험 지표를 산출할 데이터가 부족합니다.") : <>기본 구성 대비 <b>{fmtActivePp(delta)}</b></>}</p>
           <small>{p.risk_comparison?.as_of && `${p.risk_comparison.as_of.slice(0,10).replaceAll("-", ".")} 기준 · `}두 구성에 동일한 기간과 위험 모형을 적용합니다.</small>
         </div>
       </div>
@@ -105,7 +106,8 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
 
     <details open className={s.details}><summary>자산별 변경 내역 보기<span>기본 비중 · 최종 비중 · 변화</span></summary><div className={s.tableWrap}><table><thead><tr><th>자산</th><th>기본 비중</th><th>최종 비중</th><th>변화</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} data-theme={row.isTheme}><th scope="row">{row.name}{row.isTheme && <small>선택 테마</small>}</th><td>{fmtPct(row.base)}</td><td>{fmtPct(row.final)}</td><td>{Math.abs(row.change) < 1e-9 ? "변동 없음" : fmtActivePp(row.change)}</td></tr>)}</tbody></table></div></details>
     <p className={s.explanation}>예상 변동성은 모형의 추정치이며 실제 결과와 다를 수 있습니다.{limit != null && ` 테마 반영에 따른 변동성 증가는 같은 모형으로 계산한 기본 구성 대비 ${limit.toFixed(1)}%p 이내로 관리합니다.`}</p>
-    <footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : "포트폴리오 확정 · 성과 확인"}<ArrowRight size={17} /></button></div></footer>
+    {experiment&&<section className="ui-note"><p>선택 이유: {experiment.reason}</p>{experiment.notice}</section>}
+    <footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : experiment ? "포트폴리오 생성" : "포트폴리오 확정 · 성과 확인"}<ArrowRight size={17} /></button></div></footer>
     {error && <p className={s.error} role="alert">구성을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
   </div>;
 }

@@ -14,6 +14,9 @@ import { SetupProgress } from "@/components/portfolio/SetupProgress";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/ui";
 import { get, post, put } from "@/lib/api/client";
+import { DEMO_MODE } from "@/lib/api/comparison";
+import type { ExperimentStatus } from "@/lib/api/experiment";
+import { ExperimentSetup } from "@/components/portfolio/ExperimentSetup";
 import { fmtPct } from "@/lib/format";
 
 interface FrontierPoint {
@@ -134,7 +137,7 @@ function SetupPortfolioInner() {
       post("/api/v1/me/onboarding/complete", body),
     onSuccess: () => {
       for (const key of ["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views"]) qc.invalidateQueries({ queryKey: [key] });
-      router.push("/dashboard");
+      router.push(DEMO_MODE ? "/portfolio?workspace=design" : "/portfolio");
     },
   });
 
@@ -332,6 +335,10 @@ function SetupPortfolioInner() {
 }
 
 export default function SetupPortfolioPage() {
+  const experiment=useQuery({queryKey:["experiment-setup-status"],queryFn:()=>get<ExperimentStatus>("/api/v1/me/experiment"),enabled:DEMO_MODE});
+  if(DEMO_MODE&&experiment.isLoading)return <AppShell headerTitle="첫 설정"><LoadingSkeleton rows={4}/></AppShell>;
+  if(DEMO_MODE&&experiment.isError)return <AppShell headerTitle="첫 설정"><ErrorState message="설정 상태를 불러오지 못했습니다." onRetry={()=>experiment.refetch()}/></AppShell>;
+  if(experiment.data?.status==="setup_required")return <ExperimentSetup status={experiment.data}/>;
   return (
     <Suspense fallback={<AppShell headerTitle="내 기본 포트폴리오 선택" setup><LoadingSkeleton rows={6} /></AppShell>}>
       <SetupPortfolioInner />

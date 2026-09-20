@@ -1,3 +1,5 @@
+> 신규 가입 → 공통 CORE → Theme 선택 → 생성 → 비교 시연은 [통합 시연 운영 안내](docs/UNIFIED_DEMO.md)를 확인하세요. 이전의 가입 제외 안내는 이 흐름으로 대체됩니다.
+
 # Personalized Robo Advisor Prototype
 
 ## 교수님 시연용 13명 MVP
