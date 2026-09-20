@@ -241,12 +241,41 @@ button:disabled { cursor: not-allowed; }
 .theme-count-table th, .theme-count-table td { text-align: center; padding: 15px 8px; color: #425773; font-size: 13px; border-bottom: 1px solid #edf1f6; }
 .theme-count-table thead th { border: 0; color: #253d5d; font-size: 13px; font-weight: 650; }
 .theme-count-table tbody th { color: #76859b; font-size: 12px; font-weight: 500; }
-.theme-count-table .theme-count-chart td { padding-top: 0; padding-bottom: 0; border-bottom: 1px solid #b7c6d9; }
-.theme-count-column { height: 185px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 9px; }
-.theme-count-column strong { color: #285dba; font-size: 18px; font-weight: 700; }
-.theme-count-column small { font-size: 11px; font-weight: 500; margin-left: 3px; }
-.theme-count-bar { width: 55%; max-width: 56px; background: linear-gradient(180deg, #5b91f5, #356dd7); border-radius: 6px 6px 0 0; min-height: 0; transition: height .2s; }
+.theme-selection-count strong { color:#285dba; font-size:19px; font-weight:700; }
+.theme-selection-count small { color:#76859b; font-size:11px; margin-left:4px; }
+.theme-count-table .theme-metric-row td { padding:20px 0 12px; }
+.theme-metric-row th small { display:block; margin-top:6px; font-size:10px; font-weight:400; }
+.theme-metric-plot { position:relative; height:76px; margin:0 0 10px; }
+.theme-zero-line { position:absolute; left:0; right:0; height:1px; background:#c6d2e1; z-index:1; }
+.theme-metric-bar { position:absolute; left:27%; width:46%; max-width:56px; background:#4b82e8; border-radius:3px; }
+.theme-metric-bar[data-negative="true"] { background:#b68a6c; }
+.theme-metric-bar[data-risk="true"] { background:#8b9eb8; }
+.theme-metric-value { font-size:12px; font-weight:600; color:#425773; }
 
 .point-legend { margin: 10px 0 14px; }
 .point-legend i { width: 10px; height: 10px; border-radius: 50%; }
 .point-legend i.benchmark-dot { border-radius: 0; transform: rotate(45deg); width: 9px; height: 9px; }
+
+.race-summary { margin:0 0 24px; padding-bottom:24px; border-bottom:1px solid var(--border); gap:24px; }
+.race-summary > div { padding:4px 20px; border-left:1px solid var(--border); }
+.race-summary > div:first-child { padding-left:0; border-left:0; }
+.race-summary > div > span { color:var(--text-secondary); font-size:13px; }
+.race-summary strong { font-size:32px; line-height:1.4; letter-spacing:-.8px; margin:6px 0; font-variant-numeric:tabular-nums; }
+.race-summary > div:first-child strong { color:var(--brand); }
+.race-summary small { font-size:12px; color:var(--text-secondary); font-weight:400; letter-spacing:0; }
+.race-summary strong small { font-size:14px; }
+.race-chart-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.race-chart-heading h2 { font-size:17px; margin-bottom:4px; }
+.race-filters { display:flex; gap:4px; padding:4px; border-radius:9px; background:#f0f3f8; flex-shrink:0; }
+.race-filters button { padding:7px 12px; border-radius:6px; color:var(--text-secondary); font-size:12px; font-weight:600; }
+.race-filters button[aria-pressed="true"] { color:var(--brand); background:white; box-shadow:0 1px 4px #1c355214; }
+.race-filters button:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+.race-panel > label { display:block; margin-top:18px; font-size:12px; color:var(--text-secondary); }
+@media(max-width:640px) { .analytics-kpis.race-summary { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding-bottom:18px; margin-bottom:18px; } .race-summary > div { padding:0 8px; } .race-summary strong { font-size:23px; } .race-summary > div > span { font-size:11px; } .race-summary small { font-size:10px; } .race-summary strong small { display:block; font-size:11px; } .race-chart-heading { align-items:flex-start; flex-direction:column; } }
+
+.race-participant-picker { display:flex; align-items:flex-end; gap:16px; margin-top:18px; }
+.race-participant-picker label { display:flex; flex-direction:column; gap:7px; color:var(--text-secondary); font-size:12px; width:min(100%,420px); }
+.race-participant-picker select { width:100%; font-size:13px; }
+.race-participant-detail { flex-shrink:0; padding:12px 0; font-size:12px; font-weight:600; color:var(--brand); }
+.race-participant-detail:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
+@media(max-width:640px) { .race-participant-picker { flex-wrap:wrap; gap:4px; } .race-participant-picker label { width:100%; } }
