@@ -23,8 +23,8 @@ module.exports = {
         "warning-soft": "var(--warning-soft)",
       },
       borderRadius: {
-        card: "8px",
-        control: "6px",
+        card: "var(--radius-card)",
+        control: "var(--radius-control)",
       },
       fontFamily: {
         sans: ["Pretendard", "Inter", "Noto Sans KR", "system-ui", "sans-serif"],

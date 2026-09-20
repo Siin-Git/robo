@@ -1,7 +1,9 @@
 """Shared API test fixtures: isolated SQLite DB + seeded themes per test."""
 from datetime import date
+from http.cookies import SimpleCookie
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -20,8 +22,31 @@ THEME_SEED = [
 ]
 
 
+class ExplicitCookieClient(TestClient):
+    """A requested test identity replaces, rather than merges with, the jar.
+
+    httpx/Starlette versions differ in how request cookies merge domain-scoped
+    login cookies. Real users have separate browser jars. These multi-user API
+    tests pass an explicit cookie set, so send exactly that set on the wire.
+    """
+    def request(self, method, url, **kwargs):
+        cookies = kwargs.pop("cookies", None)
+        if cookies is not None:
+            jar = SimpleCookie()
+            for key, value in cookies.items():
+                jar[key] = value
+            headers = httpx.Headers(kwargs.get("headers") or {})
+            headers["Cookie"] = jar.output(header="", sep=";").strip()
+            kwargs["headers"] = headers
+        return super().request(method, url, **kwargs)
+
+
 @pytest.fixture()
-def env(tmp_path):
+def env(tmp_path, monkeypatch):
+    # Tests must not inherit a developer's .env.local auth policy.
+    monkeypatch.setenv("APP_PROFILE", "demo")
+    monkeypatch.delenv("CAPSTONE_DEMO", raising=False)
+    monkeypatch.delenv("AUTH_COOKIE_SECURE", raising=False)
     dbfile = tmp_path / "api.db"
     engine = create_engine(f"sqlite:///{dbfile}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
@@ -48,7 +73,7 @@ def env(tmp_path):
                         universe_version="THEME_UNIVERSE_V0.1",
                         inactive_reason=None if ticker else "no acceptable single ETF proxy"))
         s.commit()
-    with TestClient(app) as c:
+    with ExplicitCookieClient(app) as c:
         yield SimpleNamespace(client=c, factory=factory, dbfile=dbfile)
     app.dependency_overrides.clear()
 

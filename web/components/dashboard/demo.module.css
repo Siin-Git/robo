@@ -1,0 +1,28 @@
+.page { display: flex; flex-direction: column; gap: 22px; padding-bottom: 40px; }
+.header { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+.header h1 { margin-top:6px; }
+.titleSuffix { font-weight:400; color:var(--text-secondary); }
+.chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+.coreChip,.themeChip { border-radius:6px; padding:6px 10px; font-size:13px; font-weight:600; }
+.coreChip { background:#eaf0f7; color:#334155; }
+.themeChip { background:var(--brand-soft); color:var(--brand); }
+.note { display:flex; align-items:center; gap:10px; color:var(--text-secondary); font-size:12px; line-height:1.7; }
+.period { display:flex; gap:14px; flex-wrap:wrap; padding-bottom:14px; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:12px; }
+.period strong { color:var(--text-primary); font-weight:500; }
+.section { min-width:0; }
+.sectionTitle { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:12px; }
+.sectionTitle h2 { font-size:16px; font-weight:650; }
+.sectionTitle h2 span { font-size:12px; font-weight:400; color:var(--text-secondary); margin-left:8px; }
+.returnGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.excess > div { background:var(--brand-soft); border-color:#c8d8ee; }
+.riskGroups { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+.riskGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.riskGroups :global(.kpi-value) { font-size:24px; }
+.allocation { border:1px solid var(--border); padding:24px; border-radius:12px; background:white; }
+.details { margin-top:22px; font-size:13px; }
+.details summary { cursor:pointer; padding:12px 0; color:var(--text-secondary); }
+.assumption { font-size:11px; color:var(--text-secondary); line-height:1.8; }
+.detailLink,.back { display:flex; align-items:center; gap:8px; color:var(--brand); font-size:13px; font-weight:600; }
+.detailLink { border:1px solid var(--border); background:white; border-radius:8px; padding:16px; justify-content:space-between; }
+@media(max-width:1050px) { .returnGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:640px) { .header { align-items:flex-start; flex-direction:column; } .header h1 { font-size:25px; } .riskGroups { grid-template-columns:1fr; } .note { align-items:flex-start; } .allocation { padding:16px; } .period { gap:6px 14px; } }

@@ -1,14 +1,14 @@
 /** Design tokens — single source of truth (§14). No ad-hoc colors elsewhere. */
 :root {
-  --background: #f7f8fa;
+  --background: #edf1f6;
   --surface: #ffffff;
   --surface-subtle: #f9fafb;
 
   --border: #e5e7eb;
   --border-strong: #d1d5db;
 
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
+  --text-primary: #1c314d;
+  --text-secondary: #536a85;
   --text-muted: #9ca3af;
 
   --brand: #2563eb;
@@ -23,4 +23,12 @@
 
   --warning: #b45309;
   --warning-soft: #fffbeb;
+  --radius-card: 16px;
+  --radius-control: 8px;
+  --space-section: 24px;
+  --page-title-size: clamp(26px, 2.4vw, 32px);
+  --panel-border: #c6d2e0;
+  --panel-padding: 28px;
+  --insight: #7654c8;
+  --insight-soft: #f7f3fc;
 }

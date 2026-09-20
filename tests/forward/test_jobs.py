@@ -37,12 +37,19 @@ def test_fail_and_reclaim(tmp_path):
 
 def test_daily_dry_run_writes_nothing(tmp_path, monkeypatch):
     import src.forward.run_daily as _rd
+    import src.forward.runtime as runtime
     from src.forward.db import connect, init_db
     dbp = tmp_path / "fwd.db"
     con = connect(dbp)
     init_db(con)
     con.close()
-    monkeypatch.setattr(_rd, "get_database_path", lambda: dbp)
+    # main imports this resolver inside the function; patch its actual source.
+    # Patching only _rd.get_database_path accidentally reads a developer DB.
+    monkeypatch.setattr(runtime, "get_database_path", lambda profile=None: dbp)
+    def scratch_connect(path):
+        assert path == dbp, "dry-run test must only open its scratch database"
+        return connect(path)
+    monkeypatch.setattr(_rd, "connect", scratch_connect)
     before = {t: _count(dbp, t) for t in ("orders", "trades", "nav_daily", "events")}
     assert _rd.main(["--dry-run"]) == 0
     after = {t: _count(dbp, t) for t in ("orders", "trades", "nav_daily", "events")}

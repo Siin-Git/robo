@@ -10,10 +10,10 @@ def _cfg():
     return C.load_forward_cfg()["forward_test"]
 
 
-def create(session, display_name: str) -> dict:
+def create(session, display_name: str, *, participant_id: str | None = None) -> dict:
     ft = _cfg()
     join = C.now_utc().date()
-    pid = C.new_id(session, "P", 3)
+    pid = participant_id or C.new_id(session, "P", 3)
     ParticipantRepository(session).add(
         participant_id=pid, display_name=display_name, status="active",
         join_date=join, leave_date=None, created_at=C.now_utc(), updated_at=C.now_utc())

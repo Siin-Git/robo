@@ -29,11 +29,14 @@
     }
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    ".next-capstone-build/types/**/*.ts",
+    ".next-capstone/types/**/*.ts",
+    ".next-design-preview/types/**/*.ts",
     ".next/types/**/*.ts",
-    ".next-design-preview/types/**/*.ts"
+    "next-env.d.ts",
+    ".next-design-legacy/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

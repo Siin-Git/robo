@@ -23,3 +23,5 @@ __all__ = ["Account", "BasePortfolioSelection", "Counter", "Event", "ForwardStat
            "NavDaily", "OnboardingDraft", "Order", "Participant", "PerformanceDaily",
            "PortfolioTarget", "PriceDaily", "ScheduledJob", "Session", "Theme", "Trade",
            "User", "View"]
+
+from .demo_cohort import DemoCohort, DemoSlot

@@ -50,7 +50,7 @@ def require_owner(participant_id: str, user=Depends(get_current_user)):
     return enforce_owner(user, participant_id)
 
 
-def require_csrf(request: Request, db=Depends(get_db), user=Depends(get_current_user)):
+def require_authenticated_csrf(request: Request, db=Depends(get_db), user=Depends(get_current_user)):
     """Double-submit CSRF: header token == cookie token == session record."""
     if request.method == "GET":
         return user
@@ -60,4 +60,11 @@ def require_csrf(request: Request, db=Depends(get_db), user=Depends(get_current_
     cookie = request.cookies.get(_cfg().get("auth", {}).get("csrf_cookie_name", "ra_csrf"))
     if row is None or not auth.verify_csrf(row, header, cookie):
         raise ApiError("CSRF_INVALID", "Missing or invalid CSRF token.", 403)
+    return user
+
+
+def require_csrf(request: Request, user=Depends(require_authenticated_csrf)):
+    from ..local.capstone import enabled
+    if enabled() and not request.url.path.startswith("/api/v1/auth/"):
+        raise ApiError("DEMO_READ_ONLY", "Demo portfolio and views are fixed for comparison.", 409)
     return user

@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Report, contributionView } from "./performance-data";
 import { fmtActivePp, fmtDate, fmtReturn } from "@/lib/format";
@@ -8,7 +9,7 @@ function ChartTooltip({active,payload,label,unit="%",names,styles:s}:{styles:Rec
   if(!active||!payload?.length)return null;
   return <div className={s.tooltip}><strong>{fmtDate(String(label))}</strong>{payload.map((item,i)=><div key={String(item.dataKey??i)}><i style={{background:item.color}}/><span>{names?.[String(item.dataKey)]??item.name}</span><b>{Number(item.value)>0?"+":""}{Number(item.value).toFixed(2)}{unit}</b></div>)}</div>;
 }
-export function PerformancePanels({report,mode,selected,onSelect,onMode,styles:s}:{styles:Record<string,string>;report:Report;mode:"groups"|"assets";selected:string|null;onSelect:(id:string|null)=>void;onMode:(mode:"groups"|"assets")=>void}){
+export function PerformancePanels({report,mode,selected,onSelect,onMode,styles:s,riskPanel}:{styles:Record<string,string>;riskPanel?:ReactNode;report:Report;mode:"groups"|"assets";selected:string|null;onSelect:(id:string|null)=>void;onMode:(mode:"groups"|"assets")=>void}){
   const data=report.series.map(p=>({...p,personal:p.personal*100,benchmark:p.benchmark==null?null:p.benchmark*100,drawdown:p.drawdown*100}));
   const view=contributionView(report,mode);
   const max=Math.max(...view.ranking.map(r=>Math.abs(r.value)),.0001);
@@ -25,6 +26,7 @@ export function PerformancePanels({report,mode,selected,onSelect,onMode,styles:s
       </div>
       {!report.quality.benchmark_complete&&<p className={s.infoNote}>CORE 기록이 없는 날짜는 선을 연결하지 않습니다. 비교 수익률은 동일한 시작·종료일이 있을 때만 계산합니다.</p>}
     </section>
+    {riskPanel}
     <section className={s.panel} aria-labelledby="contribution-heading"><div className={s.sectionHeading}><div><span className={s.eyebrow}>RETURN CONTRIBUTION</span><h2 id="contribution-heading">내 수익은 어디에서 나왔을까요?</h2><p>위쪽은 수익에 더한 부분, 아래쪽은 수익에서 뺀 부분입니다.</p></div><div className={s.segmented} role="group" aria-label="기여도 표시 단위"><button aria-pressed={mode==="groups"} onClick={()=>onMode("groups")}>자산군</button><button aria-pressed={mode==="assets"} onClick={()=>onMode("assets")}>개별 자산</button></div></div>
       {report.quality.unresolved_intervals>0&&<p className={s.warning}>보유 내역이 부족한 {report.quality.unresolved_intervals}개 구간의 손익은 ‘미설명 차이’로 표시합니다.</p>}
       <div className={s.contributionGrid}><div className={s.contributionPlot}><div className={s.plotTitle}><span>누적 수익 기여도 · %p</span>{selected&&<button onClick={()=>onSelect(null)}>전체 강조로 돌아가기</button>}</div>

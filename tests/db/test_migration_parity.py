@@ -14,7 +14,32 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-LIVE = ROOT / "data" / "forward_test.db"
+
+
+@pytest.fixture()
+def source_db(tmp_path):
+    """A fresh clone must not need somebody's private live database to test migration."""
+    from datetime import date
+    from src.db.base import Base
+    from src.db.session import create_app_engine, session_factory
+    from src.db.models.price import PriceDaily
+    from src.db.models.nav import NavDaily
+    from src.api.services.participant_service import create
+    path = tmp_path / "source.db"
+    engine = create_app_engine(f"sqlite:///{path}")
+    Base.metadata.create_all(engine)
+    with session_factory(engine)() as s:
+        participant = create(s, "Migration fixture")
+        # A cash-only opening ledger, independent of demo NAV display fixtures.
+        s.add(NavDaily(account_id=f"A-{participant['participant_id']}-CORE",
+            date=date(2026, 4, 1), nav=100000000, nav_base100=100, daily_return=0,
+            cumulative_return=0, cash_balance=100000000, stale_price_flag=False,
+            nav_status="OK", benchmark_version="CORE_V0.3", theme_universe_version="THEME_UNIVERSE_V0.1",
+            risk_model_version="RISK_5Y_LW_FROZEN_V0", execution_rule_version="NEXT_AVAILABLE_CLOSE_V0"))
+        s.add(PriceDaily(asset_id="us_equity", date=date(2026, 4, 1), price=100.12345, source="test"))
+        s.commit()
+    engine.dispose()
+    return path
 
 
 def run(cmd, env_extra=None, timeout=600):
@@ -25,32 +50,32 @@ def run(cmd, env_extra=None, timeout=600):
     return subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
 
 
-def test_migration_dry_run_live_source(tmp_path):
+def test_migration_dry_run_seeded_source(tmp_path, source_db):
     r = run([sys.executable, "scripts/migrate_sqlite_to_postgres.py",
-             "--source", str(LIVE), "--dest", f"sqlite:///{tmp_path}/never.db", "--dry-run"])
+             "--source", str(source_db), "--dest", f"sqlite:///{tmp_path}/never.db", "--dry-run"])
     assert r.returncode == 0, r.stderr
     assert "Ready to migrate" in r.stdout
     assert not (tmp_path / "never.db").exists()
 
 
-def test_migrate_and_verify_live_source(tmp_path):
+def test_migrate_and_verify_seeded_source(tmp_path, source_db):
     dest = tmp_path / "mirror.db"
     r = run([sys.executable, "scripts/migrate_sqlite_to_postgres.py",
-             "--source", str(LIVE), "--dest", f"sqlite:///{dest}"])
+             "--source", str(source_db), "--dest", f"sqlite:///{dest}"])
     assert r.returncode == 0, r.stderr + r.stdout
     rep = json.loads((ROOT / "outputs" / "database" / "migration_report.json").read_text())
     assert rep["source_untouched"] is True
     assert rep["tables"]["prices_daily"]["match"] is True
     r2 = run([sys.executable, "scripts/verify_db_parity.py",
-              "--source", str(LIVE), "--dest", f"sqlite:///{dest}"])
+              "--source", str(source_db), "--dest", f"sqlite:///{dest}"])
     assert r2.returncode == 0, r2.stdout + r2.stderr
     assert "PARITY: PASS" in r2.stdout
 
 
-def test_migration_refuses_nonempty_dest(tmp_path):
+def test_migration_refuses_nonempty_dest(tmp_path, source_db):
     dest = tmp_path / "m.db"
     base = [sys.executable, "scripts/migrate_sqlite_to_postgres.py",
-            "--source", str(LIVE), "--dest", f"sqlite:///{dest}"]
+            "--source", str(source_db), "--dest", f"sqlite:///{dest}"]
     assert run(base).returncode == 0
     r = run(base)
     assert r.returncode != 0

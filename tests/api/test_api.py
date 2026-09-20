@@ -48,6 +48,7 @@ def test_participant_lifecycle(client, admin_cookies):
            c.get("/api/v1/participants", cookies=admin_cookies).json()["items"]]
     assert pid in ids
     # unauthenticated admin path is closed
+    c.cookies.clear()
     assert c.get("/api/v1/participants").status_code == 401
     # admin sees unknown IDs as 404 (no enumeration concern for admins)
     assert c.get("/api/v1/participants/P999", cookies=admin_cookies).status_code == 404
@@ -69,6 +70,7 @@ def test_participant_owner_read(client, owner, admin_cookies):
 def test_themes(client, owner):
     items = client.get("/api/v1/themes", cookies=owner["cookies"]).json()["items"]
     assert {t["theme_id"] for t in items} == {"ai", "semiconductor", "nuclear"}
+    client.cookies.clear()
     assert client.get("/api/v1/themes").status_code == 401
     opt = client.get("/api/v1/themes/optical_networking",
                      cookies=owner["cookies"]).json()
@@ -128,6 +130,7 @@ def test_portfolio_endpoints(client, owner):
     comp = client.get(f"/api/v1/participants/{owner['pid']}/portfolio/comparison",
                       cookies=ck).json()
     assert set(comp) == {"core", "personalized", "active"}
+    client.cookies.clear()
     assert client.get("/api/v1/portfolio/core").status_code == 401
 
 
@@ -199,6 +202,7 @@ def test_rankings_and_benchmarks(client, owner):
     ck = owner["cookies"]
     items = client.get("/api/v1/rankings", cookies=ck).json()["items"]
     assert len(items) == 1 and items[0]["active_return"] is None
+    client.cookies.clear()
     assert client.get("/api/v1/rankings").status_code == 401
     blist = client.get("/api/v1/benchmarks", cookies=ck).json()["items"]
     assert {b["benchmark_version"] for b in blist} == {"CORE_V0.3", "neutral_60_40",

@@ -10,9 +10,13 @@ import { ThemesStep } from "./ThemeSelection";
 import { ReviewStep } from "./ReviewStep";
 import { ASSET_META } from "./asset-meta";
 import { ArrowRight, RotateCcw, ChevronDown } from "lucide-react";
+import { SetupProgress } from "@/components/portfolio/SetupProgress";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/ui";
 import { get, post, put } from "@/lib/api/client";
+import { DEMO_MODE } from "@/lib/api/comparison";
+import type { ExperimentStatus } from "@/lib/api/experiment";
+import { ExperimentSetup } from "@/components/portfolio/ExperimentSetup";
 import { fmtPct } from "@/lib/format";
 
 interface FrontierPoint {
@@ -132,8 +136,8 @@ function SetupPortfolioInner() {
     mutationFn: (body: { frontier_id: string; theme_ids: string[]; reason?: string }) =>
       post("/api/v1/me/onboarding/complete", body),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["base-portfolio"] });
-      router.push("/dashboard");
+      for (const key of ["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views"]) qc.invalidateQueries({ queryKey: [key] });
+      router.push(DEMO_MODE ? "/portfolio?workspace=design" : "/portfolio");
     },
   });
 
@@ -177,10 +181,10 @@ function SetupPortfolioInner() {
 
   if (draftQ.isLoading) return <AppShell headerTitle="내 기본 포트폴리오 선택" setup><LoadingSkeleton rows={4} /></AppShell>;
   if (draftQ.isError) return <AppShell headerTitle="내 기본 포트폴리오 선택" setup><ErrorState message="저장한 선택을 불러오지 못했습니다." onRetry={() => draftQ.refetch()} /></AppShell>;
-  if (frontier.isLoading) return <AppShell headerTitle="내 기본 포트폴리오 선택"><LoadingSkeleton rows={6} /></AppShell>;
-  if (frontier.isError || !frontier.data) return <AppShell headerTitle="내 기본 포트폴리오 선택"><ErrorState message="포트폴리오 데이터를 불러오지 못했습니다." onRetry={() => frontier.refetch()} /></AppShell>;
-  if (points.length === 0) return <AppShell headerTitle="내 기본 포트폴리오 선택"><EmptyState title="Frontier 데이터가 없습니다." /></AppShell>;
-  if (!selected) return <AppShell headerTitle="내 기본 포트폴리오 선택"><LoadingSkeleton rows={4} /></AppShell>;
+  if (frontier.isLoading) return <AppShell headerTitle="내 기본 포트폴리오 선택" setup><LoadingSkeleton rows={6} /></AppShell>;
+  if (frontier.isError || !frontier.data) return <AppShell headerTitle="내 기본 포트폴리오 선택" setup><ErrorState message="포트폴리오 데이터를 불러오지 못했습니다." onRetry={() => frontier.refetch()} /></AppShell>;
+  if (points.length === 0) return <AppShell headerTitle="내 기본 포트폴리오 선택" setup><EmptyState title="Frontier 데이터가 없습니다." /></AppShell>;
+  if (!selected) return <AppShell headerTitle="내 기본 포트폴리오 선택" setup><LoadingSkeleton rows={4} /></AppShell>;
 
   const benchPoint = points.find((p) => p.frontier_id === frontier.data!.benchmark_frontier_id);
   const groups = groupsOf(selected.weights);
@@ -195,13 +199,14 @@ function SetupPortfolioInner() {
 
   return (
     <AppShell headerTitle="내 기본 포트폴리오 선택" setup>
+      <SetupProgress step={step} />
       {step === "risk" && saveError && <p role="alert" className="text-negative">선택 내용을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
       {step === "risk" && (
         <div className={styles.page}>
           <div className={styles.hero}>
           <header className={styles.intro}>
-            <h1>나에게 맞는 투자 구성을 찾아보세요</h1>
-            <p>위험 수준을 움직여 예상 수익과 자산 구성을 확인하세요.</p>
+            <h1>위험 수준에 맞는 기본 포트폴리오를 설계하세요</h1>
+            <p>Efficient Frontier에서 감수할 위험을 선택합니다. 슬라이더를 움직이면 기대수익률·예상 변동성·자산 비중이 함께 바뀝니다.</p>
           </header>
 
           <div className={styles.workspace}>
@@ -223,7 +228,7 @@ function SetupPortfolioInner() {
                   className={styles.slider}
                   style={{ background: `linear-gradient(to right, var(--brand) ${points.length > 1 ? curIdx / (points.length - 1) * 100 : 0}%, #e5e9ef 0%)` }} />
                 <div className={styles.rangeLabels}><span>안정적으로</span><span>적극적으로</span></div>
-                <p>선택한 위험 수준에 맞춰 포트폴리오 구성이 달라집니다.</p>
+                <p>파란 선 위의 선택 지점과 오른쪽 요약을 함께 확인하세요. 다음 단계에서는 이 기본 구성에 투자 인사이트를 반영합니다.</p>
               </div>
             </section>
 
@@ -295,7 +300,7 @@ function SetupPortfolioInner() {
 
           <footer className={styles.footer}>
             <button className={styles.reset} disabled={!benchPoint} onClick={() => { const i = points.findIndex((p) => p.frontier_id === benchPoint?.frontier_id); if (i >= 0) setIdx(i); }}><RotateCcw size={15} aria-hidden="true" />기준 구성으로 되돌리기</button>
-            <button className={styles.next} onClick={() => goNext()}>관심 테마 선택하기<ArrowRight size={18} aria-hidden="true" /></button>
+            <button className={styles.next} disabled={navigationPending} onClick={() => goNext()}>{navigationPending ? "선택 저장 중…" : "다음: 투자 인사이트 반영"}<ArrowRight size={18} aria-hidden="true" /></button>
           </footer>
         </div>
       )}
@@ -330,8 +335,12 @@ function SetupPortfolioInner() {
 }
 
 export default function SetupPortfolioPage() {
+  const experiment=useQuery({queryKey:["experiment-setup-status"],queryFn:()=>get<ExperimentStatus>("/api/v1/me/experiment"),enabled:DEMO_MODE});
+  if(DEMO_MODE&&experiment.isLoading)return <AppShell headerTitle="첫 설정"><LoadingSkeleton rows={4}/></AppShell>;
+  if(DEMO_MODE&&experiment.isError)return <AppShell headerTitle="첫 설정"><ErrorState message="설정 상태를 불러오지 못했습니다." onRetry={()=>experiment.refetch()}/></AppShell>;
+  if(experiment.data?.status==="setup_required")return <ExperimentSetup status={experiment.data}/>;
   return (
-    <Suspense fallback={<AppShell headerTitle="내 기본 포트폴리오 선택"><LoadingSkeleton rows={6} /></AppShell>}>
+    <Suspense fallback={<AppShell headerTitle="내 기본 포트폴리오 선택" setup><LoadingSkeleton rows={6} /></AppShell>}>
       <SetupPortfolioInner />
     </Suspense>
   );

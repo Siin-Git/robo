@@ -8,7 +8,7 @@ const BADGE = process.env.NEXT_PUBLIC_APP_PROFILE === "replay"
 
 export function AppHeader({ title, right }: { title: string; right?: ReactNode }) {
   return (
-    <header className="flex h-[64px] items-center justify-between border-b border-border bg-white px-[32px]">
+    <header className="flex h-[64px] items-center justify-between border-b border-border bg-white px-[20px] md:px-[32px]">
       <div className="flex items-center gap-[12px]">
         <h2 className="text-[14px] font-semibold leading-[20px]">{title}</h2>
         {BADGE ? (

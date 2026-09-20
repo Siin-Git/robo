@@ -1,10 +1,10 @@
 .page { padding:14px 0 24px; color:#182b43; }
 .header { margin-bottom:28px; }
 .eyebrow { color:#4d6482; font-size:12px; letter-spacing:.13em; font-weight:700; margin-bottom:12px; }
-.header h1 { font-size:36px; line-height:1.35; font-weight:750; letter-spacing:-.045em; word-break:keep-all; }
+.header h1 { font-size:var(--page-title-size); line-height:1.35; font-weight:750; letter-spacing:-.045em; word-break:keep-all; }
 .header p { margin-top:12px; font-size:16px; color:#4d6079; line-height:1.7; }
 .header strong { color:#244c87; font-weight:650; }
-.composition,.changes { background:white; border:1px solid #c7d2e0; border-radius:18px; padding:28px 32px; }
+.composition,.changes { background:white; border:1px solid var(--panel-border); border-radius:var(--radius-card); padding:28px 32px; }
 .sectionHeading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .sectionHeading h2 { font-size:22px; font-weight:700; letter-spacing:-.035em; }
 .sectionHeading p { font-size:14px; line-height:1.7; color:#53667e; margin-top:6px; }
@@ -14,7 +14,7 @@
 .donut { display:block; width:100%; max-width:460px; overflow:visible; }
 .donut text { pointer-events:none; }
 .centerLabel { font-size:16px; fill:#526780; font-weight:500; }
-.centerValue { font-size:36px; fill:#183452; font-weight:750; letter-spacing:-1px; }
+.centerValue { font-size:var(--page-title-size); fill:#183452; font-weight:750; letter-spacing:-1px; }
 .centerHint { font-size:12px; fill:#60738c; }
 .themePill { display:flex; gap:16px; color:#655086; background:#f3eefb; border-radius:20px; padding:9px 17px; font-size:13px; margin-top:6px; }
 .themePill strong { font-weight:700; }
@@ -57,7 +57,7 @@
 .risk p { font-size:13px; color:#516780; margin-bottom:10px; }
 .risk b { color:#284c80; font-weight:650; }
 .risk small { display:block; color:#60738b; font-size:11px; line-height:1.7; }
-.details { background:white; border:1px solid #c7d2e0; border-radius:12px; margin-top:22px; }
+.details { background:white; border:1px solid var(--panel-border); border-radius:12px; margin-top:22px; }
 .details summary { cursor:pointer; padding:20px 24px; font-size:15px; font-weight:650; }
 .details summary>span { font-size:12px; color:#63738b; font-weight:400; margin-left:15px; }
 .tableWrap { overflow-x:auto; padding:0 24px 16px; }
@@ -73,12 +73,15 @@
 .footer strong { font-size:18px; font-weight:650; }
 .footer p { font-size:13px; color:#5b6e85; margin-top:5px; }
 .actions { display:flex; gap:12px; }
-.back,.confirm { display:flex; align-items:center; justify-content:center; gap:10px; padding:15px 22px; border-radius:9px; font-size:14px; font-weight:600; white-space:nowrap; }
+.back,.confirm { display:flex; align-items:center; justify-content:center; gap:10px; padding:15px 22px; border-radius:var(--radius-control); font-size:14px; font-weight:600; white-space:nowrap; }
 .back { background:white; color:#395371; border:1px solid #b9c8db; }
-.confirm { background:#285bd3; color:white; border:1px solid #285bd3; }
+.confirm { background:var(--brand); color:white; border:1px solid var(--brand); }
 .confirm:hover { background:#214eb9; }
 .actions button:disabled { opacity:.55; cursor:wait; }
 .error { margin-top:16px; color:#a33c31; font-size:14px; }
 .page :is(button,summary,circle):focus-visible { outline:3px solid #5585dd; outline-offset:3px; }
 @media(max-width:1050px) { .compositionGrid { gap:24px; grid-template-columns:.9fr 1.1fr; } .assetName strong { font-size:14px; } .assets b { font-size:17px; } .changeGrid { gap:22px; grid-template-columns:1fr 1fr; } .footer { align-items:flex-start; flex-direction:column; } .actions { align-self:flex-end; } }
 @media(max-width:760px) { .header h1 { font-size:28px; } .header p { font-size:14px; } .composition,.changes { padding:22px 18px; border-radius:14px; } .sectionHeading { align-items:flex-start; gap:12px; } .sectionHeading h2 { font-size:20px; } .sectionHeading p { font-size:12px; } .compositionGrid,.changeGrid { grid-template-columns:1fr; gap:22px; } .donut { max-width:360px; } .themeChanges { flex-direction:column; } .themeChanges b { margin-left:auto; } .assets button { padding:11px 7px; } .assetName strong { font-size:15px; } .details summary { padding:18px; } .details summary>span { display:none; } .actions { width:100%; } .back,.confirm { flex:1; padding:14px 10px; font-size:13px; gap:6px; } .totalBadge { padding:6px 8px; font-size:11px; } .legend { margin-left:0; } }
+
+.composition { margin-top:24px; }
+.changes { margin-top:0; }

@@ -1,14 +1,14 @@
 .page{padding:8px 0 38px;color:#1c314d}
 .header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:27px}
 .eyebrow{display:block;color:#6e819a;font-size:10px;font-weight:700;letter-spacing:.15em;margin-bottom:9px}
-.header h1{font-size:36px;font-weight:750;letter-spacing:-.045em;line-height:1.3}
+.header h1{font-size:var(--page-title-size);font-weight:750;letter-spacing:-.045em;line-height:1.3}
 .header p{margin-top:10px;color:#5b6f89;font-size:15px;line-height:1.7;word-break:keep-all}
-.outlineLink{display:flex;align-items:center;justify-content:center;gap:10px;background:white;border:1px solid #bdcadb;padding:12px 16px;border-radius:9px;font-size:13px;font-weight:600;white-space:nowrap}
+.outlineLink{display:flex;align-items:center;justify-content:center;gap:10px;background:white;border:1px solid #bdcadb;padding:12px 16px;border-radius:var(--radius-control);font-size:13px;font-weight:600;white-space:nowrap}
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:22px}
 .measurement{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:550;color:#4c6380}
 .statusDot{width:6px;height:6px;border-radius:50%;background:#527baf}
 .date{font-size:11px;color:#74849a;font-weight:400;margin-left:10px}
-.periods{display:flex;align-items:center;padding:4px;border:1px solid #cad4e1;border-radius:9px;background:#e7edf5}
+.periods{display:flex;align-items:center;padding:4px;border:1px solid #cad4e1;border-radius:var(--radius-control);background:#e7edf5}
 .periods button{padding:7px 14px;font-size:12px;font-weight:550;color:#6a7a91;border-radius:6px}
 .periods button[aria-pressed=true]{background:white;color:#2754a0;box-shadow:0 1px 4px #263d6420}
 .exampleBanner{display:flex;align-items:center;gap:12px;background:#f7f1df;color:#74603b;border:1px solid #e1d1a9;padding:14px 18px;border-radius:10px;margin-bottom:20px;position:sticky;top:10px;z-index:10}
@@ -19,13 +19,13 @@
 .exampleBanner button{font-size:12px;font-weight:600;text-decoration:underline;text-underline-offset:4px}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:24px}
 .metric{background:white;border:1px solid #cbd5e2;border-radius:13px;padding:22px 23px}
-.metric[data-primary=true]{background:#285dd3;border-color:#285dd3;color:white}
+.metric[data-primary=true]{background:var(--brand);border-color:var(--brand);color:white}
 .metric>span{font-size:13px;color:#536a85}
 .metric[data-primary=true]>span{color:#e1ebff}
 .metric>strong{display:block;font-size:32px;line-height:1.3;font-weight:700;letter-spacing:-.04em;margin-top:9px;font-variant-numeric:tabular-nums}
 .metric>p{font-size:11px;color:#6c7d93;margin-top:11px;line-height:1.6}
 .metric[data-primary=true]>p{color:#d1dfff}
-.panel,.riskSection,.drawdownPanel{background:white;border:1px solid #c6d2e0;border-radius:17px;padding:28px 30px;margin-bottom:24px}
+.panel,.riskSection,.drawdownPanel{background:white;border:1px solid var(--panel-border);border-radius:var(--radius-card);padding:28px 30px;margin-bottom:24px}
 .sectionHeading{display:flex;align-items:center;justify-content:space-between;gap:20px}
 .sectionHeading h2{font-size:22px;font-weight:700;letter-spacing:-.04em;line-height:1.5;word-break:keep-all}
 .sectionHeading p{font-size:13px;line-height:1.8;color:#647791;margin-top:6px}
@@ -35,7 +35,7 @@
 .lineLegend i{width:17px;height:3px;border-radius:3px}
 .lineLegend strong{font-size:15px;font-weight:650;color:#243b5b;margin-left:4px;font-variant-numeric:tabular-nums}
 .mainChart{height:340px;margin-top:8px;min-width:0}
-.tooltip{background:#fffffff7;border:1px solid #c4d0df;border-radius:9px;box-shadow:0 6px 24px #1c355b15;padding:13px 16px;min-width:200px;color:#263c58;font-size:12px;pointer-events:none}
+.tooltip{background:#fffffff7;border:1px solid #c4d0df;border-radius:var(--radius-control);box-shadow:0 6px 24px #1c355b15;padding:13px 16px;min-width:200px;color:#263c58;font-size:12px;pointer-events:none}
 .tooltip>strong{display:block;font-size:11px;font-weight:600;color:#6b7e95;margin-bottom:8px}
 .tooltip>div{display:flex;align-items:center;gap:8px;padding:4px 0}
 .tooltip i{width:7px;height:7px;border-radius:2px}
@@ -81,7 +81,7 @@
 .warning{background:#faf3e7;color:#856537;padding:12px 15px;border-radius:7px}
 .innerDetails{border-top:1px solid #dde5ef;margin-top:23px;padding-top:18px}
 .innerDetails summary{font-size:13px;font-weight:550;cursor:pointer;color:#4c6688}
-.details{background:white;border:1px solid #c6d2e0;border-radius:11px;margin-top:16px}
+.details{background:white;border:1px solid var(--panel-border);border-radius:11px;margin-top:16px}
 .details summary{font-size:14px;font-weight:600;padding:21px 24px;cursor:pointer}
 .details summary span{font-size:11px;font-weight:400;color:#73849b;margin-left:18px}
 .tableWrap{overflow-x:auto;padding:0 23px}
@@ -99,14 +99,16 @@
 .footer strong{font-size:15px;font-weight:600}
 .footer p{font-size:12px;color:#6c7f97;margin-top:5px}
 .footer a{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#3063b9;white-space:nowrap}
-.empty{background:white;border:1px solid #c6d2e0;border-radius:16px;padding:65px 25px;text-align:center}
-.emptyIcon{display:flex;align-items:center;justify-content:center;background:#eaf1fc;color:#3871d5;width:65px;height:65px;border-radius:18px;margin:0 auto 20px}
+.empty{background:white;border:1px solid var(--panel-border);border-radius:var(--radius-card);padding:65px 25px;text-align:center}
+.emptyIcon{display:flex;align-items:center;justify-content:center;background:#eaf1fc;color:#3871d5;width:65px;height:65px;border-radius:var(--radius-card);margin:0 auto 20px}
 .empty h2{font-size:24px;font-weight:650;letter-spacing:-.04em}
 .empty p{font-size:14px;color:#6d8097;line-height:1.9;margin:13px 0 22px}
-.primaryButton{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:14px 20px;background:#2b60d4;color:white;border-radius:8px;font-size:13px;font-weight:600}
+.primaryButton{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:14px 20px;background:var(--brand);color:white;border-radius:8px;font-size:13px;font-weight:600}
 .empty>a{display:block;font-size:12px;color:#647d9e;margin-top:18px}
 .page :is(button,a,summary):focus-visible{outline:3px solid #6491dc;outline-offset:3px}
 @media(max-width:600px){.exampleBanner{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px 10px;align-items:start;padding:13px}.exampleBanner strong{word-break:keep-all}.exampleBanner button{grid-column:2;justify-self:start;margin-left:0}.exampleBanner>svg{margin-top:2px}}
 @media(max-width:1200px){.metric{padding:20px 17px}.metric>strong{font-size:28px}.contributionGrid{grid-template-columns:minmax(0,1.5fr) minmax(230px,1fr);gap:20px}.ranking{padding-left:18px}.sectionHeading h2{font-size:20px}}
 @media(max-width:1000px){.toolbar{align-items:flex-start;flex-direction:column}.kpis{grid-template-columns:1fr 1fr}.contributionGrid{grid-template-columns:1fr}.ranking{border-left:0;border-top:1px solid #dce4ef;padding:22px 0 0}.rankRow{padding:12px 9px}.areaChart{height:310px}.riskMetrics{gap:16px}.riskMetrics>div+div{padding-left:16px}.riskMetrics strong{font-size:24px}.exampleBanner{flex-wrap:wrap}.exampleBanner button{margin-left:31px}}
 @media(max-width:600px){.page{padding-top:0}.header{align-items:flex-start;gap:12px}.header h1{font-size:29px}.header p{font-size:13px}.outlineLink{font-size:11px;padding:10px 11px;gap:6px;margin-top:19px}.eyebrow{font-size:9px}.date{margin-left:0}.measurement{gap:7px}.toolbar{gap:14px}.periods{width:100%}.periods button{flex:1;padding:8px 6px}.kpis{gap:10px}.metric{padding:17px 13px}.metric>span{font-size:11px}.metric>strong{font-size:27px}.metric>p{font-size:10px}.panel,.riskSection,.drawdownPanel{padding:22px 15px;border-radius:13px}.sectionHeading{flex-wrap:wrap;gap:14px}.sectionHeading h2{font-size:20px}.sectionHeading p{font-size:12px}.mainChart{height:285px}.lineLegend{gap:10px 20px}.lineLegend>span{font-size:11px}.lineLegend strong{font-size:13px}.areaChart{height:280px}.riskMetrics{grid-template-columns:1fr;gap:18px}.riskMetrics>div+div{border-left:0;padding-left:0;border-top:1px solid #e1e7f0;padding-top:18px}.riskMetrics strong{font-size:27px}.method{grid-template-columns:1fr;padding:0 18px 22px}.details summary{padding:20px 17px;font-size:13px}.details summary span{display:none}.footer{align-items:flex-start;flex-direction:column}.empty{padding:40px 20px}.empty h2{font-size:21px}.empty p{font-size:13px}.tooltip{min-width:160px;padding:11px;font-size:11px}}
+
+.empty a:global(.btn-primary) { display:inline-flex; color:white; margin:0 10px 14px 0; font-size:13px; }

@@ -1,7 +1,7 @@
 {
-  "source": "C:\\Users\\Public\\Documents\\ESTsoft\\CreatorTemp\\pytest-of-sind02\\pytest-862\\test_migration_fails_on_orphan0\\orphan.db",
-  "destination": "sqlite:///C:\\Users\\Public\\Documents\\ESTsoft\\CreatorTemp\\pytest-of-sind02\\pytest-862\\test_migration_fails_on_orphan0/d.db",
-  "source_sha256_before": "6706155c4e2c17f394bd80cc240b2e799600d409587a05cc49f10ead8d3bbdc1",
+  "source": "/private/var/folders/p5/0jjrwxfx7kgff2cjskhfptpw0000gn/T/pytest-of-jeongminchan/pytest-7/test_migration_fails_on_orphan0/orphan.db",
+  "destination": "sqlite:////private/var/folders/p5/0jjrwxfx7kgff2cjskhfptpw0000gn/T/pytest-of-jeongminchan/pytest-7/test_migration_fails_on_orphan0/d.db",
+  "source_sha256_before": "aa89cfe803f6a0a1a380429ae4eaec60a173cbab793e808edd44ac5d3582a773",
   "tables": {
     "counters": {
       "source_rows": 0
@@ -53,5 +53,5 @@
     "orphan FKs: [\"orders.account_id='A-missing' (parent accounts missing)\", \"trades.account_id='A-missing' (parent accounts missing)\"]"
   ],
   "warnings": [],
-  "completed_at": "2026-09-16T05:38:20.255108+00:00"
+  "completed_at": "2026-09-19T01:35:58.216907+00:00"
 }

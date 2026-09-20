@@ -3,7 +3,7 @@ import { THEME_INFO } from "./theme-content";
 
 export interface Weight { asset_id: string; weight: number }
 export interface ReviewData {
-  base: { frontier_id: string; expected_return: number; volatility: number; weights: Weight[]; groups: Record<string, number> };
+  base: { frontier_id: string; expected_return: number | null; volatility: number | null; weights: Weight[]; groups: Record<string, number> };
   personalized: { volatility: number | null; tracking_error: number | null; weights: Weight[]; groups: Record<string, number> };
   themes: { theme_id: string; display_name?: string; ticker?: string | null; target_weight: number }[];
   risk_guardrail_applied: boolean;

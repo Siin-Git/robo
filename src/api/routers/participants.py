@@ -11,6 +11,12 @@ from ..services import participant_service as svc
 router = APIRouter(prefix="/participants", tags=["participants"])
 
 
+@router.get("/{participant_id}/comparison", summary="Read-only demo comparison; no private account data")
+def comparison(participant_id: str, db=Depends(get_db), user=Depends(get_current_user)):
+    from ..services.comparison_service import detail
+    return detail(db, participant_id)
+
+
 @router.get("", summary="List participants (admin)")
 def list_participants(status: str | None = Query(default=None),
                       limit: int = Query(default=50, ge=1, le=200),

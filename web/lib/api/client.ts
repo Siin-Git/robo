@@ -32,7 +32,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const requestId = res.headers.get("X-Request-ID");
   if (res.status === 401 && typeof window !== "undefined") {
     const here = window.location.pathname;
-    if (!here.startsWith("/login")) window.location.href = `/login?next=${encodeURIComponent(here)}`;
+    if (here !== "/login" && here !== "/signup") {
+      window.location.replace(`/login?next=${encodeURIComponent(here + window.location.search)}`);
+    }
   }
   let body: unknown = null;
   try {

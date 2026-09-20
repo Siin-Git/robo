@@ -18,6 +18,7 @@ class RegisterBody(BaseModel):
     email: str
     password: str
     display_name: str = Field(min_length=1, max_length=128)
+    invitation_code: str | None = Field(default=None, max_length=256)
 
 
 class LoginBody(BaseModel):
@@ -34,7 +35,10 @@ def _cookie_conf():
     from ..services import _common as C
     cfg = C.load_forward_cfg().get("auth", {})
     secure = os.environ.get("APP_PROFILE", "live").strip().lower() == "live"
-    if os.environ.get("AUTH_COOKIE_SECURE", "").strip().lower() in ("0", "false", "no"):
+    override = os.environ.get("AUTH_COOKIE_SECURE", "").strip().lower()
+    if override in ("1", "true", "yes"):
+        secure = True
+    elif override in ("0", "false", "no"):
         secure = False
     return cfg.get("cookie_name", "ra_session"), cfg.get("csrf_cookie_name", "ra_csrf"), \
         int(cfg.get("session_ttl_days", 7)) * 86400, secure
@@ -55,6 +59,9 @@ def _clear_auth_cookies(resp: Response) -> None:
 
 
 def _registration_allowed() -> bool:
+    from ...local.capstone import enabled
+    if enabled():
+        return False
     if os.environ.get("APP_PROFILE", "").strip().lower() == "local":
         return True
     return os.environ.get("ALLOW_PUBLIC_REGISTRATION", "false").strip().lower() == "true"
@@ -62,6 +69,10 @@ def _registration_allowed() -> bool:
 
 @router.post("/register", status_code=201, summary="Public registration (config-gated)")
 def register(body: RegisterBody, db=Depends(get_db)):
+    from ...local.capstone import enabled
+    if enabled():
+        from ..services import enrollment_service
+        return enrollment_service.register(db, body.email, body.password, body.display_name, body.invitation_code)
     if not _registration_allowed():
         raise ApiError("REGISTRATION_DISABLED", "Public registration is disabled.", 403)
     return auth.register(db, body.email, body.password, body.display_name)

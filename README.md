@@ -1,4 +1,15 @@
+> main 기능 보존·서버 초대 설정·통합 회귀·배포 제한: [v1·캡스톤 통합 기록](docs/V1_CAPSTONE_INTEGRATION.md)
+
+> 신규 가입 → 공통 CORE → Theme 선택 → 생성 → 비교 시연은 [통합 시연 운영 안내](docs/UNIFIED_DEMO.md)를 확인하세요. 이전의 가입 제외 안내는 이 흐름으로 대체됩니다.
+
 # Personalized Robo Advisor Prototype
+
+## 교수님 시연용 13명 MVP
+
+`robo/`에서 `.venv/bin/python scripts/start_demo.py` 실행 → **http://127.0.0.1:3001/login**.
+계정은 `capstone01@example.com` ~ `capstone13@example.com`, 공통 비밀번호는 `Capstone-Demo-2026!`입니다.
+별도 SQLite와 가상 NAV를 사용하며 기존 로컬 데이터는 유지합니다.
+실행·seed·시연 순서와 가정은 [데모 안내](docs/CAPSTONE_DEMO.md)를 확인하세요.
 
 위험 수준에 맞는 기본 자산배분을 고른 뒤, 관심 테마를 주식 비중 안에서 반영하고 모의운용 성과와 자산별 기여도를 확인하는 웹 프로토타입입니다. 실제 주문이나 투자 권유를 수행하지 않습니다.
 
