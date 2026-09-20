@@ -99,7 +99,10 @@ APP_PROFILE=local CAPSTONE_DEMO=1 DATABASE_BACKEND=sqlite \
 
 ### 최종 발표자 준비
 
-- 최종 Backend 실행 커밋: `39027e2`, Render 배포 `dep-danrrf3m8hqs73cb4rq0`.
+- 최종 Backend 실행 커밋: `39027e2`, Render 배포 `dep-danrrf3m8hqs73cb4rq0`가 Live. 해당 커밋의 GitHub Backend/Frontend CI 모두 성공. Frontend 런타임 파일은 앞선 Vercel 성공 배포와 동일하다.
+- 보완 후 실제 배포 주소에서 기존 참가자 브라우저 회귀를 2개 worker로 동시에 실행해 **2 passed (2.2분)**. Dashboard/Ranking/Detail 수치 대사, 5개 정렬, 로그아웃·다른 사용자 로그인, 새로고침, 모바일 비교 화면을 모두 통과했다.
+- 앞선 신규 가입 검증은 전용 11+2 비교군에서 2건 모두 완료했다. 최종 12+1 비교군의 발표자 슬롯은 소비하지 않고 초대 검증 및 예약 유지까지 확인했다. 동일 생성 경로를 사용한다.
+- 배포 주소 회원가입 화면을 실제 Chrome에서 열어 `demo@example.com`을 입력했다. 비밀번호는 입력·저장하지 않았다.
 - 비교군: `professor-hosted-20260920`. 서버 응답으로 등록 12명 / 예약 1명 / 가입 진행 중 0명 / 정원 13명을 확인했다.
 - 발표자 이메일: `demo@example.com`. 계정은 미생성 상태이며 새 비밀번호는 발표자가 가입 화면에서 정한다. 초대 원문은 기존 로컬 비공개 파일 `/private/tmp/robo-professor-invitation.json`에만 보관한다.
 - 잘못된 초대는 `403 INVALID_INVITATION`. 유효 초대 + 너무 짧은 비밀번호는 `422 PASSWORD_TOO_SHORT`로 거절되며 계정·예약이 생성/소비되지 않음을 확인했다.
