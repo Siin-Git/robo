@@ -90,7 +90,7 @@ def test_signup_reconfigure_refresh_and_preserve_other_users(market):
     preview = c.post("/api/v1/me/onboarding/preview", json=new).json()
     assert preview["risk_comparison"]["personalized_volatility"] is not None
     assert c.get("/api/v1/me/comparison").json() == first
-    assert c.post("/api/v1/me/onboarding/complete", json={**new, "reason": " "}, headers=headers).status_code == 422
+    assert c.post("/api/v1/me/onboarding/complete", json={**new, "reason": " "}, headers=headers).status_code == 200
     assert c.post("/api/v1/me/onboarding/complete", json=new, headers=headers).status_code == 200
     second = c.get("/api/v1/me/comparison").json()
     assert set(second["themes"]) == set(new["theme_ids"])
@@ -164,9 +164,9 @@ def test_reset_keeps_identity_and_slot_then_recreates_without_old_design(market)
     assert r.json()['draft']['theme_ids'] == [] and r.json()['draft']['reason'] == ''
     assert c.get('/api/v1/me/comparison').status_code == 409
     assert c.get('/api/v1/comparison/analytics').json()['reports'] == baseline
-    assert c.get('/api/v1/me/onboarding/draft').json() == {'status': 'not_started'}
+    assert c.get('/api/v1/me/onboarding/draft').json()['status'] == 'not_started'
     assert c.get('/api/v1/me/views/current').json()['items'] == []
-    assert c.post('/api/v1/me/onboarding/complete', json=redesign, headers=headers).status_code == 409
+    assert c.post('/api/v1/me/onboarding/complete', json={**redesign, 'frontier_id': 'missing'}, headers=headers).status_code == 422
     with env.factory() as s:
         assert users == [(u.user_id, u.participant_id, u.password_hash) for u in s.scalars(select(User))]
         assert nav == [(n.account_id, n.date, float(n.nav)) for n in s.scalars(select(NavDaily))]

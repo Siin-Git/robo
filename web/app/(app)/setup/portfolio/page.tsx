@@ -135,8 +135,8 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
   const mutateComplete = useMutation({
     mutationFn: (body: { frontier_id: string; theme_ids: string[]; reason?: string }) =>
       post("/api/v1/me/onboarding/complete", body),
-    onSuccess: () => {
-      for (const key of ["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment"]) qc.invalidateQueries({ queryKey: [key] });
+    onSuccess: async () => {
+      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
       router.push(DEMO_MODE && !market ? "/portfolio?workspace=design" : "/portfolio");
     },
   });
@@ -317,7 +317,6 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
           saveError={saveError}
           initialCategory={params.get("category")}
           selectedBase={selected}
-          selectionReason={market ? {value: reason, onChange: setReason} : undefined}
         />
       )}
 
@@ -339,7 +338,7 @@ export default function SetupPortfolioPage() {
   const experiment=useQuery({queryKey:["experiment-setup-status"],queryFn:()=>get<ExperimentStatus>("/api/v1/me/experiment"),enabled:DEMO_MODE});
   if(DEMO_MODE&&experiment.isLoading)return <AppShell headerTitle="첫 설정"><LoadingSkeleton rows={4}/></AppShell>;
   if(DEMO_MODE&&experiment.isError)return <AppShell headerTitle="첫 설정"><ErrorState message="설정 상태를 불러오지 못했습니다." onRetry={()=>experiment.refetch()}/></AppShell>;
-  if(experiment.data?.status==="setup_required")return <ExperimentSetup status={experiment.data}/>;
+  if(experiment.data?.status==="setup_required" && !experiment.data.market_comparison)return <ExperimentSetup status={experiment.data}/>;
   return (
     <Suspense fallback={<AppShell headerTitle="내 기본 포트폴리오 선택" setup><LoadingSkeleton rows={6} /></AppShell>}>
       <SetupPortfolioInner market={experiment.data?.market_comparison} />

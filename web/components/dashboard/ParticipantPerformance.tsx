@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorState, LoadingSkeleton, MetricCard } from "@/components/shared/ui";
-import { AllocationBars, PortfolioComparisonTable } from "@/components/portfolio/PortfolioTables";
+import { PortfolioComparisonTable } from "@/components/portfolio/PortfolioTables";
 import { PerformanceChart, MY_LINE, CORE_LINE } from "./PerformanceChart";
 import { get, ApiError } from "@/lib/api/client";
 import type { Comparison } from "@/lib/api/comparison";
@@ -13,6 +13,7 @@ import { themeLabel } from "@/lib/constants";
 import { fmtActivePp, fmtDate, fmtNav, fmtPct, fmtReturn } from "@/lib/format";
 import { RiskReturnMap, useComparisonAnalytics } from "@/components/performance/ComparisonAnalytics";
 import type { ExperimentStatus } from "@/lib/api/experiment";
+import { AllocationDonut } from "@/components/portfolio/AllocationDonut";
 import { ResetPortfolioButton } from "@/components/portfolio/ResetPortfolioButton";
 import s from "./demo.module.css";
 
@@ -50,7 +51,7 @@ export function ParticipantPerformance({ participantId, portfolioOnly = false }:
       </header>
       {r.status!=="awaiting_performance"&&<DemoNote market={market}/>}
       {r.confirmed_at&&<p className="ui-note">구성 저장: {fmtDate(r.confirmed_at.slice(0,10))}{!market&&<> · 실제 Forward Test 시작: 성과 집계 대기{r.scenario_id&&<> · 시연 시나리오 {r.scenario_id}</>}<br/>가입 이전의 NAV는 신규 사용자의 운용 이력이 아닙니다.</>}</p>}
-      {market&&<section className="ui-note"><strong>현재 비교에 반영된 구성</strong><p>선택 이유: {r.reason || "입력한 이유가 없습니다."}</p>{!detail&&<><Link className="btn-secondary" href="/setup/portfolio?step=risk">포트폴리오 재구성</Link>{experiment.data?.can_reset && <ResetPortfolioButton/>}<p>기본 비중·Theme·선택 이유를 변경하고 저장하면 내 성과와 순위가 함께 갱신됩니다.</p></>}</section>}
+      {market&&<section className="ui-note"><strong>현재 비교에 반영된 구성</strong>{!detail&&<><Link className="btn-secondary" href="/setup/portfolio?step=risk">포트폴리오 재구성</Link>{experiment.data?.can_reset && <ResetPortfolioButton/>}<p>위험 수준과 Theme를 변경하고 저장하면 내 성과와 순위가 함께 갱신됩니다.</p></>}</section>}
       {!detail&&!market&&<p><Link className="btn-secondary" href="/portfolio?workspace=design">저장한 자유 설계 보기</Link></p>}
       {!detail&&!market&&experiment.data?.configuration&&<section className="ui-note"><strong>확정된 실험 구성</strong><p>선택 이유: {experiment.data.configuration.reason}</p><Link className="btn-secondary" href="/setup/portfolio?step=risk">자유 포트폴리오 설계</Link></section>}
       {r.status==="awaiting_performance"&&<section className="ui-panel"><h2>성과 집계 대기</h2><p>선택 조합에 맞는 시연 시나리오가 없습니다. 실제 시작일과 평가 기록이 준비되면 같은 기간끼리 비교합니다. 과거 실적은 소급 생성하지 않습니다.</p></section>}
@@ -88,10 +89,10 @@ export function ParticipantPerformance({ participantId, portfolioOnly = false }:
         <h2>최근 데이터 기준 주간</h2>{r.weekly?<><p>기준 주간 {r.weekly.week_start} — {r.weekly.end} · 수익률 출발 평가일 {r.weekly.start} · 현재 달력상의 이번 주가 아닙니다.</p><div className="analytics-kpis"><div>Portfolio<strong>{fmtReturn(r.weekly.portfolio_return)}</strong></div><div>CORE<strong>{fmtReturn(r.weekly.core_return)}</strong></div><div>Excess<strong>{fmtActivePp(r.weekly.excess_return)}</strong></div></div></>:<p>주간 데이터 없음</p>}
         <p className="ui-note">누적·주간 Asset / Base / Theme Contribution, Top·Bottom Contributor: 이 비교 NAV에 대응하는 실제 보유·거래 데이터가 없어 제공하지 않습니다. Theme 기여도와 CORE 초과성과는 서로 다른 지표입니다.</p>
       </details>}
-      {detail&&analytics.data&&<RiskReturnMap reports={analytics.data.reports} highlight={r.participant_id}/>}
+      {detail&&analytics.data&&<RiskReturnMap reports={analytics.data.reports} highlight={r.participant_id} highlightLabel={`선택 참가자 · ${r.display_name}`}/>}
       {(detail || portfolioOnly) ? <section className={s.allocation} aria-label="확정 Personalized Portfolio 구성">
         <div className={s.sectionTitle}><div><h2>확정 Personalized Portfolio 구성</h2><p className="caption">{market ? "가장 최근에 저장한 목표 비중입니다. 이 비중으로 공통 기간의 가격 비교를 계산합니다." : "공통 CORE의 주식 비중에서 Theme 비중을 조달한 고정 목표 구성입니다. 실제 운용 보유 비중 데이터는 없습니다."}</p></div></div>
-        <AllocationBars weights={r.allocation.filter(w => w.weight > 0)}/>
+        <AllocationDonut weights={r.allocation}/>
         <details className={s.details}><summary>공통 CORE와 자산 비중 비교</summary><PortfolioComparisonTable rows={Array.from(new Set([...r.core_allocation, ...r.allocation].map(w => w.asset_id))).map(id => {
           const core = r.core_allocation.find(w => w.asset_id === id)?.weight ?? 0;
           const mine = r.allocation.find(w => w.asset_id === id)?.weight ?? 0;

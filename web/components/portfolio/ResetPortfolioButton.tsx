@@ -11,7 +11,7 @@ export function ResetPortfolioButton() {
   const router = useRouter();
   const qc = useQueryClient();
   async function reset() {
-    if (busy || !window.confirm("포트폴리오를 초기화할까요?\n\n선택한 Theme·이유·현재 비교 결과가 초기화됩니다. 다시 확정할 때까지 순위에서 빠집니다.\n계정과 참가자 번호, 본인의 가입 자리는 유지되며 다른 참가자에게는 영향이 없습니다.")) return;
+    if (busy || !window.confirm("포트폴리오를 초기화할까요?\n\n선택한 위험 수준·Theme·현재 비교 결과가 초기화됩니다. 다시 확정할 때까지 순위에서 빠집니다.\n계정과 참가자 번호, 본인의 가입 자리는 유지되며 다른 참가자에게는 영향이 없습니다.")) return;
     setBusy(true);
     setError("");
     try {

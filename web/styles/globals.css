@@ -224,3 +224,29 @@ button:disabled { cursor: not-allowed; }
 .analytics-tooltip { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; font-size: 12px; max-width: 260px; }
 .analytics-my-row { background: #eaf2ff !important; outline: 1px solid #a8c7fa; outline-offset: -1px; }
 @media(max-width:640px) { .analytics-panel,.experiment-page .ui-panel { padding: 16px; } .analytics-kpis {grid-template-columns: repeat(2,minmax(0,1fr));} }
+
+/* Ranking: explain every line without requiring hover. */
+.analytics-kpis.race-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.race-legend { display: flex; flex-wrap: wrap; gap: 12px 24px; list-style: none; padding: 0; margin: 20px 0 0; color: #52627a; font-size: 13px; }
+.race-legend li { display: inline-flex; align-items: center; gap: 9px; }
+.race-legend i { display: inline-block; width: 25px; height: 4px; border-radius: 4px; flex-shrink: 0; }
+@media(max-width:640px) { .analytics-kpis.race-kpis { grid-template-columns: 1fr; gap: 12px; } .race-legend { gap: 10px 16px; } }
+
+.theme-count-header { display: flex; justify-content: space-between; align-items: start; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+.theme-count-header label { color: #697a91; font-size: 12px; display: flex; align-items: center; gap: 10px; }
+.theme-count-header select { width: auto; min-width: 160px; }
+.theme-count-scroll { overflow-x: auto; margin-bottom: 18px; }
+.theme-count-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; min-width: 1000px; font-variant-numeric: tabular-nums; }
+.theme-count-table th:first-child { width: 132px; text-align: left; position: sticky; left: 0; background: white; z-index: 1; }
+.theme-count-table th, .theme-count-table td { text-align: center; padding: 15px 8px; color: #425773; font-size: 13px; border-bottom: 1px solid #edf1f6; }
+.theme-count-table thead th { border: 0; color: #253d5d; font-size: 13px; font-weight: 650; }
+.theme-count-table tbody th { color: #76859b; font-size: 12px; font-weight: 500; }
+.theme-count-table .theme-count-chart td { padding-top: 0; padding-bottom: 0; border-bottom: 1px solid #b7c6d9; }
+.theme-count-column { height: 185px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 9px; }
+.theme-count-column strong { color: #285dba; font-size: 18px; font-weight: 700; }
+.theme-count-column small { font-size: 11px; font-weight: 500; margin-left: 3px; }
+.theme-count-bar { width: 55%; max-width: 56px; background: linear-gradient(180deg, #5b91f5, #356dd7); border-radius: 6px 6px 0 0; min-height: 0; transition: height .2s; }
+
+.point-legend { margin: 10px 0 14px; }
+.point-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.point-legend i.benchmark-dot { border-radius: 0; transform: rotate(45deg); width: 9px; height: 9px; }

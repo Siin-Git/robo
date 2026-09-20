@@ -109,7 +109,7 @@ def configuration(session, user, slot=None):
             raise ApiError("SETUP_REQUIRED", "포트폴리오 선택을 먼저 완료해 주세요.", 409)
         cfg = slot.configuration_json
         return {"weights": {(('theme:' + w['asset_id']) if w['asset_type'] == 'theme' else w['asset_id']): w['weight'] for w in cfg['allocation']},
-                "reason": cfg.get("reason", ""), "frontier_id": cfg.get("core_id"), "confirmed_at": slot.confirmed_at.isoformat()}
+                "reason": cfg.get("reason", ""), "frontier_id": cfg.get("frontier_id") or cfg.get("core_id"), "confirmed_at": slot.confirmed_at.isoformat()}
     account = session.scalar(select(Account).where(Account.participant_id == user.participant_id, Account.account_type == "personal"))
     target = session.scalar(select(PortfolioTarget).where(PortfolioTarget.account_id == account.account_id)
         .order_by(PortfolioTarget.created_at.desc(), PortfolioTarget.target_id.desc())) if account else None

@@ -206,9 +206,6 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
     }
 
 def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None):
-    from . import market_comparison
-    if market_comparison.enabled() and not (reason or "").strip():
-        raise ApiError("REASON_REQUIRED", "선택 이유를 입력해 주세요.", 422)
     prev = preview(session, user_id, participant_id, frontier_id, theme_ids)
     from ...db.models.base_selection import BasePortfolioSelection as _BPS
     from ...db.models.onboarding import OnboardingDraft as _OD

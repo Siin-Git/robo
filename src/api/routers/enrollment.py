@@ -10,6 +10,7 @@ router = APIRouter(prefix="/me/experiment", tags=["onboarding"])
 
 class Configuration(BaseModel):
     core_id: str
+    frontier_id: str | None = None
     theme_ids: list[str] = Field(default_factory=list, max_length=2)
     reason: str = Field(default="", max_length=1024)
     current_step: str = Field(default="risk", pattern="^(risk|themes|review)$")

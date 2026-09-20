@@ -135,7 +135,12 @@ def validate(session, data, final=False):
         theme = session.get(Theme, tid)
         if not theme or not theme.active or not theme.ticker:
             raise ApiError("THEME_INACTIVE", "지원하지 않는 Theme입니다.", 422)
-    if final and not data.get("reason", "").strip():
+    from . import market_comparison
+    if data.get("frontier_id"):
+        from .frontier_service import find_point
+        if not market_comparison.enabled() or find_point(data["frontier_id"]) is None:
+            raise ApiError("FRONTIER_POINT_NOT_FOUND", "선택한 위험 수준을 확인해 주세요.", 422)
+    if final and not market_comparison.enabled() and not data.get("reason", "").strip():
         raise ApiError("REASON_REQUIRED", "선택 이유를 입력해 주세요.", 422)
     return ids
 
@@ -161,6 +166,14 @@ def save_draft(session, user, data):
 def preview(session, data):
     ids = validate(session, data)
     weights, _ = C.frozen_bundle()
+    from . import market_comparison, onboarding_service
+    if market_comparison.enabled() and data.get("frontier_id"):
+        p = onboarding_service.preview(session, "", "", data["frontier_id"], ids)
+        return {**p, "core_id": data["core_id"], "frontier_id": data["frontier_id"],
+            "theme_ids": ids, "reason": data.get("reason") or "",
+            "allocation": _legs({w["asset_id"]: w["weight"] for w in p["personalized"]["weights"]}, _tickers(session)),
+            "core_allocation": _legs(weights, _tickers(session)), "scenario_id": None,
+            "performance_status": "MARKET_PRICE_REPLAY", "risk_guardrail_status": "시장 가격 기반 위험 한도 적용"}
     tw = theme_target_weights([f"theme:{t}" for t in ids], C.load_forward_cfg())
     funded, _ = fund_from_equities(weights, tw)
     scenario = next((f"CAPSTONE_{i+1:02d}" for i, (_, t) in enumerate(COHORT) if sorted(t) == sorted(ids)), None)
@@ -203,7 +216,7 @@ def complete(session, user, data):
     session.execute(update(DemoSlot).where(DemoSlot.slot_id == slot.slot_id).values(slot_number=slot.slot_number))
     session.refresh(slot)
     if slot.confirmed_at:
-        if any(slot.configuration_json.get(k) != data.get(k) for k in ("core_id", "theme_ids", "reason")):
+        if any(slot.configuration_json.get(k) != data.get(k) for k in ("core_id", "frontier_id", "theme_ids", "reason")):
             raise ApiError("EXPERIMENT_FROZEN", "이미 확정된 실험 구성입니다.", 409)
         return status(session, user)
     validate(session, data, final=True)
