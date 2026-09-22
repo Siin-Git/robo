@@ -12,6 +12,7 @@ import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/ui"
 import { DemoNote } from "@/components/dashboard/ParticipantPerformance";
 import { get } from "@/lib/api/client";
 import type { ComparisonRanking, ComparisonRow, RankingBasis } from "@/lib/api/comparison";
+import { LAB_MEETING_MODE, COMPARISON_REFRESH_MS } from "@/lib/api/comparison";
 import { fmtActivePp, fmtDate, fmtPct, fmtReturn } from "@/lib/format";
 import { themeLabel } from "@/lib/constants";
 import { AnalyticsOverview, ThemeComparison, useComparisonAnalytics } from "./ComparisonAnalytics";
@@ -32,7 +33,7 @@ export function DemoRanking() {
   const user = useCurrentUser();
   const analytics = useComparisonAnalytics();
   const router = useRouter();
-  const query = useQuery({queryKey:["comparison-ranking",basis],queryFn:()=>get<ComparisonRanking>(`/api/v1/comparison/rankings?basis=${basis}`)});
+  const query = useQuery({queryKey:["comparison-ranking",basis],queryFn:()=>get<ComparisonRanking>(`/api/v1/comparison/rankings?basis=${basis}`),refetchInterval:COMPARISON_REFRESH_MS});
   const rows = query.data?.items ?? [];
   const selectedValue=(r:ComparisonRow)=>({return:fmtReturn(r.metrics.cumulative_return),excess:fmtActivePp(r.metrics.excess_return),mdd:fmtPct(r.metrics.mdd),volatility:fmtPct(r.metrics.volatility),sharpe:r.metrics.sharpe?.toFixed(2)??"—",te:fmtPct(r.metrics.tracking_error),ir:r.metrics.information_ratio?.toFixed(2)??"—"})[basis];
   const metricColumn = (key: RankingBasis, label: string, format: (row:ComparisonRow)=>string): Column<ComparisonRow> => ({
@@ -58,6 +59,7 @@ export function DemoRanking() {
   return <AppShell headerTitle="참여자 성과 비교" softBackground><div className={s.page}>
     <header className={s.header}><div><h1 className="page-title">참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link href="/dashboard" className="btn-secondary">내 성과 자세히</Link></header>
     <div className={s.comparisonMeta}><span>{fmtDate(query.data?.start)} — {fmtDate(query.data?.end)}</span><span>{query.data?.total ?? "—"}명 비교</span><span>{query.data?.data_source === "MARKET_PRICE_REPLAY" ? "과거 가격 기준 · 실제 운용 성과 아님" : "가상 시연 데이터 · 실제 운용 성과 아님"}</span></div>
+    {LAB_MEETING_MODE && <div className="ui-note" role="status"><strong>구성 완료 {query.data?.registered ?? "—"} / {query.data?.capacity ?? 13}명</strong><span> · 선택 중 {query.data?.reserved ?? "—"}명 · 10초마다 자동 갱신</span><p>저장한 포트폴리오만 순위에 반영됩니다. <Link href="/setup/portfolio">내 섹터·테마 선택하기 →</Link></p></div>}
     <AnalyticsOverview participantId={user?.participant_id??undefined}/>
     <section className={s.panel} aria-label="순위표">
       <div className={s.toolbar}><div><h2>참여자 순위 <span>{query.data?.total ?? "—"}명</span></h2><p>참여자를 선택하면 상세 성과와 투자 구성을 볼 수 있습니다.</p></div><label>정렬 기준<span className={s.selectWrap}><select className="input" value={basis} onChange={e=>setBasis(e.target.value as RankingBasis)}>

@@ -55,7 +55,7 @@ def test_signup_save_freeze_compare_restart_and_seed(env, monkeypatch):
     assert c.put("/api/v1/me/experiment/draft",json=body,headers=csrf(c)).status_code==200
     c.post("/api/v1/auth/logout",headers=csrf(c))
     c.post("/api/v1/auth/login",json={"email":invite["email"],"password":password})
-    assert c.get("/api/v1/me/experiment").json()["draft"]==body
+    assert c.get("/api/v1/me/experiment").json()["draft"]=={**body, "frontier_id": None}
     assert c.post("/api/v1/me/experiment/complete",json={**body,"core_id":"other"},headers=csrf(c)).status_code==422
     assert c.post("/api/v1/me/experiment/complete",json={**body,"reason":" "},headers=csrf(c)).status_code==422
     assert c.post("/api/v1/me/experiment/complete",json={**body,"theme_ids":["ai","ai"]},headers=csrf(c)).status_code==422

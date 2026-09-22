@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { useCurrentUser, AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { usePathname } from "next/navigation";
-import { DEMO_MODE } from "@/lib/api/comparison";
+import { DEMO_MODE, LAB_MEETING_MODE } from "@/lib/api/comparison";
 
 export function AppShell({
   children,
@@ -27,7 +27,7 @@ export function AppShell({
   const router = useRouter();
   const enrollment = useQuery({queryKey:["experiment-status", user?.user_id],queryFn:()=>get<ExperimentStatus>("/api/v1/me/experiment"),enabled:DEMO_MODE&&!!user});
   const needsSetup = enrollment.data?.status === "setup_required";
-  useEffect(()=>{if(needsSetup && pathname!=="/setup/portfolio" && pathname!=="/account") router.replace("/setup/portfolio");},[needsSetup,pathname,router]);
+  useEffect(()=>{if(needsSetup && !pathname.startsWith("/setup/") && pathname!=="/account" && !(LAB_MEETING_MODE && pathname==="/ranking")) router.replace("/setup/portfolio");},[needsSetup,pathname,router]);
   const designPage = ["/setup", "/portfolio", "/views", "/performance"].some(p => pathname === p || pathname.startsWith(p + "/"));
   return (
     <div className="app-shell">

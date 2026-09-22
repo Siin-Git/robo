@@ -1,0 +1,34 @@
+# Optional configuration for the existing demo API's 13-person lab mode.
+# Free SQLite storage is temporary; choices are lost on restart/spin-down.
+services:
+  - type: web
+    name: robo-capstone-api
+    runtime: python
+    region: singapore
+    plan: free
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.local.lab_meeting --from-env && python -m uvicorn src.api.main:app --host 0.0.0.0 --port 10000 --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: APP_PROFILE
+        value: local
+      - key: CAPSTONE_DEMO
+        value: "1"
+      - key: CAPSTONE_MARKET_COMPARISON
+        value: "1"
+      - key: DATABASE_BACKEND
+        value: sqlite
+      - key: CAPSTONE_DATA_DIR
+        value: /tmp/lab-meeting-20260922
+      - key: CAPSTONE_LAB_ACCOUNTS_JSON
+        sync: false
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: ALLOW_PUBLIC_REGISTRATION
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"

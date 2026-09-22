@@ -6,12 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ScatterChart, Scatter, Cell } from "recharts";
 import { get } from "@/lib/api/client";
 import type { ComparisonAnalytics as Analytics, Comparison, ReadyComparison } from "@/lib/api/comparison";
+import { COMPARISON_REFRESH_MS } from "@/lib/api/comparison";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/ui";
 import { fmtActivePp, fmtPct, fmtReturn } from "@/lib/format";
 import { themeLabel } from "@/lib/constants";
 
 export function useComparisonAnalytics() {
-  return useQuery({queryKey:["comparison-analytics"],queryFn:()=>get<Analytics>("/api/v1/comparison/analytics")});
+  return useQuery({queryKey:["comparison-analytics"],queryFn:()=>get<Analytics>("/api/v1/comparison/analytics"),refetchInterval:COMPARISON_REFRESH_MS});
 }
 export function RiskReturnMap({reports,highlight,highlightLabel="내 포트폴리오"}:{reports:Comparison[];highlight?:string;highlightLabel?:string}) {
   const router=useRouter();
