@@ -28,6 +28,7 @@ from src.api.middleware.error_handler import (  # noqa: E402
     validation_error_handler,
 )
 from src.api.middleware.request_id import RequestContextMiddleware  # noqa: E402
+from src.api.middleware.capstone_queue import CapstoneRequestQueue  # noqa: E402
 from src.api.routers import (  # noqa: E402
     admin,
     auth,
@@ -67,6 +68,7 @@ ALLOWED = [o.strip() for o in os.environ.get(
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED, allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(RequestContextMiddleware)
+app.add_middleware(CapstoneRequestQueue)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)
