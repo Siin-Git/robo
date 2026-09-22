@@ -1,6 +1,8 @@
 import type { WeightLeg } from "./types";
 
 export const DEMO_MODE = process.env.NEXT_PUBLIC_CAPSTONE_DEMO === "1";
+export const LAB_MEETING_MODE = DEMO_MODE && process.env.NEXT_PUBLIC_LAB_MEETING === "1";
+export const COMPARISON_REFRESH_MS = LAB_MEETING_MODE ? 10_000 : false;
 export interface ComparisonMetrics {
   nav: number; cumulative_return: number; core_return: number;
   excess_return: number; mdd: number; volatility: number | null; sharpe: number | null;

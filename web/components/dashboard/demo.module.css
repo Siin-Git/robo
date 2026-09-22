@@ -26,3 +26,26 @@
 .detailLink { border:1px solid var(--border); background:white; border-radius:8px; padding:16px; justify-content:space-between; }
 @media(max-width:1050px) { .returnGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:640px) { .header { align-items:flex-start; flex-direction:column; } .header h1 { font-size:25px; } .riskGroups { grid-template-columns:1fr; } .note { align-items:flex-start; } .allocation { padding:16px; } .period { gap:6px 14px; } }
+
+.portfolioHeader { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:6px 0 2px; }
+.portfolioHeader h1 { margin:0; font-size:28px; letter-spacing:-.7px; }
+.portfolioSubtitle { margin-top:8px; color:var(--text-secondary); font-size:14px; line-height:1.6; }
+.portfolioThemes { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.portfolioThemes span { padding:5px 11px; border-radius:20px; background:#eee9fa; color:#7654b5; font-size:12px; font-weight:600; }
+.portfolioActions { display:flex; flex-wrap:wrap; gap:8px; flex-shrink:0; }
+.savedAt { color:var(--text-secondary); font-size:12px; white-space:nowrap; }
+.portfolioFooter { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-top:-6px; }
+.calculationDetails { flex:1; min-width:0; font-size:12px; line-height:1.8; color:var(--text-secondary); }
+.calculationDetails summary { cursor:pointer; padding:8px 0; width:fit-content; }
+.calculationDetails > div { display:flex; flex-direction:column; gap:10px; padding:12px 0; }
+.resetAction { flex-shrink:0; max-width:220px; font-size:12px; }
+.resetLink { padding:8px 0; color:var(--text-secondary); font-size:12px; cursor:pointer; }
+.resetLink:hover { color:var(--text-primary); text-decoration:underline; }
+.resetLink:focus-visible { outline:2px solid var(--brand); outline-offset:4px; border-radius:3px; }
+.resetLink:disabled { opacity:.5; cursor:wait; }
+@media(max-width:760px) { .portfolioHeader { align-items:flex-start; flex-direction:column; gap:18px; } .portfolioActions { width:100%; } .portfolioActions > a { flex:1; } .portfolioHeader h1 { font-size:25px; } .portfolioFooter { gap:16px; } .savedAt { font-size:11px; } }
+
+.performanceMeta { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:-8px; color:var(--text-secondary); font-size:12px; }
+.performancePanel { padding:24px; border:1px solid var(--border); border-radius:14px; background:white; min-width:0; }
+.performanceRisk { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+@media(max-width:640px) { .performancePanel { padding:16px; } .performanceRisk { grid-template-columns:1fr; } }

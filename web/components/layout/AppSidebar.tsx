@@ -17,6 +17,7 @@ import { useState } from "react";
 import { ApiError, get, post } from "@/lib/api/client";
 import type { AuthUser } from "@/lib/api/types";
 import { DEMO_MODE } from "@/lib/api/comparison";
+import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 
 const GROUPS = [
   { label: "포트폴리오", items: [
@@ -33,6 +34,8 @@ const GROUPS = [
 
 export function AppSidebar({ user }: { user: AuthUser | null }) {
   const pathname = usePathname();
+  const comparisonMode = useComparisonMode();
+  const marketComparison = DEMO_MODE && comparisonMode.data?.market_comparison;
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -55,8 +58,8 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
     <nav className="flex flex-col gap-[4px] px-[12px]" aria-label="Primary">
       {GROUPS.map(group => <section key={group.label} className="mb-[16px]" aria-label={group.label}>
         <h2 className="px-[12px] pb-[8px] pt-[16px] text-[11px] font-semibold tracking-wide text-text-secondary">{group.label}</h2>
-        <div className="flex flex-col gap-[4px]">{group.items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(item.href + "/")
+        <div className="flex flex-col gap-[4px]">{group.items.filter(item => !marketComparison || item.href !== "/performance").map((item) => {
+        const active = (marketComparison && item.href === "/dashboard" && pathname === "/performance") || pathname === item.href || pathname.startsWith(item.href + "/")
           || (item.href === "/setup/portfolio" && pathname.startsWith("/setup/"))
           || (item.href === "/ranking" && pathname.startsWith("/participants/"));
         const Icon = item.icon;
@@ -71,7 +74,7 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
             }`}
           >
             <Icon size={18} aria-hidden />
-            {item.label}
+            {marketComparison && item.href === "/dashboard" ? "내 투자 성과" : item.label}
           </Link>
         );
       })}</div></section>)}

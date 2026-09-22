@@ -138,10 +138,11 @@ def sorted_reports(items, basis):
 
 def rankings(session, basis="return"):
     from .enrollment_service import active, slots
+    from . import market_comparison
     items = reports(session)
     ranked = sorted_reports(items, basis)
     group = active(session)
-    return {"data_source": items[0]["data_source"] if items else None, "basis": basis, "total": len(ranked), "registered": len(items), "capacity": 13,
+    return {"data_source": "MARKET_PRICE_REPLAY" if market_comparison.enabled() else items[0]["data_source"] if items else None, "basis": basis, "total": len(ranked), "registered": len(items), "capacity": 13,
         "cohort_id": group.cohort_id if group else "legacy", "reserved": sum(s.confirmed_at is None for s in slots(session, group)) if group else 0,
         "start": "2026-04-01" if ranked else None, "end": "2026-09-11" if ranked else None,
         "pending": [{k: r[k] for k in ("participant_id", "display_name", "themes")} for r in items if not r.get("metrics")],

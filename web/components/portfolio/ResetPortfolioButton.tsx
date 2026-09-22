@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, post } from "@/lib/api/client";
 
-export function ResetPortfolioButton() {
+export function ResetPortfolioButton({ className = "btn-secondary" }: { className?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -25,5 +25,5 @@ export function ResetPortfolioButton() {
       setBusy(false);
     }
   }
-  return <><button className="btn-secondary" disabled={busy} onClick={reset}>{busy ? "초기화 중…" : "포트폴리오 초기화"}</button>{error && <p role="alert">{error}</p>}</>;
+  return <><button className={className} disabled={busy} onClick={reset}>{busy ? "초기화 중…" : "포트폴리오 초기화"}</button>{error && <p role="alert">{error}</p>}</>;
 }

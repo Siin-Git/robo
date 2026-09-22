@@ -108,16 +108,19 @@ describe("saved themes while catalog loads", () => {
   it("preserves the reason when a market participant removes all themes", async () => {
     state.market = true; state.ready = true; state.pending = false;
     render(<SetupStyleProvider><SetupPortfolioPage /></SetupStyleProvider>);
-    expect(screen.getByLabelText("선택 이유")).toHaveValue("저장한 선택 이유");
+    expect(screen.queryByLabelText("선택 이유")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", {name: "테마 없이 기본 구성으로 계속하기"}));
     await waitFor(() => expect(state.push).toHaveBeenCalledWith("/setup/portfolio?step=review"));
     expect(state.save).toHaveBeenCalledWith({frontier_id:"F001",theme_ids:[],reason:"저장한 선택 이유",current_step:"review"});
   });
-  it("requires a reason before saving a reconstructed market portfolio", () => {
+  it("lets market participants continue without entering a reason", async () => {
     state.market = true; state.ready = true; state.pending = false;
+    state.draft = {...state.draft, reason:""};
     render(<SetupStyleProvider><SetupPortfolioPage /></SetupStyleProvider>);
-    fireEvent.change(screen.getByLabelText("선택 이유"), {target:{value:" "}});
-    expect(screen.getByRole("button", {name:"다음: 변경 전·후 비교"})).toBeDisabled();
+    expect(screen.queryByLabelText("선택 이유")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name:"다음: 변경 전·후 비교"}));
+    await waitFor(() => expect(state.push).toHaveBeenCalledWith("/setup/portfolio?step=review"));
+    expect(state.save).toHaveBeenCalledWith({frontier_id:"F001",theme_ids:["ai"],reason:"",current_step:"review"});
   });
 
 });

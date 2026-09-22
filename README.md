@@ -4,6 +4,12 @@
 
 # Personalized Robo Advisor Prototype
 
+## 13명이 직접 선택하는 랩미팅
+
+`robo/`에서 `.venv/bin/python scripts/start_lab.py --lan` → `http://127.0.0.1:3002/login`.
+13명 모두 빈 구성에서 시작하고, 저장한 섹터·Theme 선택으로 과거 가격 비교와 순위가 갱신됩니다.
+계정별 비밀번호와 같은 네트워크 접속 방법은 [랩미팅 안내](docs/LAB_MEETING.md)를 확인하세요.
+
 ## 교수님 시연용 13명 MVP
 
 `robo/`에서 `.venv/bin/python scripts/start_demo.py` 실행 → **http://127.0.0.1:3001/login**.
