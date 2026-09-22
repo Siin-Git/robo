@@ -40,7 +40,7 @@ function LoginForm() {
       <div className="auth-card">
         <p className="ui-eyebrow">{APP_NAME} · 모의운용 프로토타입</p>
         <h1 className="page-title mt-[8px]">{LAB_MEETING_MODE ? "우리의 선택으로 비교하는 포트폴리오" : DEMO_MODE ? "같은 CORE, 서로 다른 투자 관점" : "내 관점으로 만드는 포트폴리오"}</h1>
-        <p className="page-desc mt-[12px]">{LAB_MEETING_MODE ? "배정받은 아이디와 개인 비밀번호로 로그인해 주세요. 13명이 각자 섹터·테마를 선택하고, 저장한 포트폴리오의 순위를 함께 비교합니다." : DEMO_MODE ? "13명의 참여자가 선택한 Theme/View와 성과를 비교합니다. 초대받은 이메일로 가입하거나 기존 계정으로 로그인해 주세요." : "위험 수준에 맞는 기본 구성에 투자 인사이트를 더하고, 모의운용 성과를 비교해 보세요."}</p>
+        <p className="page-desc mt-[12px]">{LAB_MEETING_MODE ? "배정받은 아이디와 안내받은 비밀번호로 로그인해 주세요. 13명이 각자 섹터·테마를 선택하고, 저장한 포트폴리오의 순위를 함께 비교합니다." : DEMO_MODE ? "13명의 참여자가 선택한 Theme/View와 성과를 비교합니다. 초대받은 이메일로 가입하거나 기존 계정으로 로그인해 주세요." : "위험 수준에 맞는 기본 구성에 투자 인사이트를 더하고, 모의운용 성과를 비교해 보세요."}</p>
         <ol className="auth-journey"><li>{LAB_MEETING_MODE ? "01 로그인·기본 설계" : DEMO_MODE ? "01 가입·CORE 확인" : "01 기본 설계"}</li><li>{DEMO_MODE ? "02 Theme 선택·생성" : "02 인사이트 반영"}</li><li>{DEMO_MODE ? "03 성과 비교" : "03 성과 확인"}</li></ol>
         {process.env.NEXT_PUBLIC_APP_PROFILE === "local" ? (
           <p className="ui-note">
