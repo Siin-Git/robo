@@ -1,6 +1,6 @@
 {
-  "source": "C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-1\\test_migration_fails_on_orphan0\\orphan.db",
-  "destination": "sqlite:///C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-1\\test_migration_fails_on_orphan0/d.db",
+  "source": "C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-3\\test_migration_fails_on_orphan0\\orphan.db",
+  "destination": "sqlite:///C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-3\\test_migration_fails_on_orphan0/d.db",
   "source_sha256_before": "4784421ad70518975abfd6ef5e8d1599a39063cc82520bb82d0c65e0e39f1174",
   "tables": {
     "counters": {
@@ -53,5 +53,5 @@
     "orphan FKs: [\"orders.account_id='A-missing' (parent accounts missing)\", \"trades.account_id='A-missing' (parent accounts missing)\"]"
   ],
   "warnings": [],
-  "completed_at": "2026-09-26T13:50:39.218215+00:00"
+  "completed_at": "2026-09-26T13:56:17.227186+00:00"
 }
