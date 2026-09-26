@@ -16,6 +16,7 @@ PostgreSQL 과 통신하는 얇은 래퍼를 제공한다. 호출부 134곳은 �
 from __future__ import annotations
 
 import datetime as _dt
+import json as _json
 import re
 from decimal import Decimal
 
@@ -96,6 +97,10 @@ def _py(value):
         return value.isoformat()
     if isinstance(value, _dt.date):
         return value.isoformat()
+    if isinstance(value, (dict, list)):
+        # JSONB 는 psycopg 가 dict/list 로 풀어서 준다. SQLite 는 TEXT 로 저장하고
+        # 호출부가 json.loads() 를 하므로, 같은 계약을 유지하려면 문자열로 되돌린다.
+        return _json.dumps(value, ensure_ascii=False)
     return value
 
 
@@ -137,9 +142,12 @@ class Row:
 class Cursor:
     """execute 결과. 직접 순회하거나 fetchone/fetchall 로 읽는다."""
 
-    def __init__(self, rows: list[Row]):
+    def __init__(self, rows: list[Row], rowcount: int = -1):
         self._rows = rows
         self._i = 0
+        # sqlite3 와 같은 의미: INSERT/UPDATE/DELETE 가 영향을 준 행 수.
+        # SELECT 는 -1 (sqlite3 도 동일).
+        self.rowcount = rowcount
 
     def fetchone(self):
         if self._i >= len(self._rows):
@@ -173,10 +181,13 @@ class PgConnection:
         cur = self._con.cursor()
         cur.execute(translate(sql), tuple(params))
         rows = []
+        rowcount = -1
         if cur.description is not None:
             rows = [Row(r) for r in cur.fetchall()]
+        else:
+            rowcount = cur.rowcount        # INSERT/UPDATE/DELETE 영향 행 수
         cur.close()
-        return Cursor(rows)
+        return Cursor(rows, rowcount)
 
     def executescript(self, script: str) -> None:
         raise RuntimeError(

@@ -84,3 +84,24 @@ def test_Row_접근방식():
     assert dict(r) == {"a": 1, "b": 2}
     assert "b" in r
     assert list(r) == [1, 2]
+
+
+def test_Cursor_rowcount():
+    from src.forward.pg_adapter import Cursor
+    assert Cursor([], 5).rowcount == 5          # INSERT/UPDATE/DELETE
+    assert Cursor([Row({"a": 1})]).rowcount == -1   # SELECT 는 -1 (sqlite3 와 동일)
+
+
+def test_Row_JSONB는_문자열로():
+    import json
+    # psycopg 는 JSONB 를 dict 로 준다. 호출부는 json.loads() 를 하므로
+    # SQLite(TEXT) 와 같게 문자열로 돌려줘야 한다.
+    r = Row({"weights_json": {"us_equity": 0.266, "cash": 0.0}})
+    assert isinstance(r["weights_json"], str)
+    assert json.loads(r["weights_json"])["us_equity"] == 0.266
+
+
+def test_Row_JSON배열도_문자열로():
+    import json
+    r = Row({"payload_json": [1, 2, 3]})
+    assert json.loads(r["payload_json"]) == [1, 2, 3]

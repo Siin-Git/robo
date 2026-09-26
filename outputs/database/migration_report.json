@@ -1,96 +1,57 @@
 {
-  "source": "data\\forward_local.db",
-  "destination": "postgresql+psycopg://neondb_owner:***@ep-noisy-wind-b3wr3cg9.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
-  "source_sha256_before": "aeb1428a2d5d0b21d84e029b7e4005174bc4bf7bd19e338b05e33beccd50ef51",
+  "source": "C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-1\\test_migration_fails_on_orphan0\\orphan.db",
+  "destination": "sqlite:///C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-1\\test_migration_fails_on_orphan0/d.db",
+  "source_sha256_before": "4784421ad70518975abfd6ef5e8d1599a39063cc82520bb82d0c65e0e39f1174",
   "tables": {
     "counters": {
-      "source_rows": 6,
-      "destination_rows": 6,
-      "match": true
+      "source_rows": 0
     },
     "participants": {
-      "source_rows": 1,
-      "destination_rows": 1,
-      "match": true
+      "source_rows": 0
     },
     "themes": {
-      "source_rows": 10,
-      "destination_rows": 10,
-      "match": true
+      "source_rows": 0
     },
     "accounts": {
-      "source_rows": 2,
-      "destination_rows": 2,
-      "match": true
+      "source_rows": 0
     },
     "views": {
-      "source_rows": 0,
-      "destination_rows": 0,
-      "match": true
+      "source_rows": 0
     },
     "portfolio_targets": {
-      "source_rows": 2,
-      "destination_rows": 2,
-      "match": true
+      "source_rows": 0
     },
     "orders": {
-      "source_rows": 16,
-      "destination_rows": 16,
-      "match": true
+      "source_rows": 1
     },
     "trades": {
-      "source_rows": 16,
-      "destination_rows": 16,
-      "match": true
+      "source_rows": 1
     },
     "holdings_daily": {
-      "source_rows": 16,
-      "destination_rows": 16,
-      "match": true
+      "source_rows": 0
     },
     "nav_daily": {
-      "source_rows": 2,
-      "destination_rows": 2,
-      "match": true
+      "source_rows": 0
     },
     "performance_daily": {
-      "source_rows": 0,
-      "destination_rows": 0,
-      "match": true
+      "source_rows": 0
     },
     "prices_daily": {
-      "source_rows": 39042,
-      "destination_rows": 39042,
-      "match": true
+      "source_rows": 0
     },
     "events": {
-      "source_rows": 49,
-      "destination_rows": 49,
-      "match": true
+      "source_rows": 0
     },
     "model_versions": {
-      "source_rows": 0,
-      "destination_rows": 0,
-      "match": true
+      "source_rows": 0
     },
     "forward_state": {
-      "source_rows": 0,
-      "destination_rows": 0,
-      "match": true
+      "source_rows": 0
     }
   },
-  "issues": [],
-  "warnings": [
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.351684'",
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.355192'",
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.358206'",
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.361206'",
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.362206'",
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.363209'",
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.427388'",
-    "naive timestamp assumed UTC: '2026-09-25 18:19:50.430385'"
+  "issues": [
+    "orphan FKs: [\"orders.account_id='A-missing' (parent accounts missing)\", \"trades.account_id='A-missing' (parent accounts missing)\"]"
   ],
-  "source_sha256_after": "aeb1428a2d5d0b21d84e029b7e4005174bc4bf7bd19e338b05e33beccd50ef51",
-  "source_untouched": true,
-  "completed_at": "2026-09-26T12:27:57.718959+00:00"
+  "warnings": [],
+  "completed_at": "2026-09-26T13:50:39.218215+00:00"
 }

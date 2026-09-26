@@ -31,7 +31,7 @@ def register_themes(con: sqlite3.Connection, theme_cfg: dict) -> int:
 
 def active_themes(con: sqlite3.Connection) -> list[dict]:
     return [dict(r) for r in con.execute(
-        "SELECT * FROM themes WHERE active = 1 ORDER BY theme_id").fetchall()]
+        "SELECT * FROM themes WHERE active ORDER BY theme_id").fetchall()]
 
 
 def get_theme(con: sqlite3.Connection, theme_id: str) -> dict:

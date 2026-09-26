@@ -31,7 +31,7 @@ def tickers_map(con, frozen_meta) -> dict:
             out["__FX__"] = t
         else:
             out[aid] = t
-    for r in con.execute("SELECT theme_id, ticker FROM themes WHERE active = 1").fetchall():
+    for r in con.execute("SELECT theme_id, ticker FROM themes WHERE active").fetchall():
         from src.forward.prices import theme_asset_id
         out[theme_asset_id(r["theme_id"])] = r["ticker"]
     return out
@@ -75,7 +75,7 @@ def load_or_build_cov(con, cfg, asof: str, persist: bool = True):
 def rebuild_cov(con, cfg, asof: str):
     from src.forward.prices import CORE_IDS, theme_asset_id
     themes = [r["theme_id"] for r in con.execute(
-        "SELECT theme_id FROM themes WHERE active = 1").fetchall()]
+        "SELECT theme_id FROM themes WHERE active").fetchall()]
     assets = list(CORE_IDS) + [theme_asset_id(t) for t in themes]
     have = {r["asset_id"] for r in con.execute("SELECT DISTINCT asset_id FROM prices_daily").fetchall()}
     assets = [a for a in assets if a in have]
