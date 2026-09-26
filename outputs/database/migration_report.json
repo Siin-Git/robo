@@ -1,57 +1,96 @@
 {
-  "source": "/private/var/folders/p5/0jjrwxfx7kgff2cjskhfptpw0000gn/T/pytest-of-jeongminchan/pytest-7/test_migration_fails_on_orphan0/orphan.db",
-  "destination": "sqlite:////private/var/folders/p5/0jjrwxfx7kgff2cjskhfptpw0000gn/T/pytest-of-jeongminchan/pytest-7/test_migration_fails_on_orphan0/d.db",
-  "source_sha256_before": "aa89cfe803f6a0a1a380429ae4eaec60a173cbab793e808edd44ac5d3582a773",
+  "source": "data\\forward_local.db",
+  "destination": "postgresql+psycopg://neondb_owner:***@ep-noisy-wind-b3wr3cg9.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+  "source_sha256_before": "aeb1428a2d5d0b21d84e029b7e4005174bc4bf7bd19e338b05e33beccd50ef51",
   "tables": {
     "counters": {
-      "source_rows": 0
+      "source_rows": 6,
+      "destination_rows": 6,
+      "match": true
     },
     "participants": {
-      "source_rows": 0
+      "source_rows": 1,
+      "destination_rows": 1,
+      "match": true
     },
     "themes": {
-      "source_rows": 0
+      "source_rows": 10,
+      "destination_rows": 10,
+      "match": true
     },
     "accounts": {
-      "source_rows": 0
+      "source_rows": 2,
+      "destination_rows": 2,
+      "match": true
     },
     "views": {
-      "source_rows": 0
+      "source_rows": 0,
+      "destination_rows": 0,
+      "match": true
     },
     "portfolio_targets": {
-      "source_rows": 0
+      "source_rows": 2,
+      "destination_rows": 2,
+      "match": true
     },
     "orders": {
-      "source_rows": 1
+      "source_rows": 16,
+      "destination_rows": 16,
+      "match": true
     },
     "trades": {
-      "source_rows": 1
+      "source_rows": 16,
+      "destination_rows": 16,
+      "match": true
     },
     "holdings_daily": {
-      "source_rows": 0
+      "source_rows": 16,
+      "destination_rows": 16,
+      "match": true
     },
     "nav_daily": {
-      "source_rows": 0
+      "source_rows": 2,
+      "destination_rows": 2,
+      "match": true
     },
     "performance_daily": {
-      "source_rows": 0
+      "source_rows": 0,
+      "destination_rows": 0,
+      "match": true
     },
     "prices_daily": {
-      "source_rows": 0
+      "source_rows": 39042,
+      "destination_rows": 39042,
+      "match": true
     },
     "events": {
-      "source_rows": 0
+      "source_rows": 49,
+      "destination_rows": 49,
+      "match": true
     },
     "model_versions": {
-      "source_rows": 0
+      "source_rows": 0,
+      "destination_rows": 0,
+      "match": true
     },
     "forward_state": {
-      "source_rows": 0
+      "source_rows": 0,
+      "destination_rows": 0,
+      "match": true
     }
   },
-  "issues": [
-    "orphan FKs: [\"orders.account_id='A-missing' (parent accounts missing)\", \"trades.account_id='A-missing' (parent accounts missing)\"]"
+  "issues": [],
+  "warnings": [
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.351684'",
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.355192'",
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.358206'",
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.361206'",
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.362206'",
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.363209'",
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.427388'",
+    "naive timestamp assumed UTC: '2026-09-25 18:19:50.430385'"
   ],
-  "warnings": [],
-  "completed_at": "2026-09-19T01:35:58.216907+00:00"
+  "source_sha256_after": "aeb1428a2d5d0b21d84e029b7e4005174bc4bf7bd19e338b05e33beccd50ef51",
+  "source_untouched": true,
+  "completed_at": "2026-09-26T12:27:57.718959+00:00"
 }

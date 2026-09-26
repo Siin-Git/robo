@@ -65,7 +65,7 @@ def valuate(con: sqlite3.Connection, account_id: str, date: str, versions: dict,
                 " benchmark_version, theme_universe_version, risk_model_version,"
                 " execution_rule_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (account_id, date, nav, nav / base0 * 100.0, daily_ret, nav / base0 - 1.0,
-                 cash, 1 if stale else 0,
+                 cash, bool(stale),
                  "STALE_PRICE" if stale else "OK", versions["benchmark_version"],
                  versions["theme_universe_version"], versions["risk_model_version"],
                  versions["execution_rule_version"]))

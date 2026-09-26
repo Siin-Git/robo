@@ -168,7 +168,21 @@ CREATE INDEX IF NOT EXISTS ix_jobs_status ON scheduled_jobs (status);
 """
 
 
-def connect(db_path) -> sqlite3.Connection:
+def connect(db_path):
+    """DATABASE_BACKEND 에 따라 SQLite 파일 또는 PostgreSQL 에 연결한다."""
+    import os
+    # src.db.config 를 import 하면 .env / .env.local 이 로드된다(프로세스 환경변수 우선).
+    try:
+        from ..db.config import get_backend as _get_backend
+        backend = _get_backend()
+    except Exception:
+        backend = os.environ.get("DATABASE_BACKEND", "sqlite").strip().lower()
+    if backend == "postgres":
+        url = os.environ.get("DATABASE_URL", "").strip()
+        if not url:
+            raise ValueError("DATABASE_URL is not set (required for postgres backend)")
+        from .pg_adapter import connect_postgres
+        return connect_postgres(url)
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(str(db_path))
