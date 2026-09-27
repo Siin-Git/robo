@@ -29,3 +29,7 @@ outputs/forward/validation/
 *.sqlite3
 data/archive/
 !data/.gitkeep
+
+# DB 백업 (*.db 패턴에 안 걸린다)
+*.db.bak*
+*.bak-*
