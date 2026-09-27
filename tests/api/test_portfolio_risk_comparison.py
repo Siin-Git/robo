@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from src.api.services import portfolio_service as svc
+from src.api.services import frontier_service
 
 
 @pytest.mark.parametrize("has_prices", [True, False])
@@ -34,3 +35,30 @@ def test_personalized_exposes_comparable_base_risk(monkeypatch, has_prices):
         assert risk["base_volatility"] is None
         assert risk["personalized_volatility"] is None
         assert risk["method"] is None
+
+
+def test_frontier_position_describes_exact_and_projected_points(monkeypatch):
+    frontier = {
+        "points": [
+            {"frontier_id": "F001", "expected_return": 0.04, "volatility": 0.05},
+            {"frontier_id": "F002", "expected_return": 0.06, "volatility": 0.10},
+            {"frontier_id": "F003", "expected_return": 0.08, "volatility": 0.15},
+        ]
+    }
+    monkeypatch.setattr(frontier_service, "get_frontier", lambda: frontier)
+
+    base = frontier_service.describe_position(frontier_id="F002", label="base")
+    assert base["on_frontier"] is True
+    assert base["frontier_id"] == "F002"
+    assert base["nearest_frontier_id"] == "F002"
+    assert base["return_gap"] == pytest.approx(0)
+
+    personalized = frontier_service.describe_position(
+        volatility=0.12,
+        expected_return=0.065,
+        label="personalized",
+    )
+    assert personalized["on_frontier"] is False
+    assert personalized["nearest_frontier_id"] == "F002"
+    assert personalized["volatility_delta"] == pytest.approx(0.02)
+    assert personalized["return_gap"] == pytest.approx(-0.003)

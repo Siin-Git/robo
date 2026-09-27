@@ -10,6 +10,7 @@ from ..errors import ApiError
 from ..schemas.view import ViewSubmit
 from ..services import performance_service as perf
 from ..services import performance_report_service as reports
+from ..services import ledger_read_service as ledger_reads
 from ..services import portfolio_service as pf
 from ..services import view_service as views
 
@@ -85,6 +86,19 @@ def me_nav(db=Depends(get_design_db), user=Depends(get_current_user)):
 def me_performance_dashboard(period: str = Query(default="ALL"),
                              db=Depends(get_design_db), user=Depends(get_current_user)):
     return reports.dashboard(db, _pid(user), period)
+
+
+@router.get("/performance/contributions", summary="Own cumulative asset return contributions")
+def me_performance_contributions(period: str = Query(default="ALL"),
+                                 db=Depends(get_db), user=Depends(get_current_user)):
+    return reports.cumulative_contributions(db, _pid(user), period)
+
+
+@router.get("/performance/ledger", summary="Own persisted ledger for performance calculations")
+def me_performance_ledger(start: str | None = Query(default=None),
+                          end: str | None = Query(default=None),
+                          db=Depends(get_db), user=Depends(get_current_user)):
+    return ledger_reads.ledger(db, _pid(user), start, end)
 
 
 @router.get("/performance/active", summary="Own active returns")

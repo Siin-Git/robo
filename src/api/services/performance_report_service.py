@@ -30,3 +30,48 @@ def dashboard(session, participant_id, period="ALL"):
                "cost": float(t.transaction_cost)}
               for t in session.scalars(select(Trade).where(Trade.account_id == personal.account_id))]
     return calculate_report(nav, nav_rows(core), holds, trades, period)
+
+
+def cumulative_contributions(session, participant_id, period="ALL"):
+    """Return an explicit frontend contract over the persisted forward ledger."""
+    report = dashboard(session, participant_id, period)
+    cumulative_return = report["metrics"]["cumulative_return"]
+    contribution_total = sum(row["contribution"] for row in report["assets"])
+    difference = (
+        contribution_total - cumulative_return
+        if cumulative_return is not None
+        else None
+    )
+    return {
+        "status": report["status"],
+        "period": report["period"],
+        "start": report["start"],
+        "end": report["end"],
+        "observations": report["observations"],
+        "cumulative_return": cumulative_return,
+        "assets": [
+            {
+                "asset_id": row["asset_id"],
+                "group": row["group"],
+                "cumulative_contribution": row["contribution"],
+                "average_weight": row["average_weight"],
+                "price_return": row["price_return"],
+            }
+            for row in report["assets"]
+        ],
+        "history": [
+            {
+                "date": point["date"],
+                "cumulative_return": point["total"],
+                "contributions": point["values"],
+            }
+            for point in report["attribution"]
+        ],
+        "reconciliation": {
+            "contribution_total": contribution_total,
+            "difference": difference,
+            "reconciled": abs(difference) <= 1e-9 if difference is not None else None,
+        },
+        "quality": report["quality"],
+        "method": "linked_asset_pnl_over_opening_nav",
+    }

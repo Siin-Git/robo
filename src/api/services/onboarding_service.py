@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from ..errors import ApiError, not_found
 from . import _common as C
-from .frontier_service import FRONTIER_VERSION, find_point, get_frontier
+from .frontier_service import FRONTIER_VERSION, describe_position, find_point, get_frontier
 from .portfolio_service import _cov_asof, _tickers
 from src.forward.config import load_forward_config
 from src.forward.portfolio import build_personalized
@@ -189,12 +189,24 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
         tw = personalized_weights.get(f"theme:{tid}", 0)
         themes_info.append({"theme_id": tid, "display_name": t.display_name if t else tid, "ticker": t.ticker if t else None, "target_weight": float(tw)})
 
+    frontier_position = {
+        "base": describe_position(
+            frontier_id=frontier_id,
+            label="base",
+        ),
+        "personalized": describe_position(
+            volatility=pers_vol,
+            label="personalized",
+        ),
+    }
+
     return {
         "base": {"frontier_id": frontier_id, "expected_return": float(point["expected_return"]), "volatility": float(point["volatility"]), "weights": [{"asset_id": k, "weight": float(v)} for k, v in base_weights.items()], "groups": base_groups},
         "themes": themes_info,
         "personalized": {"volatility": pers_vol, "tracking_error": pers_te, "weights": [{"asset_id": k, "weight": float(v)} for k, v in personalized_weights.items()], "groups": pers_groups},
         "comparison": active,
         "funding": funding_list,
+        "frontier_position": frontier_position,
         "risk_guardrail_applied": bool(risk_applied),
         "risk_comparison": {
             "base_volatility": comparison_base_vol,
