@@ -15,11 +15,14 @@ import { fmtActivePp, fmtDate, fmtPct } from "@/lib/format";
 import { reviewRows, Weight } from "../setup/portfolio/review-data";
 import { THEME_INFO } from "../setup/portfolio/theme-content";
 import { ASSET_COLORS } from "../setup/portfolio/FrontierChart";
+import { FrontierChart, type FrontierData } from "../setup/portfolio/FrontierChart";
+import { SetupStyleProvider } from "../setup/SetupStyleProvider";
+import { ASSET_META } from "../setup/portfolio/asset-meta";
 import s from "./portfolio.module.css";
 
 export interface PortfolioSummary {
   base: { frontier_id: string | null; expected_return: number | null; volatility: number | null; weights: Weight[]; groups: Record<string, number> };
-  personalized: { volatility: number | null; tracking_error: number | null; weights: Weight[]; groups: Record<string, number> };
+  personalized: { expected_return?: number | null; volatility: number | null; tracking_error: number | null; weights: Weight[]; groups: Record<string, number> };
   themes: { theme_id: string; display_name?: string; ticker?: string | null; weight: number }[];
   risk_comparison?: { base_volatility: number | null; personalized_volatility: number | null; as_of: string | null; method: string | null } | null;
 }
@@ -38,10 +41,14 @@ export default function PortfolioPage() {
 
 function DemoPortfolioRoute() {
   const params=useSearchParams();
+  return params.get("source")==="demo" ? <DemoPortfolioPage/> : <DesignPortfolioPage/>;
+}
+
+function DemoPortfolioPage() {
   const mode = useComparisonMode();
   if(mode.isLoading)return <LoadingSkeleton rows={6}/>;
   if(mode.isError)return <ErrorState message="비교 설정을 불러오지 못했습니다." onRetry={()=>mode.refetch()}/>;
-  return params.get("workspace")==="design" && !mode.data?.market_comparison ? <DesignPortfolioPage/> : <ParticipantPerformance portfolioOnly/>;
+  return <ParticipantPerformance portfolioOnly/>;
 }
 
 function DesignPortfolioPage() {
@@ -73,7 +80,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
   return <div className={s.page}>
     <header className={s.header}>
       <div><span className={s.eyebrow}>CONFIRMED ALLOCATION</span><h1>{DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"}</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
-      <Link className={s.edit} href="/setup/portfolio?step=risk"><SlidersHorizontal size={16} />구성 변경</Link>
+      <div className="ui-actions">{DEMO_MODE && <Link className={s.edit} href="/portfolio?source=demo">시연 비교 구성</Link>}<Link className={s.edit} href="/setup/portfolio?step=risk"><SlidersHorizontal size={16} />구성 변경</Link></div>
     </header>
 
     <section className={s.composition} aria-labelledby="portfolio-composition">
@@ -109,6 +116,8 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       </div>
     </section>
 
+    <PortfolioFrontier data={p}/>
+
     <section className={s.themes} aria-labelledby="chosen-themes"><div className={s.sectionTitle}><h2 id="chosen-themes">내가 선택한 테마</h2><span>{themes.length}개 테마 · {fmtPct(themeTotal)}</span></div>
       {themes.length ? <div className={s.themeGrid}>{themes.map(t => <article className={s.themeCard} key={t.theme_id} style={{ "--theme-color": color(t.theme_id) } as React.CSSProperties}>
         <div className={s.themeIcon}><Layers3 size={23} /></div><div className={s.themeCopy}><span>{t.ticker ?? "테마 ETF"}</span><h3>{name(t.theme_id)}</h3><p>{THEME_INFO[t.theme_id]?.description ?? "내 포트폴리오에 반영한 테마입니다."}</p></div><strong>{fmtPct(allocations.find(r => r.id === t.theme_id)?.final)}</strong>
@@ -134,7 +143,20 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       <div><h3>기준 포트폴리오와의 차이</h3><strong>{fmtPct(p.personalized.tracking_error)}</strong><p>추적오차는 시스템 기준 포트폴리오(CORE)와 수익률이 얼마나 다르게 움직이는지 나타냅니다.</p></div>
       <div><h3>테마 반영 방식</h3><p>선택한 테마의 비중은 기존 주식 안에서 배분합니다. 설정 시 테마 비중과 변동성 한도를 확인하고 필요한 경우 비중을 조정합니다.</p></div>
     </div></details>
-    <div className="ui-actions mt-[24px]"><Link className="btn-primary" href={DEMO_MODE ? "/dashboard?workspace=design" : "/dashboard"}>운용 성과 확인<ArrowRight size={16} /></Link><Link className="btn-secondary" href="/ranking">참여자 성과 비교</Link></div>
+    <div className="ui-actions mt-[24px]"><Link className="btn-primary" href="/dashboard">운용 성과 확인<ArrowRight size={16} /></Link><Link className="btn-secondary" href="/ranking">참여자 성과 비교</Link></div>
     <p className={s.note}>표시된 비중은 현재 적용된 목표 비중이며 실제 보유 수량과 다를 수 있습니다. 예상 수익률과 변동성은 모형의 추정치이며 실제 투자 결과와 다를 수 있습니다.</p>
   </div>;
+}
+
+function PortfolioFrontier({data}:{data:PortfolioSummary}) {
+  const [inspectedAssetId,setInspectedAssetId] = useState<string|null>(null);
+  const frontier = useQuery({queryKey:["frontier"],queryFn:()=>get<FrontierData>("/api/v1/me/frontier"),enabled:data.base.expected_return!=null&&data.base.volatility!=null,staleTime:60*60*1000});
+  if (data.base.expected_return == null || data.base.volatility == null) return null;
+  return <section className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>Efficient Frontier에서의 위치</h2>
+    {frontier.isLoading ? <LoadingSkeleton rows={3}/> : frontier.isError || !frontier.data ? <ErrorState message="Frontier 데이터를 불러오지 못했습니다." onRetry={()=>frontier.refetch()}/> :
+      <SetupStyleProvider><FrontierChart points={frontier.data.points} assets={frontier.data.assets.map(a=>({...a,name:ASSET_META[a.asset_id]?.name??a.display_name,cat:ASSET_META[a.asset_id]?.cat??"현금"}))}
+        selected={{expected_return:data.base.expected_return,volatility:data.base.volatility}}
+        personalized={data.personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}/></SetupStyleProvider>}
+    {data.personalized.expected_return == null && <p>테마 적용 후 기대수익률은 백엔드 제공 전입니다. 현재는 적용 전 위치만 표시합니다.</p>}
+  </section>;
 }

@@ -112,3 +112,20 @@
 @media(max-width:600px){.page{padding-top:0}.header{align-items:flex-start;gap:12px}.header h1{font-size:29px}.header p{font-size:13px}.outlineLink{font-size:11px;padding:10px 11px;gap:6px;margin-top:19px}.eyebrow{font-size:9px}.date{margin-left:0}.measurement{gap:7px}.toolbar{gap:14px}.periods{width:100%}.periods button{flex:1;padding:8px 6px}.kpis{gap:10px}.metric{padding:17px 13px}.metric>span{font-size:11px}.metric>strong{font-size:27px}.metric>p{font-size:10px}.panel,.riskSection,.drawdownPanel{padding:22px 15px;border-radius:13px}.sectionHeading{flex-wrap:wrap;gap:14px}.sectionHeading h2{font-size:20px}.sectionHeading p{font-size:12px}.mainChart{height:285px}.lineLegend{gap:10px 20px}.lineLegend>span{font-size:11px}.lineLegend strong{font-size:13px}.areaChart{height:280px}.riskMetrics{grid-template-columns:1fr;gap:18px}.riskMetrics>div+div{border-left:0;padding-left:0;border-top:1px solid #e1e7f0;padding-top:18px}.riskMetrics strong{font-size:27px}.method{grid-template-columns:1fr;padding:0 18px 22px}.details summary{padding:20px 17px;font-size:13px}.details summary span{display:none}.footer{align-items:flex-start;flex-direction:column}.empty{padding:40px 20px}.empty h2{font-size:21px}.empty p{font-size:13px}.tooltip{min-width:160px;padding:11px;font-size:11px}}
 
 .empty a:global(.btn-primary) { display:inline-flex; color:white; margin:0 10px 14px 0; font-size:13px; }
+.operations{background:white;border:1px solid var(--panel-border);border-radius:11px;padding:25px 28px;margin-bottom:18px}
+.operationGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:19px}
+.operationGrid>div{background:#f5f8fc;border-radius:8px;padding:15px;min-width:0}
+.operationGrid dt{font-size:12px;color:#657991}
+.operationGrid dd{margin-top:7px;font-size:15px;font-weight:650;color:#284665;overflow-wrap:anywhere}
+.operationEvents{border-top:1px solid #e1e7ef;margin-top:20px;padding-top:18px}
+.operationEvents h3{font-size:15px;font-weight:650;color:#284665}
+.operationEvents>p{font-size:13px;color:#657991;margin-top:12px}
+.operationEvents button,.operations button{color:#285dca;text-decoration:underline}
+.operationEvents ul{list-style:none;padding:0;margin:12px 0 0}
+.operationEvents li{display:flex;gap:18px;border-top:1px solid #e8edf4;padding:13px 0;font-size:13px}
+.operationEvents time{min-width:85px;color:#657991}
+.operationEvents strong{display:block;color:#284665}
+.operationEvents small{display:block;color:#657991;margin:4px 0}
+.operationEvents li p{color:#526780;line-height:1.6}
+@media(max-width:850px){.operationGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.operations{padding:21px 16px}.operationGrid{gap:8px}.operationGrid>div{padding:12px}.operationGrid dd{font-size:13px}.operationEvents li{gap:9px}}

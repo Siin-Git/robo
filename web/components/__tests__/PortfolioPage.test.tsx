@@ -1,18 +1,20 @@
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PortfolioPage from "@/app/(app)/portfolio/page";
+vi.mock("next/navigation",()=>({useSearchParams:()=>new URLSearchParams()}));
 
 const state = vi.hoisted(() => ({ data: {
   base: { frontier_id: "F036", expected_return: .0578, volatility: .0851, weights: [{asset_id:"us_equity",weight:.6},{asset_id:"us_treasury",weight:.4}], groups:{equity:.6,fixed_income:.4} },
   personalized: {volatility:.0957,tracking_error:.0193,weights:[{asset_id:"us_equity",weight:.52},{asset_id:"us_treasury",weight:.4},{asset_id:"semiconductor",weight:.08}],groups:{broad_equity:.52,fixed_income:.4,themes:.08}},
   themes:[{theme_id:"semiconductor",ticker:"SOXX",weight:.08}],
   risk_comparison:{base_volatility:.0857 as number|null,personalized_volatility:.0957 as number|null,as_of:"2026-09-11",method:"5Y weekly Ledoit-Wolf"},
-} }));
-vi.mock("@tanstack/react-query", () => ({useQuery:()=>({data:state.data,isLoading:false,isError:false})}));
+} as {base:{frontier_id:string;expected_return:number;volatility:number;weights:{asset_id:string;weight:number}[];groups:Record<string,number>};personalized:{expected_return?:number;volatility:number;tracking_error:number;weights:{asset_id:string;weight:number}[];groups:Record<string,number>};themes:{theme_id:string;ticker:string;weight:number}[];risk_comparison:{base_volatility:number|null;personalized_volatility:number|null;as_of:string;method:string}} }));
+const frontier = {points:[{frontier_id:"F036",index:0,expected_return:.0578,volatility:.0851,sharpe:.5,weights:[]}],assets:[],frontier_version:"v1",benchmark_frontier_id:"F036",min_variance_frontier_id:"F036",tangency_frontier_id:"F036"};
+vi.mock("@tanstack/react-query", () => ({useQuery:({queryKey}:{queryKey:string[]})=>({data:queryKey[0]==="frontier"?frontier:state.data,isLoading:false,isError:false})}));
 vi.mock("@/components/layout/AppShell",()=>({AppShell:({children}:{children:React.ReactNode})=><div>{children}</div>}));
 describe("portfolio dashboard",()=>{
   afterEach(cleanup);
-  beforeEach(()=>{state.data.risk_comparison.base_volatility=.0857;state.data.risk_comparison.personalized_volatility=.0957;});
+  beforeEach(()=>{state.data.risk_comparison.base_volatility=.0857;state.data.risk_comparison.personalized_volatility=.0957;delete state.data.personalized.expected_return;vi.stubGlobal("ResizeObserver",class {observe(){} disconnect(){}});});
   it("connects chart and list with actual theme holdings and keeps detail collapsed",()=>{
     render(<PortfolioPage/>);
     const chart=screen.getByRole("group",{name:"현재 자산 구성 도넛 차트"});
@@ -38,5 +40,13 @@ describe("portfolio dashboard",()=>{
     render(<PortfolioPage/>);
     expect(screen.getByText("같은 기준의 위험 지표를 산출할 데이터가 부족합니다.")).toBeInTheDocument();
     expect(screen.queryByText("+1.06%p")).not.toBeInTheDocument();
+  });
+  it("plots the personalized point only when the API provides both coordinates",()=>{
+    const view=render(<PortfolioPage/>);
+    expect(screen.getByRole("img",{name:"테마 적용 전 Base Portfolio"})).toBeInTheDocument();
+    expect(screen.queryByRole("img",{name:"테마 적용 후 Personalized Portfolio"})).not.toBeInTheDocument();
+    state.data.personalized.expected_return=.061;
+    view.rerender(<PortfolioPage/>);
+    expect(screen.getByRole("img",{name:"테마 적용 후 Personalized Portfolio"})).toBeInTheDocument();
   });
 });

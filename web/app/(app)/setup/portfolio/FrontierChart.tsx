@@ -8,11 +8,21 @@ export const ASSET_COLORS: Record<string, string> = {
   us_equity: "#3064d8", developed_ex_us: "#5683e4", emerging_markets: "#83a6ee", korea_equity: "#b0c6f4",
   us_treasury: "#637e88", korea_treasury: "#8ba5ad", tips: "#b8c9cf", gold: "#b69a6b", global_reit: "#d8c5a4", cash: "#d6dce5",
 };
-type Point = { volatility: number; expected_return: number };
+export type FrontierCoordinate = { volatility: number; expected_return: number };
+type Point = FrontierCoordinate;
 type Asset = Point & { asset_id: string; name: string; cat: string };
+export interface FrontierData {
+  frontier_version: string;
+  benchmark_frontier_id: string;
+  min_variance_frontier_id: string;
+  tangency_frontier_id: string;
+  points: (Point & { frontier_id: string; index: number; sharpe: number; weights: { asset_id: string; weight: number }[] })[];
+  assets: { asset_id: string; display_name: string; expected_return: number; volatility: number }[];
+}
 
-export function FrontierChart({ points, assets, benchmark, selected, inspectedId, onInspect }: {
+export function FrontierChart({ points, assets, benchmark, selected, personalized, inspectedId, onInspect }: {
   points: Point[]; assets: Asset[]; benchmark?: Point; selected: Point;
+  personalized?: { expected_return?: number | null; volatility?: number | null } | null;
   inspectedId: string | null; onInspect: (id: string | null) => void;
 }) {
   const { risk: styles } = useSetupStyles();
@@ -28,7 +38,10 @@ export function FrontierChart({ points, assets, benchmark, selected, inspectedId
     return () => observer.disconnect();
   }, []);
   const { width, height } = size;
-  const all = [...points, ...assets, ...(benchmark ? [benchmark] : [])];
+  const after = personalized?.expected_return != null && personalized?.volatility != null
+    && Number.isFinite(personalized.expected_return) && Number.isFinite(personalized.volatility)
+    ? { expected_return: personalized.expected_return, volatility: personalized.volatility } : null;
+  const all = [...points, ...assets, selected, ...(benchmark ? [benchmark] : []), ...(after ? [after] : [])];
   const minX = Math.max(0, Math.min(...all.map(p => p.volatility)) - .015);
   const maxX = Math.max(...all.map(p => p.volatility)) + .015;
   const minY = Math.min(...all.map(p => p.expected_return)) - .012;
@@ -83,8 +96,13 @@ export function FrontierChart({ points, assets, benchmark, selected, inspectedId
           <text x={label.x} y={label.y} textAnchor="middle" className={styles.pointLabel}>{a.name}</text>
         </g>;
       })}
-      <g pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={7} fill="white" stroke="#2563eb" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#2563eb" /></g>
+      <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="white" stroke="#2563eb" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#2563eb" /></g>
+      {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#7654c8" stroke="white" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="white" /></g>}
     </svg>
+    <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:12,color:"#435a75",padding:"0 8px 5px"}} aria-label="포트폴리오 위치 범례">
+      <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #2563eb",marginRight:6}}/>테마 적용 전</span>
+      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#7654c8",marginRight:6}}/>테마 적용 후</span>}
+    </div>
     {inspected && inspectedLabel && <div id="asset-point-tooltip" role="tooltip" aria-label={`${inspected.name} 수익률과 변동성`} className={styles.pointTooltip}
       style={{ left: Math.max(4, Math.min(width - 204, inspectedLabel.x - 100)), top: inspectedLabel.y + 10 }}>
       <dl>

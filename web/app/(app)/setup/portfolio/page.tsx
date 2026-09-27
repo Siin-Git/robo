@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { FrontierChart, GROUP_COLORS, ASSET_COLORS } from "./FrontierChart";
+import { FrontierChart, GROUP_COLORS, ASSET_COLORS, type FrontierData } from "./FrontierChart";
 import { useSetupStyles } from "../style-context";
 import { ThemesStep } from "./ThemeSelection";
 import { ReviewStep } from "./ReviewStep";
@@ -19,22 +19,6 @@ import type { ExperimentStatus } from "@/lib/api/experiment";
 import { ExperimentSetup } from "@/components/portfolio/ExperimentSetup";
 import { fmtPct } from "@/lib/format";
 
-interface FrontierPoint {
-  frontier_id: string;
-  index: number;
-  expected_return: number;
-  volatility: number;
-  sharpe: number;
-  weights: { asset_id: string; weight: number }[];
-}
-interface FrontierData {
-  frontier_version: string;
-  benchmark_frontier_id: string;
-  min_variance_frontier_id: string;
-  tangency_frontier_id: string;
-  points: FrontierPoint[];
-  assets: { asset_id: string; display_name: string; expected_return: number; volatility: number }[];
-}
 interface Theme {
   theme_id: string;
   display_name: string;
@@ -137,7 +121,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
       post("/api/v1/me/onboarding/complete", body),
     onSuccess: async () => {
       await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
-      router.push(DEMO_MODE && !market ? "/portfolio?workspace=design" : "/portfolio");
+      router.push(DEMO_MODE && market ? "/portfolio?source=demo" : "/portfolio");
     },
   });
 
@@ -323,6 +307,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
       {step === "review" && (
         <ReviewStep
           basePoint={selected}
+          frontierData={frontier.data}
           themeIds={selectedThemes}
           onBack={goBack}
           onComplete={() => mutateComplete.mutate({ frontier_id: selected.frontier_id, theme_ids: selectedThemes, reason })}

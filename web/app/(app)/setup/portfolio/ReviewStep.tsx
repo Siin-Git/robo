@@ -6,7 +6,8 @@ import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/ui";
 import { post } from "@/lib/api/client";
 import { fmtActivePp, fmtPct } from "@/lib/format";
-import { ASSET_COLORS } from "./FrontierChart";
+import { ASSET_COLORS, FrontierChart, type FrontierData } from "./FrontierChart";
+import { ASSET_META } from "./asset-meta";
 import { THEME_INFO } from "./theme-content";
 import { ReviewData, reviewRows } from "./review-data";
 import { useSetupStyles } from "../style-context";
@@ -20,12 +21,14 @@ const GROUPS = [
   { key: "cash", base: "cash", name: "현금", color: "#c2cad6" },
 ];
 
-export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, error, experiment }: {
+export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, experiment }: {
   basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean;
+  frontierData?: FrontierData;
   experiment?: { reason: string; notice: ReactNode };
 }) {
   const { review: s } = useSetupStyles();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [inspectedAssetId, setInspectedAssetId] = useState<string | null>(null);
   const preview = useQuery({
     queryKey: [experiment ? "experiment-review-preview" : "onboarding-preview", basePoint.frontier_id, themeIds.join(",")],
     queryFn: () => post<ReviewData>(experiment ? "/api/v1/me/experiment/preview" : "/api/v1/me/onboarding/preview", experiment ? {core_id:basePoint.frontier_id, theme_ids:themeIds} : { frontier_id: basePoint.frontier_id, theme_ids: themeIds }),
@@ -58,6 +61,13 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
       <div><span className="ui-eyebrow">MY INSIGHT</span><h2>{p.themes.length ? p.themes.map(t => themeName(t.theme_id)).join(" · ") : "기본 구성 유지"}</h2><p>{p.themes.length ? "나의 전망을 기존 주식 비중 안에서 반영합니다." : "추가 테마 없이 선택한 자산배분을 유지합니다."}</p></div>
       <div><span className="ui-eyebrow">AFTER</span><h2>최종 포트폴리오</h2><p>비중과 위험 변화를 확인하고 확정합니다. 성과는 연결된 데이터가 있을 때 표시됩니다.</p></div>
     </div>
+    {frontierData && p.base.expected_return != null && p.base.volatility != null && <section className={s.changes} aria-label="테마 적용 전후 Efficient Frontier 위치">
+      <div className={s.sectionHeading}><div><h2>Efficient Frontier에서의 위치</h2><p>기본 구성과 테마 반영 후 구성을 같은 좌표계에 표시합니다.</p></div></div>
+      <FrontierChart points={frontierData.points} assets={frontierData.assets.map(a => ({...a,name:ASSET_META[a.asset_id]?.name ?? a.display_name,cat:ASSET_META[a.asset_id]?.cat ?? "현금"}))}
+        selected={{expected_return:p.base.expected_return,volatility:p.base.volatility}}
+        personalized={p.personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}/>
+      {p.personalized.expected_return == null && <p>테마 적용 후 기대수익률은 백엔드 제공 전입니다. 현재는 적용 전 위치만 표시합니다.</p>}
+    </section>}
     <section className={s.changes} aria-labelledby="changes-heading">
       <div className={s.sectionHeading}><div><h2 id="changes-heading">{p.themes.length ? "선택한 테마로 이렇게 달라졌어요" : "기본 구성으로 시작해요"}</h2><p>{p.themes.length ? "기존 주식의 일부를 선택한 테마로 재배분했습니다." : "테마를 추가하지 않아 자산별 비중은 그대로 유지됩니다."}</p></div></div>
       {p.themes.length > 0 && <div className={s.themeChanges}>{p.themes.map(t => <div key={t.theme_id}><i style={{ background: color(t.theme_id) }} /><strong>{themeName(t.theme_id)}</strong><span>{t.ticker}</span><b>{fmtPct(rows.find(r => r.id === t.theme_id)?.final ?? 0)}</b></div>)}</div>}

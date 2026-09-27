@@ -46,7 +46,7 @@ export function ExperimentSetup({ status }: {status: ExperimentStatus}) {
   }
   async function complete() {
     setBusy(true);setMessage("");
-    try {await save(draft);await post("/api/v1/me/experiment/complete",draft);await qc.invalidateQueries({queryKey:["experiment-status"]});await qc.invalidateQueries({queryKey:["comparison"]});await qc.invalidateQueries({queryKey:["comparison-ranking"]});await qc.invalidateQueries({queryKey:["comparison-analytics"]});await qc.invalidateQueries({queryKey:["experiment-setup-status"]});router.push("/portfolio?created=1");}
+    try {await save(draft);await post("/api/v1/me/experiment/complete",draft);await qc.invalidateQueries({queryKey:["experiment-status"]});await qc.invalidateQueries({queryKey:["comparison"]});await qc.invalidateQueries({queryKey:["comparison-ranking"]});await qc.invalidateQueries({queryKey:["comparison-analytics"]});await qc.invalidateQueries({queryKey:["experiment-setup-status"]});router.push("/portfolio?source=demo&created=1");}
     catch(e) {setMessage(e instanceof ApiError?e.message:"생성하지 못했습니다. 저장 상태를 확인한 뒤 다시 시도해 주세요.");}
     finally {setBusy(false);}
   }

@@ -57,7 +57,7 @@ export function DemoRanking() {
     ]),
   ];
   return <AppShell headerTitle="참여자 성과 비교" softBackground><div className={s.page}>
-    <header className={s.header}><div><h1 className="page-title">참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link href="/dashboard" className="btn-secondary">내 성과 자세히</Link></header>
+    <header className={s.header}><div><h1 className="page-title">참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link href="/dashboard?source=demo" className="btn-secondary">내 비교 성과 자세히</Link></header>
     <div className={s.comparisonMeta}><span>{fmtDate(query.data?.start)} — {fmtDate(query.data?.end)}</span><span>{query.data?.total ?? "—"}명 비교</span><span>{query.data?.data_source === "MARKET_PRICE_REPLAY" ? "과거 가격 기준 · 실제 운용 성과 아님" : "가상 시연 데이터 · 실제 운용 성과 아님"}</span></div>
     {LAB_MEETING_MODE && <div className="ui-note" role="status"><strong>구성 완료 {query.data?.registered ?? "—"} / {query.data?.capacity ?? 13}명</strong><span> · 선택 중 {query.data?.reserved ?? "—"}명 · 10초마다 자동 갱신</span><p>저장한 포트폴리오만 순위에 반영됩니다. <Link href="/setup/portfolio">내 섹터·테마 선택하기 →</Link></p></div>}
     <AnalyticsOverview participantId={user?.participant_id??undefined}/>

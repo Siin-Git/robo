@@ -14,6 +14,7 @@ import s from "./dashboard.module.css";
 import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
 import { useComparisonMode } from "@/lib/api/use-comparison-mode";
+import { ForwardOperations } from "@/components/dashboard/ForwardOperations";
 
 export default function DashboardPage() {
   return DEMO_MODE ? <Suspense fallback={<LoadingSkeleton rows={6}/>}><DashboardRoute/></Suspense> : <LegacyDashboardPage/>;
@@ -21,10 +22,14 @@ export default function DashboardPage() {
 
 function DashboardRoute() {
   const params = useSearchParams();
+  return params.get("source") === "demo" ? <DemoDashboardPage/> : <LegacyDashboardPage/>;
+}
+
+function DemoDashboardPage() {
   const mode = useComparisonMode();
   if(mode.isLoading)return <LoadingSkeleton rows={6}/>;
   if(mode.isError)return <ErrorState message="비교 설정을 불러오지 못했습니다." onRetry={()=>mode.refetch()}/>;
-  return params.get("workspace") === "design" && !mode.data?.market_comparison ? <LegacyDashboardPage/> : <ParticipantPerformance/>;
+  return <ParticipantPerformance/>;
 }
 
 function LegacyDashboardPage() {
@@ -35,15 +40,16 @@ function LegacyDashboardPage() {
   const query=useQuery({queryKey:["dashboard-performance",period],queryFn:()=>get<Report>(`/api/v1/me/performance/dashboard?period=${period}`),enabled:!example});
   const base = useQuery({queryKey:["base-portfolio"],queryFn:()=>get<{status:string}>("/api/v1/me/base-portfolio")});
   const needsSetup = base.data?.status === "not_selected";
-  const hasPortfolio = base.data?.status === "active";
+  const hasPortfolio = base.data?.status === "selected";
   const report=example?exampleReport(period):query.data;
   const ready=!!report&&report.series.length>1;
   const m=report?.metrics;
-  const portfolioHref = DEMO_MODE ? "/portfolio?workspace=design" : "/portfolio";
+  const portfolioHref = "/portfolio";
   return <AppShell headerTitle="포트폴리오 운용 성과" softBackground><div className={s.page}>
-    <header className={s.header}><div><span className={s.eyebrow}>PERFORMANCE OVERVIEW</span><h1>포트폴리오 운용 성과</h1><p>확정한 포트폴리오의 모의운용 성과를 CORE와 비교하고, 위험과 수익 기여도를 확인합니다.</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link><Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
-    <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시":"설정 이후 모의운용"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
+    <header className={s.header}><div><span className={s.eyebrow}>FORWARD LEDGER</span><h1>포트폴리오 운용 성과</h1><p>실제 시장 가격으로 기록한 모의운용 평가액을 CORE와 비교하고, 위험과 수익 기여도를 확인합니다.</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link>{DEMO_MODE && <Link className={s.outlineLink} href="/dashboard?source=demo">시연 비교 데이터 보기</Link>}<Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
+    <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시 · 가상 데이터":"Forward 운용 기록"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
     {example&&<div className={s.exampleBanner} role="status"><Info size={19}/><div><strong>DEMO / EXAMPLE · 가상 데이터</strong><span>확정한 포트폴리오의 성과가 아닙니다. 시연용 가상 데이터이며 랭킹에 반영되지 않습니다.</span></div><button onClick={()=>{setExample(false);setSelected(null);}}>내 모의운용 기록으로 돌아가기</button></div>}
+    {!example && <ForwardOperations latestValuationDate={query.data?.end ?? null} observations={query.data?.observations ?? null}/>}
     {!example&&query.isLoading?<LoadingSkeleton rows={6}/>:!example&&query.isError?<ErrorState message="성과 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/>:<>
       {ready && <div className={s.kpis}>
         <Metric label="내 누적수익률" value={fmtReturn(m?.cumulative_return)} hint={ready?`${fmtDate(report?.start)} — ${fmtDate(report?.end)}`:"첫 평가액 이후의 변화"} primary/>
