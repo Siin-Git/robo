@@ -155,12 +155,18 @@ def test_dashboard_performance_prelaunch_and_validation(client, owner):
 
 
 def test_dashboard_reads_recorded_nav_and_holdings(env, client, owner):
-    from datetime import date
+    from datetime import date, datetime, timezone
     from sqlalchemy import select
     from src.db.models.account import Account
     from src.db.models.nav import NavDaily
     from src.db.models.holding import Holding
+    from src.db.models.order import Order
+    from src.db.models.price import PriceDaily
+    from src.db.models.trade import Trade
     with env.factory() as session:
+        for day, price in [(7, 100), (8, 110), (9, 121)]:
+            session.add(PriceDaily(asset_id="us_equity", date=date(2026, 9, day),
+                                   price=price, source="test-close"))
         accounts = list(session.scalars(select(Account).where(Account.participant_id == owner["pid"])))
         for account in accounts:
             if account.account_type not in ("core", "personal"):
@@ -174,6 +180,21 @@ def test_dashboard_reads_recorded_nav_and_holdings(env, client, owner):
                     benchmark_version="test",theme_universe_version="test",risk_model_version="test",execution_rule_version="test"))
                 session.add(Holding(account_id=account.account_id,date=d,asset_id="us_equity",
                     quantity=1,price=nav,market_value=nav,weight=1))
+            if account.account_type == "personal":
+                submitted = datetime(2026, 9, 6, 9, tzinfo=timezone.utc)
+                session.add(Order(order_id="O900", account_id=account.account_id,
+                    asset_id="us_equity", side="buy", target_weight=1,
+                    submitted_at=submitted, effective_at=date(2026, 9, 7),
+                    status="executed", created_at=submitted))
+                session.add(Order(order_id="O901", account_id=account.account_id,
+                    asset_id="us_equity", side="sell", target_weight=.8,
+                    submitted_at=submitted, effective_at=date(2026, 9, 10),
+                    status="pending", created_at=submitted))
+                session.add(Trade(trade_id="T900", order_id="O900",
+                    account_id=account.account_id, asset_id="us_equity",
+                    execution_at=date(2026, 9, 7), execution_price=100,
+                    quantity=1, gross_value=100, transaction_cost=0,
+                    net_value=100))
         session.commit()
     r = client.get("/api/v1/me/performance/dashboard?period=1M", cookies=owner["cookies"])
     assert r.status_code == 200
@@ -184,6 +205,52 @@ def test_dashboard_reads_recorded_nav_and_holdings(env, client, owner):
     assert report["end"] == "2026-09-09"
     assert sum(a["contribution"] for a in report["assets"]) == pytest.approx(.21)
     assert report["quality"]["unresolved_intervals"] == 0
+
+    contribution = client.get(
+        "/api/v1/me/performance/contributions?period=1M", cookies=owner["cookies"]
+    )
+    assert contribution.status_code == 200
+    body = contribution.json()
+    assert body["cumulative_return"] == pytest.approx(.21)
+    assert body["reconciliation"]["contribution_total"] == pytest.approx(.21)
+    assert body["reconciliation"]["difference"] == pytest.approx(0)
+    assert body["reconciliation"]["reconciled"] is True
+    assert body["method"] == "linked_asset_pnl_over_opening_nav"
+    us_equity = next(a for a in body["assets"] if a["asset_id"] == "us_equity")
+    assert us_equity["cumulative_contribution"] == pytest.approx(.21)
+    assert body["history"][-1]["contributions"]["us_equity"] == pytest.approx(.21)
+
+    participant_path = (
+        f"/api/v1/participants/{owner['pid']}/performance/contributions?period=1M"
+    )
+    assert client.get(participant_path, cookies=owner["cookies"]).json() == body
+
+    ledger_url = "/api/v1/me/performance/ledger"
+    ledger = client.get(ledger_url, cookies=owner["cookies"])
+    assert ledger.status_code == 200
+    recorded = ledger.json()
+    assert recorded["contract_version"] == "ledger-read-v1"
+    assert recorded["as_of"] == "2026-09-09"
+    assert recorded["snapshots"][-1]["cash_balance"] == 0
+    assert recorded["snapshots"][-1]["cumulative_return"] == pytest.approx(.21)
+    assert recorded["snapshots"][-1]["holdings"][0]["price_status"] == "current"
+    assert recorded["snapshots"][-1]["holdings"][0]["price_source"] == "test-close"
+    assert recorded["order_status_summary"] == {
+        "pending": 1, "executed": 1, "cancelled": 0
+    }
+    pending = next(order for order in recorded["orders"] if order["status"] == "pending")
+    assert pending["action_required"] is True
+    assert pending["alert_type"] == "sell_required"
+    assert recorded["trades"][0]["order_id"] == "O900"
+    assert recorded["trades"][0]["execution_price"] == 100
+
+    # Every request opens a new DB session; identical responses prove committed
+    # ledger state survives process-level session teardown and reconnection.
+    assert client.get(ledger_url, cookies=owner["cookies"]).json() == recorded
+    assert client.get(ledger_url, params={"start": "bad-date"},
+                      cookies=owner["cookies"]).status_code == 400
+    assert client.get(ledger_url, params={"start": "2026-09-10", "end": "2026-09-01"},
+                      cookies=owner["cookies"]).status_code == 400
 
 
 def test_error_contract_shape(client, owner, admin_cookies):

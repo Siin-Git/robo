@@ -130,6 +130,8 @@ def test_idor_blocked(env, users):
                  f"/api/v1/participants/{b['pid']}/performance/nav",
                  f"/api/v1/participants/{b['pid']}/performance/active",
                  f"/api/v1/participants/{b['pid']}/performance/attribution",
+                 f"/api/v1/participants/{b['pid']}/performance/contributions",
+                 f"/api/v1/participants/{b['pid']}/performance/ledger",
                  f"/api/v1/participants/{b['pid']}"]:
         r = env.client.get(path, cookies=a["cookies"])
         assert r.status_code == 403, path
@@ -156,6 +158,10 @@ def test_me_endpoints(env, users):
     assert env.client.get("/api/v1/me/performance/active",
                           cookies=a["cookies"]).status_code == 200
     assert env.client.get("/api/v1/me/performance/attribution",
+                          cookies=a["cookies"]).status_code == 200
+    assert env.client.get("/api/v1/me/performance/contributions",
+                          cookies=a["cookies"]).status_code == 200
+    assert env.client.get("/api/v1/me/performance/ledger",
                           cookies=a["cookies"]).status_code == 200
     r = env.client.post("/api/v1/me/views", json={"theme_ids": ["ai"]},
                         cookies=a["cookies"], headers={"X-CSRF-Token": a["csrf"]})

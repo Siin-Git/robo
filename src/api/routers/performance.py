@@ -7,6 +7,8 @@ from ..authz import enforce_owner, get_current_user
 from ..dependencies import get_db
 from ..errors import ApiError
 from ..services import performance_service as svc
+from ..services import performance_report_service as reports
+from ..services import ledger_read_service as ledger_reads
 
 router = APIRouter(tags=["performance"])
 
@@ -47,6 +49,23 @@ def get_attribution(participant_id: str, start: str | None = Query(default=None)
                     user=Depends(get_current_user)):
     enforce_owner(user, participant_id)
     return svc.attribution(db, participant_id, start, end)
+
+
+@router.get("/participants/{participant_id}/performance/contributions",
+            summary="Cumulative asset return contributions")
+def get_contributions(participant_id: str, period: str = Query(default="ALL"),
+                      db=Depends(get_db), user=Depends(get_current_user)):
+    enforce_owner(user, participant_id)
+    return reports.cumulative_contributions(db, participant_id, period)
+
+
+@router.get("/participants/{participant_id}/performance/ledger",
+            summary="Persisted ledger input for performance calculations")
+def get_ledger(participant_id: str, start: str | None = Query(default=None),
+               end: str | None = Query(default=None), db=Depends(get_db),
+               user=Depends(get_current_user)):
+    enforce_owner(user, participant_id)
+    return ledger_reads.ledger(db, participant_id, start, end)
 
 
 @router.get("/rankings", summary="Participant rankings")
