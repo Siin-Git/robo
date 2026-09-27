@@ -64,9 +64,10 @@ def record_target(con: sqlite3.Connection, account_id: str, weights: dict,
 def place_target_orders(con: sqlite3.Connection, account_id: str, weights: dict,
                         submitted_at: str, effective_at: str, model_version: str,
                         participant_id=None, kind: str = "REBALANCE",
-                        baseline: dict | None = None) -> list[str]:
+                        baseline: dict | None = None,
+                        band: dict | None = None) -> list[str]:
     return create_orders(con, account_id, weights, submitted_at, effective_at,
-                         model_version, participant_id, kind, baseline)
+                         model_version, participant_id, kind, baseline, band)
 
 
 def versions_from_cfg(cfg: dict) -> dict:

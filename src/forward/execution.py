@@ -36,23 +36,49 @@ def holding_qty(con: sqlite3.Connection, account_id: str, asset_id: str, asof: s
     return float(row["q"])
 
 
+def within_band(target_w: float, current_w: float, band: dict | None) -> bool:
+    """밴드 안이면 True(주문을 만들지 않는다).
+
+    상대 기준: |현재 - 목표| <= 목표 x threshold.
+    예) 목표 20%, threshold 0.10 -> 18~22% 는 조정하지 않는다.
+    목표가 0 이면(자산 제거) 상대 밴드는 0 이므로 항상 조정한다.
+    min_absolute 를 두면 그 폭까지는 상대 기준과 무관하게 무시한다.
+    """
+    if not band:
+        return False
+    gap = abs(current_w - target_w)
+    limit = 0.0
+    if band.get("type", "relative") == "relative":
+        limit = abs(target_w) * float(band.get("threshold", 0.0))
+    else:
+        limit = float(band.get("threshold", 0.0))
+    limit = max(limit, float(band.get("min_absolute", 0.0) or 0.0))
+    return gap <= limit + 1e-12  # 경계값이 부동소수점 오차로 밖으로 판정되지 않게
+
+
 def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
                   submitted_at: str, effective_at: str, model_version: str,
                   participant_id=None, kind: str = "REBALANCE",
-                  baseline: dict | None = None) -> list[str]:
+                  baseline: dict | None = None, band: dict | None = None) -> list[str]:
     """Create target-weight orders for assets whose weight changed vs baseline.
 
     baseline None = build from zero (inception). Weekly active batches pass the
     previous target (change-only orders, no drift churn); monthly/core passes
     holdings-based weights (full drift correction).
+
+    band 를 주면 목표 대비 편차가 밴드 안인 자산은 건너뛴다(불필요한 거래 억제).
+    최초 편입(baseline None)에는 적용하지 않는다.
     """
     cur = dict(baseline) if baseline is not None else {}
+    apply_band = band is not None and baseline is not None
     oids = []
     for asset, tw in sorted(target_w.items()):
         if asset == "cash":
             continue
         cw = cur.get(asset, 0.0)
         if abs(tw - cw) < 1e-9:
+            continue
+        if apply_band and within_band(tw, cw, band):
             continue
         oid = next_id(con, "O")
         con.execute("INSERT INTO orders (order_id, account_id, asset_id, side, target_weight,"

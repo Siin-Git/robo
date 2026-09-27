@@ -110,7 +110,10 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
         print(f"ERROR:\nMonthly rebalance refused: {reason}.")
         return 2, {"status": "REFUSED"}
     n = 0
-    # core + shadow static legs
+    # 리밸런싱 밴드: 목표 대비 편차가 밴드 안이면 주문을 만들지 않는다.
+    band = (ft.get("core_rebalance") or {}).get("band") or None
+    if band:
+        print(f"rebalance band: {band}")
     # core + shadow static legs (drift-correcting vs current holdings)
     from src.forward.execution import current_weights as _cw
     for r in con.execute("SELECT * FROM accounts WHERE account_type IN ('core','shadow')"
@@ -133,7 +136,8 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
         n += len(place_target_orders(con, r["account_id"], w, f"{asof}T23:59:59+00:00",
                                      effective, ft["benchmark_version"],
                                      r["participant_id"], kind="CORE_REBALANCE",
-                                     baseline=_cw(con, r["account_id"], asof)))
+                                     baseline=_cw(con, r["account_id"], asof),
+                                     band=band))
     # personal accounts: fresh core + current views
     for p_ in list_participants(con, "active"):
         pid = p_["participant_id"]
@@ -154,7 +158,7 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
         n += len(place_target_orders(con, acc["account_id"], res["weights"],
                                      f"{asof}T23:59:59+00:00", effective,
                                      ft["benchmark_version"], pid, kind="CORE_REBALANCE",
-                                     baseline=prev_w))
+                                     baseline=prev_w, band=band))
     con.commit()
     print(f"month {y}-{m}: risk refreshed asof {asof}, {n} rebalance orders, effective {effective}")
     print("STATUS: PASS")
