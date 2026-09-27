@@ -13,6 +13,7 @@ from ...risk.covariance import annualize_covariance, ledoit_wolf_covariance
 from ...db.repositories.forward import PriceRepository, TargetRepository, ThemeRepository
 from ..errors import ApiError, not_found
 from . import _common as C
+from .frontier_service import describe_position
 
 
 def _cfg():
@@ -242,6 +243,18 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         comp_core = comparison(session, participant_id)
     except Exception:
         comp_core = {"active": []}
+    frontier_position = {
+        "base": describe_position(
+            frontier_id=getattr(base_sel, "frontier_id", None),
+            volatility=float(base_info["volatility"]) if base_info["volatility"] is not None else None,
+            expected_return=base_info["expected_return"],
+            label="base",
+        ),
+        "personalized": describe_position(
+            volatility=pers_vol,
+            label="personalized",
+        ),
+    }
     return {
         "base": base_info,
         "personalized": pers_info,
@@ -250,4 +263,5 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         "core_comparison": comp_core.get("active", []),
         "portfolio_mode": base_mode,
         "risk_comparison": risk_comparison,
+        "frontier_position": frontier_position,
     }
