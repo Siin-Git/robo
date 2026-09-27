@@ -9,6 +9,7 @@ from ..design_workspace import get_design_db, require_design_csrf
 from ..errors import ApiError
 from ..schemas.view import ViewSubmit
 from ..services import performance_service as perf
+from ..services import ledger_service as ledger
 from ..services import performance_report_service as reports
 from ..services import portfolio_service as pf
 from ..services import view_service as views
@@ -95,3 +96,15 @@ def me_active(db=Depends(get_design_db), user=Depends(get_current_user)):
 @router.get("/performance/attribution", summary="Own attribution")
 def me_attribution(db=Depends(get_design_db), user=Depends(get_current_user)):
     return perf.attribution(db, _pid(user))
+
+
+@router.get("/ledger/status", summary="Own forward-ledger status (freshness, coverage)")
+def me_ledger_status(db=Depends(get_design_db), user=Depends(get_current_user)):
+    return ledger.status(db, _pid(user))
+
+
+@router.get("/alerts", summary="Own alerts (orders, executions, rebalance, data issues)")
+def me_alerts(limit: int = Query(default=50, ge=1, le=200),
+              offset: int = Query(default=0, ge=0),
+              db=Depends(get_design_db), user=Depends(get_current_user)):
+    return ledger.alerts(db, _pid(user), limit, offset)
