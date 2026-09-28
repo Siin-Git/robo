@@ -13,7 +13,7 @@ import pytest
 
 from src.forward.accounts import ensure_personal_accounts, record_target, versions_from_cfg
 from src.forward.db import connect, init_db
-from src.forward.execution import create_orders, execute_pending
+from src.forward.execution import create_orders, current_weights as _current, execute_pending
 from src.forward.ledger import valuate
 from src.forward.participants import add_participant
 from src.forward.prices import CORE_IDS, theme_asset_id, upsert_prices
@@ -189,17 +189,105 @@ def test_거래비용이_중복_차감되지_않는다(con, account):
 
 
 # --------------------------------------------------------------------------
-# 4. 주문 생성 — 호출부가 중복을 막는지 확인하는 회귀 테스트
+# 4. 주문 생성 멱등성
 # --------------------------------------------------------------------------
 
-def test_주문_생성을_두_번_호출하면_중복된다(con, account):
-    """create_orders 자체는 중복을 막지 않는다(설계상 재조정도 가능해야 하므로).
+def test_주문_생성을_두_번_호출해도_대기_주문이_중복되지_않는다(con, account):
+    """create_orders 가 같은 계좌·자산·효력일의 pending 주문을 다시 만들지 않는다.
 
-    따라서 '주문이 없을 때만 생성한다'는 조건은 호출부가 책임진다.
-    이 테스트는 그 전제를 문서화한다 — 조건 없이 부르면 중복된다.
+    (2026-09-28 변경) 예전에는 중복 방지를 호출부 책임으로 뒀지만, 배치를 다시
+    돌리는 것이 정상 운영인 이상 생성 지점에서 막는 것이 맞다. 체결·취소된
+    주문은 판정에서 빠지므로 다음 달 재조정은 그대로 가능하다.
     """
     _place_initial_orders(con, account)
     n1 = con.execute("SELECT COUNT(*) c FROM orders").fetchone()["c"]
+    assert n1 > 0
     _place_initial_orders(con, account)
     n2 = con.execute("SELECT COUNT(*) c FROM orders").fetchone()["c"]
-    assert n2 == n1 * 2
+    assert n2 == n1
+
+
+def test_체결_후에는_같은_자산에_다시_주문할_수_있다(con, account):
+    """중복 방지가 다음 리밸런싱을 막아서는 안 된다."""
+    _place_initial_orders(con, account)
+    _run_once(con, account)
+    executed = con.execute("SELECT COUNT(*) c FROM orders"
+                           " WHERE status='executed'").fetchone()["c"]
+    assert executed > 0
+    n_before = con.execute("SELECT COUNT(*) c FROM orders").fetchone()["c"]
+    _place_initial_orders(con, account)
+    n_after = con.execute("SELECT COUNT(*) c FROM orders").fetchone()["c"]
+    assert n_after > n_before
+
+
+# --------------------------------------------------------------------------
+# 5. 전량 매도 후 보유 행 정리
+# --------------------------------------------------------------------------
+
+def _sell_one_to_zero(con, account):
+    """보유 자산 하나를 목표 0 으로 두고 같은 날짜에 전량 매도시킨다.
+
+    execute_pending 은 주문이 아니라 portfolio_targets 의 weights_json 으로
+    수량을 정한다. 같은 effective_date 에 목표 행을 새로 넣으면 어느 행이
+    선택될지 불확정이므로, 기존 행을 갱신한다.
+    """
+    import json as _json
+    ft = CFG["forward_test"]
+    asset = con.execute("SELECT asset_id FROM holdings_daily WHERE account_id = ?"
+                        " AND date = ? ORDER BY asset_id LIMIT 1",
+                        (account, ASOF)).fetchone()["asset_id"]
+    w = dict(CORE_W)
+    w[asset] = 0.0
+    con.execute("UPDATE portfolio_targets SET weights_json = ? WHERE account_id = ?"
+                " AND effective_date = ?", (_json.dumps(w), account, ASOF))
+    con.commit()
+    create_orders(con, account, w, f"{ASOF}T00:00:00+00:00", ASOF,
+                  ft["benchmark_version"], kind="REBALANCE",
+                  baseline=_current(con, account, ASOF))
+    _run_once(con, account)
+    return asset
+
+
+def test_전량_매도한_자산은_보유_행이_남지_않는다(con, account):
+    """valuate 는 그날 보유를 통째로 다시 쓴다.
+
+    INSERT OR REPLACE 만 하면 더 이상 보유하지 않는 자산의 예전 행이 남고,
+    같은 날짜를 재평가할 때 Sigma(weight) 에 유령 자산이 섞여 항등식이 깨진다.
+    (2026-09-28: 제거된 테마를 목표 0 으로 매도하면서 드러난 버그)
+    """
+    _place_initial_orders(con, account)
+    _run_once(con, account)
+    asset = _sell_one_to_zero(con, account)
+
+    q = con.execute("SELECT COALESCE(SUM(quantity), 0) q FROM trades WHERE account_id = ?"
+                    " AND asset_id = ?", (account, asset)).fetchone()["q"]
+    assert abs(q) < 1e-9, f"전량 매도되지 않았다 (잔량 {q})"
+    left = con.execute("SELECT COUNT(*) c FROM holdings_daily WHERE account_id = ?"
+                       " AND date = ? AND asset_id = ?",
+                       (account, ASOF, asset)).fetchone()["c"]
+    assert left == 0, "전량 매도한 자산의 보유 행이 남아 있다"
+
+
+def test_전량_매도_후에도_회계_항등식이_유지된다(con, account):
+    _place_initial_orders(con, account)
+    _run_once(con, account)
+    _sell_one_to_zero(con, account)
+
+    row = con.execute("SELECT SUM(weight) s FROM holdings_daily WHERE account_id = ?"
+                      " AND date = ?", (account, ASOF)).fetchone()
+    nav = con.execute("SELECT nav, cash_balance FROM nav_daily WHERE account_id = ?"
+                      " AND date = ?", (account, ASOF)).fetchone()
+    identity = float(row["s"]) + float(nav["cash_balance"]) / float(nav["nav"])
+    assert abs(identity - 1.0) < 1e-6, f"항등식 위반: {identity}"
+
+
+def test_다른_자산의_보유_행은_그대로_남는다(con, account):
+    """통째로 다시 쓰는 방식이 멀쩡한 자산까지 지우면 안 된다."""
+    _place_initial_orders(con, account)
+    _run_once(con, account)
+    before = con.execute("SELECT COUNT(*) c FROM holdings_daily WHERE account_id = ?"
+                         " AND date = ?", (account, ASOF)).fetchone()["c"]
+    _sell_one_to_zero(con, account)
+    after = con.execute("SELECT COUNT(*) c FROM holdings_daily WHERE account_id = ?"
+                        " AND date = ?", (account, ASOF)).fetchone()["c"]
+    assert after == before - 1, f"{before} -> {after}: 매도한 자산 하나만 빠져야 한다"
