@@ -32,7 +32,17 @@ ALERT_RULES: dict[str, tuple[str, str, str]] = {
     "VIEW_SUBMITTED": ("VIEW_SUBMITTED", "info", "주간 투자 의견을 제출했습니다"),
     "VIEW_REJECTED": ("VIEW_REJECTED", "warning", "투자 의견이 반려되었습니다"),
     "FORWARD_TEST_LAUNCHED": ("FORWARD_LAUNCHED", "info", "모의운용이 시작되었습니다"),
+    "PRICE_REFRESH_FAILED": ("PRICE_REFRESH_FAILED", "warning", "가격 수집에 실패했습니다"),
 }
+
+# 특정 사용자가 아니라 운용 전체에 해당하는 이벤트. participant_id·account_id 가
+# 비어 있으므로 사용자 범위 필터와 별도로 포함한다.
+SYSTEM_ALERT_TYPES = ("PRICE_REFRESH_FAILED",)
+
+# PRICE_REFRESH 는 매일 남지만 알림이 아니다. 조회 구간에 거래일이 없으면
+# (휴장·마감 전) 매번 예외가 나므로 그것까지 알리면 거짓 경보가 된다.
+# 사용자에게 의미 있는 것은 가격이 실제로 밀린 경우이고, 그것은 status() 의
+# data_freshness 와 PRICE_STALE 알림이 이미 담당한다.
 
 STALE_DAYS_DEFAULT = 14
 
@@ -141,6 +151,7 @@ def alerts(session, participant_id: str, limit: int = 50, offset: int = 0) -> di
     scope = [_E.participant_id == participant_id]
     if account_ids:
         scope.append(_E.account_id.in_(account_ids))
+    scope.append(_E.event_type.in_(list(SYSTEM_ALERT_TYPES)))
     stmt = (select(_E)
             .where(_E.event_type.in_(list(ALERT_RULES)))
             .where(or_(*scope))

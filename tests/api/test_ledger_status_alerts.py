@@ -121,6 +121,39 @@ def test_alerts_페이지네이션(client, env, auth):
 
 
 # --------------------------------------------------------------------------
+# 가격 수집 알림
+# --------------------------------------------------------------------------
+
+def test_가격_수집_실패는_경고로_알린다(client, env, auth):
+    """운용 전체에 해당하는 이벤트라 participant_id 가 비어 있어도 보여야 한다."""
+    _seed_system_event(env.factory, "PRICE_REFRESH_FAILED",
+                       {"error": "no FX data available", "asof": "2026-09-28"})
+    body = client.get("/api/v1/me/alerts", cookies=auth).json()
+    assert body["total"] == 1
+    item = body["items"][0]
+    assert item["type"] == "PRICE_REFRESH_FAILED"
+    assert item["severity"] == "warning"
+    assert item["detail"]["error"] == "no FX data available"
+
+
+def test_정상_수집은_알림이_아니다(client, env, auth):
+    """PRICE_REFRESH 는 매일 남는다. 알림으로 내보내면 매일 울린다."""
+    _seed_system_event(env.factory, "PRICE_REFRESH",
+                       {"asof": "2026-09-28", "new_points": 180,
+                        "fetch_failed": ["korea_equity"], "stale_assets": []})
+    body = client.get("/api/v1/me/alerts", cookies=auth).json()
+    assert body["items"] == [], "휴장으로 인한 조회 실패까지 알리면 거짓 경보가 된다"
+
+
+def test_시스템_알림은_모든_사용자에게_보인다(client, env, two_users):
+    a, b = two_users
+    _seed_system_event(env.factory, "PRICE_REFRESH_FAILED", {"error": "timeout"})
+    for cookies in (a, b):
+        body = client.get("/api/v1/me/alerts", cookies=cookies).json()
+        assert [i["type"] for i in body["items"]] == ["PRICE_REFRESH_FAILED"]
+
+
+# --------------------------------------------------------------------------
 # 사용자별 분리 (13명 로그인 시연 전제)
 # --------------------------------------------------------------------------
 
@@ -223,6 +256,17 @@ def _seed_nav(factory, participant_id, dates):
                            cash_balance=0, stale_price_flag=False, nav_status="OK",
                            benchmark_version="CORE_V0.3", theme_universe_version="T",
                            risk_model_version="R", execution_rule_version="E"))
+        s.commit()
+
+
+def _seed_system_event(factory, event_type, payload, seq=90):
+    """participant_id·account_id 가 없는 운용 전체 이벤트(가격 수집 등)."""
+    from src.db.models.event import Event
+    with factory() as s:
+        s.add(Event(event_id=f"SYS{seq:05d}", event_type=event_type,
+                    participant_id=None, account_id=None,
+                    timestamp=datetime(2026, 9, 28, 7, seq % 60, tzinfo=timezone.utc),
+                    payload_json=payload, model_version="CORE_V0.3"))
         s.commit()
 
 
