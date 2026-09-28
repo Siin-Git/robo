@@ -88,7 +88,7 @@ def main(argv=None) -> int:
                        (a["account_id"],)).fetchone()["c"]:
             continue
         t = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id=?"
-                        " ORDER BY effective_date DESC LIMIT 1", (a["account_id"],)).fetchone()
+                        " ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1", (a["account_id"],)).fetchone()
         if not t:
             continue
         oids = create_orders(con, a["account_id"], json.loads(t["weights_json"]),

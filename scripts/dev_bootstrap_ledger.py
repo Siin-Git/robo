@@ -98,7 +98,7 @@ def main(argv=None) -> int:
             print(f"  {a['account_id']}: 기존 주문 {n_ord}건 → 생성 생략")
             continue
         t = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id=?"
-                        " ORDER BY effective_date DESC LIMIT 1",
+                        " ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
                         (a["account_id"],)).fetchone()
         if not t:
             print(f"  {a['account_id']}: 목표 비중 없음 → 건너뜀")

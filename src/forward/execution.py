@@ -21,7 +21,7 @@ def current_weights(con: sqlite3.Connection, account_id: str, asof: str) -> dict
     if h:
         return {r["asset_id"]: float(r["weight"]) for r in h}
     row = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                      " AND effective_date <= ? ORDER BY effective_date DESC LIMIT 1",
+                      " AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
                       (account_id, asof)).fetchone()
     if row is None:
         return {}
@@ -66,19 +66,33 @@ def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
     previous target (change-only orders, no drift churn); monthly/core passes
     holdings-based weights (full drift correction).
 
+    baseline 에는 있는데 target_w 에 없는 자산은 목표 0 으로 본다. 제외된 테마가
+    목록에서 빠지기만 하고 매도되지 않은 채 남는 일을 막는다.
+
     band 를 주면 목표 대비 편차가 밴드 안인 자산은 건너뛴다(불필요한 거래 억제).
-    최초 편입(baseline None)에는 적용하지 않는다.
+    최초 편입(baseline None)에는 적용하지 않는다. 목표 0(제외)은 상대 밴드가
+    0 이므로 밴드에 걸리지 않고 항상 매도된다.
+
+    같은 계좌·자산에 같은 effective_at 로 대기 중(pending)인 주문이 이미 있으면
+    새로 만들지 않는다. 배치를 두 번 돌려도 체결 전 주문이 중복되지 않는다.
     """
     cur = dict(baseline) if baseline is not None else {}
     apply_band = band is not None and baseline is not None
+    # 목표에서 빠진 보유 자산을 목표 0 으로 편입한다(cash 는 잔여로 계산된다).
+    targets = {a: float(w) for a, w in target_w.items() if a != "cash"}
+    for asset in cur:
+        if asset != "cash" and asset not in targets:
+            targets[asset] = 0.0
     oids = []
-    for asset, tw in sorted(target_w.items()):
-        if asset == "cash":
-            continue
+    for asset, tw in sorted(targets.items()):
         cw = cur.get(asset, 0.0)
         if abs(tw - cw) < 1e-9:
             continue
         if apply_band and within_band(tw, cw, band):
+            continue
+        if con.execute("SELECT 1 FROM orders WHERE account_id = ? AND asset_id = ?"
+                       " AND effective_at = ? AND status = 'pending'",
+                       (account_id, asset, effective_at)).fetchone():
             continue
         oid = next_id(con, "O")
         con.execute("INSERT INTO orders (order_id, account_id, asset_id, side, target_weight,"
@@ -154,7 +168,7 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
         tgts = {}
         for o in plan[exec_date]:
             tw = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                             " AND effective_date <= ? ORDER BY effective_date DESC LIMIT 1",
+                             " AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
                              (account_id, o["effective_at"])).fetchone()
             import json
             tgts[o["order_id"]] = json.loads(tw["weights_json"]) if tw else {}

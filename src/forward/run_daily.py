@@ -154,7 +154,7 @@ def _execute_daily(con, cfg, today):
             if n_orders:
                 continue
             t = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                            " ORDER BY effective_date DESC LIMIT 1", (a["account_id"],)).fetchone()
+                            " ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1", (a["account_id"],)).fetchone()
             if not t:
                 continue
             from src.forward.execution import create_orders as _co
@@ -218,7 +218,7 @@ def _execute_daily(con, cfg, today):
             if a["account_type"] != "personal":
                 continue
             t = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                            " ORDER BY effective_date DESC LIMIT 1", (a["account_id"],)).fetchone()
+                            " ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1", (a["account_id"],)).fetchone()
             if not t:
                 continue
             import json

@@ -46,14 +46,38 @@ def ensure_shadow_account(con: sqlite3.Connection, shadow_name: str, inception_d
 def record_target(con: sqlite3.Connection, account_id: str, weights: dict,
                   effective_date: str, kind: str, versions: dict,
                   model_version: str, participant_id=None) -> str:
+    """계좌·효력일·종류당 목표는 하나다. 이미 있으면 덮어쓴다.
+
+    행을 계속 쌓으면 같은 effective_date 에 목표가 여러 개 생긴다. 이것을 읽는
+    쪽은 모두 효력일 내림차순으로 한 건만 고르므로, 동점이면 어느 목표로
+    체결될지 보장되지 않는다. 배치 재실행이 정상 운영인 이상 생성 지점에서
+    하나로 유지한다(읽기 쪽 정렬도 created_at 까지 보도록 함께 고쳤다).
+
+    (PostgreSQL 어댑터는 자연키 UPSERT 를 모르므로 조회 후 갱신한다.)
+    """
     from .db import next_id
-    tid = next_id(con, "G")
-    con.execute("INSERT INTO portfolio_targets (target_id, account_id, effective_date, kind,"
-                " weights_json, core_version, theme_universe_version, risk_model_version,"
-                " created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (tid, account_id, effective_date, kind, json.dumps(weights, ensure_ascii=False),
-                 versions["benchmark_version"], versions["theme_universe_version"],
-                 versions["risk_model_version"], now_iso()))
+    payload = json.dumps(weights, ensure_ascii=False)
+    row = con.execute("SELECT target_id, weights_json FROM portfolio_targets"
+                      " WHERE account_id = ? AND effective_date = ? AND kind = ?",
+                      (account_id, effective_date, kind)).fetchone()
+    if row is not None:
+        tid = row["target_id"]
+        if row["weights_json"] == payload:
+            return tid                      # 변화 없음: 이벤트도 남기지 않는다
+        con.execute("UPDATE portfolio_targets SET weights_json = ?, core_version = ?,"
+                    " theme_universe_version = ?, risk_model_version = ?, created_at = ?"
+                    " WHERE target_id = ?",
+                    (payload, versions["benchmark_version"],
+                     versions["theme_universe_version"], versions["risk_model_version"],
+                     now_iso(), tid))
+    else:
+        tid = next_id(con, "G")
+        con.execute("INSERT INTO portfolio_targets (target_id, account_id, effective_date,"
+                    " kind, weights_json, core_version, theme_universe_version,"
+                    " risk_model_version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (tid, account_id, effective_date, kind, payload,
+                     versions["benchmark_version"], versions["theme_universe_version"],
+                     versions["risk_model_version"], now_iso()))
     log_event(con, "PORTFOLIO_GENERATED", model_version, participant_id, account_id,
               {"target_id": tid, "kind": kind, "effective_date": effective_date,
                "weights": weights})
