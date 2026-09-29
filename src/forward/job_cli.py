@@ -28,9 +28,11 @@ def job_context(args, default_scheduled_for: str) -> dict:
 
 def enter_job(sqlite_path, job_type: str, ctx: dict):
     """Claim a job run. Returns (job_id, decision). dry-run returns (None, 'dry')."""
-    from src.forward import jobs as _jobs
+    # dry-run 은 아무것도 기록하지 않는다. 작업 레지스트리를 import 하지도 않는다
+    # (읽기 전용 미리보기가 그 의존성 때문에 실패하면 안 된다).
     if ctx["dry_run"]:
         return None, "dry"
+    from src.forward import jobs as _jobs
     return _jobs.claim_job(ctx["jobs_db_url"], job_type, ctx["scheduled_for"],
                            ctx["github_run_id"], sqlite_path=sqlite_path)
 
@@ -38,9 +40,9 @@ def enter_job(sqlite_path, job_type: str, ctx: dict):
 def finish_job(sqlite_path, job_id: str | None, decision: str,
                code: int, stats: dict | None, ctx: dict,
                error: str | None = None) -> int:
-    from src.forward import jobs as _jobs
     if decision == "dry":
-        return code
+        return code            # dry-run 은 작업 기록을 남기지 않는다
+    from src.forward import jobs as _jobs
     if decision in ("skipped", "locked"):
         print(f"job {decision}; nothing to do.")
         return 0
