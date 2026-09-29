@@ -5,7 +5,7 @@ import { exampleReport,contributionView,PERIODS } from "@/app/(app)/dashboard/pe
 vi.mock("next/navigation",()=>({useSearchParams:()=>new URLSearchParams()}));
 const baseState = vi.hoisted(()=>({status:"selected",isError:false}));
 vi.mock("@tanstack/react-query",()=>({useQuery:({queryKey}:{queryKey:string[]})=>queryKey[0]==="base-portfolio"?{data:baseState.isError?undefined:{status:baseState.status},isError:baseState.isError}:
-  queryKey[0]==="forward-ledger"||queryKey[0]==="summary-portfolio"||queryKey[0]==="forward-system-status"?{data:null,isLoading:false,isError:false}:
+  queryKey[0]==="ledger-status"||queryKey[0]==="ledger-alerts"?{data:null,isLoading:false,isError:false}:
   ({data:{status:"INSUFFICIENT_HISTORY",series:[],assets:[],metrics:{},quality:{unresolved_intervals:0,stale_observations:0,missing_nav_dates:0}},isLoading:false,isError:false})}));
 vi.mock("@/components/layout/AppShell",()=>({AppShell:({children}:{children:React.ReactNode})=><div>{children}</div>}));
 vi.mock("@/app/(app)/dashboard/performance-panels",()=>({PerformancePanels:({riskPanel}:{riskPanel:React.ReactNode})=> <div>성과 차트{riskPanel}</div>}));

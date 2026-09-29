@@ -277,6 +277,143 @@ def _seed_event(factory, participant_id, event_type, payload, seq=0):
         # 가입·로그인이 이미 E000001.. 을 쓰므로 테스트 전용 접두사를 쓴다.
         s.add(Event(event_id=f"TST{seq:05d}", event_type=event_type,
                     participant_id=participant_id, account_id=aid,
-                    timestamp=datetime(2026, 9, 11, 3, seq, tzinfo=timezone.utc),
+                    timestamp=datetime(2026, 9, 11, 3, seq % 60, tzinfo=timezone.utc),
                     payload_json=payload, model_version="CORE_V0.3"))
         s.commit()
+
+
+@pytest.fixture(autouse=True)
+def fixed_status_today(monkeypatch):
+    from src.api.services import ledger_service
+    class Today(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 9, 29)
+    monkeypatch.setattr(ledger_service, "date", Today)
+
+
+def _seed_rebalance(factory, pid, weights, targets):
+    from src.db.models.holding import Holding
+    from src.db.models.portfolio import PortfolioTarget
+    from src.db.models.order import Order
+    with factory() as s:
+        aid = _account_id(s, pid)
+        for asset, weight in weights.items():
+            s.add(Holding(account_id=aid, date=date(2026, 9, 28), asset_id=asset,
+                          quantity=weight * 1000000, price=100,
+                          market_value=weight * 100000000, weight=weight))
+        for tid, effective, target_weights in [
+            ("TARGET-CURRENT", date(2026, 9, 1), targets),
+            ("TARGET-FUTURE", date(2026, 10, 1), {"future_only": 1}),
+        ]:
+            s.add(PortfolioTarget(target_id=tid, account_id=aid, effective_date=effective,
+                                  kind="personal", weights_json=target_weights,
+                                  core_version="C", theme_universe_version="T", risk_model_version="R",
+                                  created_at=datetime(2026, 9, 1, tzinfo=timezone.utc)))
+        s.add(Order(order_id="PENDING-BUY", account_id=aid, asset_id="buy",
+                    side="buy", target_weight=.1, effective_at=date(2026, 9, 29), status="pending",
+                    submitted_at=datetime(2026, 9, 28, tzinfo=timezone.utc),
+                    created_at=datetime(2026, 9, 28, tzinfo=timezone.utc)))
+        s.commit()
+
+
+def test_rebalance_uses_actual_weights_band_and_separate_pending_orders(client, env, auth):
+    pid = _participant_id(client, auth)
+    _seed_nav(env.factory, pid, ["2026-09-28"])
+    _seed_rebalance(env.factory, pid,
+                    {"buy": .08, "sell": .12, "boundary_low": .09, "boundary_high": .11,
+                     "removed": .05, "zero": .02},
+                    {"buy": .1, "sell": .1, "boundary_low": .1, "boundary_high": .1,
+                     "new": .1, "zero": 0, "cash": .5})
+    body = client.get("/api/v1/me/ledger/status", cookies=auth).json()["rebalance"]
+    assert body["status"] == "READY"
+    assert body["target_effective_date"] == "2026-09-01"
+    rows = {r["asset_id"]: r for r in body["assets"]}
+    assert {k: r["action"] for k, r in rows.items()} == {
+        "buy": "BUY", "sell": "SELL", "boundary_low": "HOLD", "boundary_high": "HOLD",
+        "removed": "SELL", "zero": "SELL", "new": "BUY"}
+    assert rows["buy"]["current_weight"] == .08
+    assert rows["buy"]["drift_status"] == "OUTSIDE_BAND"
+    assert rows["buy"]["pending_orders"] == [
+        {"order_id": "PENDING-BUY", "side": "BUY", "effective_at": "2026-09-29"}]
+    assert rows["removed"]["target_weight"] == 0
+    # A GET must never create another order.
+    from src.db.models.order import Order
+    from sqlalchemy import select, func
+    with env.factory() as s:
+        assert s.scalar(select(func.count()).select_from(Order)) == 1
+
+
+@pytest.mark.parametrize("case,expected", [
+    ("empty", "NO_VALUATION"), ("missing", "NO_HOLDINGS"),
+    ("incomplete", "INCOMPLETE_VALUATION"), ("stale", "INCOMPLETE_VALUATION"),
+    ("cash", "READY"), ("no_target", "NO_TARGET"),
+])
+def test_rebalance_never_substitutes_targets_for_holdings(client, env, auth, case, expected):
+    from src.db.models.nav import NavDaily
+    from src.db.models.holding import Holding
+    pid = _participant_id(client, auth)
+    if case != "empty":
+        _seed_nav(env.factory, pid, ["2026-09-28"])
+    if case != "no_target":
+        _seed_rebalance(env.factory, pid, {}, {"buy": .1})
+    with env.factory() as s:
+        aid = _account_id(s, pid)
+        nav = s.get(NavDaily, (aid, date(2026, 9, 28)))
+        if case in ("incomplete", "stale"):
+            nav.nav_status = "NAV_INCOMPLETE" if case == "incomplete" else "STALE_PRICE"
+        if case == "cash":
+            nav.cash_balance = nav.nav
+        if case == "no_target":
+            s.add(Holding(account_id=aid, date=nav.date, asset_id="buy",
+                          quantity=1, price=100, market_value=100, weight=.1))
+        s.commit()
+    data = client.get("/api/v1/me/ledger/status", cookies=auth).json()["rebalance"]
+    assert data["status"] == expected
+    for row in data["assets"]:
+        if case == "cash":
+            assert row["current_weight"] == 0 and row["action"] == "BUY"
+        else:
+            assert row["action"] is None
+            assert row["drift_status"] == "UNAVAILABLE"
+
+
+def test_capstone_all_forward_reads_share_design_store_and_isolate_users(client, env, two_users, monkeypatch):
+    from src.api.design_workspace import _factory
+    from src.forward.runtime import get_database_path
+    from src.api import design_prices
+    a, b = two_users
+    pa, pb = _participant_id(client, a), _participant_id(client, b)
+    # Deliberately conflicting comparison data in the authentication store.
+    _seed_nav(env.factory, pa, ["2020-01-01", "2020-01-02", "2020-01-03"])
+    monkeypatch.setenv("APP_PROFILE", "local")
+    monkeypatch.setenv("CAPSTONE_DEMO", "1")
+    monkeypatch.setenv("CAPSTONE_DATA_DIR", str(env.dbfile.parent))
+    monkeypatch.setattr(design_prices, "load_reference_prices", lambda db: None)
+    for cookie in (a, b):
+        response = client.get("/api/v1/me/ledger/status", cookies=cookie)
+        assert response.status_code == 200, response.text
+        assert response.json()["has_history"] is False
+    factory = _factory(str(get_database_path()))
+    _seed_nav(factory, pa, ["2026-09-27", "2026-09-28"])
+    _seed_rebalance(factory, pa, {"buy": .08}, {"buy": .1})
+    _seed_event(factory, pa, "ORDER_CREATED", {"asset": "buy"}, seq=80)
+    for endpoint in ("dashboard", "contributions"):
+        data = client.get(f"/api/v1/me/performance/{endpoint}?period=ALL", cookies=a).json()
+        assert data["observations"] == 2
+        assert data["end"] == "2026-09-28"
+        assert client.get(f"/api/v1/me/performance/{endpoint}", cookies=b).json()["observations"] == 0
+    ledger = client.get("/api/v1/me/performance/ledger", cookies=a).json()
+    assert ledger["participant_id"] == pa
+    assert ledger["as_of"] == "2026-09-28"
+    assert len(ledger["orders"]) == 1
+    other = client.get("/api/v1/me/performance/ledger", cookies=b).json()
+    assert other["participant_id"] == pb
+    assert other["snapshots"] == [] and other["orders"] == []
+    assert client.get("/api/v1/me/ledger/status", cookies=a).json()["rebalance"]["assets"][0]["action"] == "BUY"
+    other_status = client.get("/api/v1/me/ledger/status", cookies=b).json()["rebalance"]
+    assert other_status["status"] == "NO_VALUATION"
+    assert all(row["action"] is None and not row["pending_orders"] for row in other_status["assets"])
+    assert "buy" not in {row["asset_id"] for row in other_status["assets"]}
+    assert client.get("/api/v1/me/alerts", cookies=a).json()["total"] == 1
+    assert client.get("/api/v1/me/alerts", cookies=b).json()["items"] == []

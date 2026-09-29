@@ -2,11 +2,11 @@
 
 새 테이블을 만들지 않는다. 상태는 ``nav_daily``·``prices_daily`` 에서,
 알림은 append-only 인 ``events`` 에서 읽어 사용자용으로 번역한다.
-금융 계산은 하지 않는다(기존 서비스와 동일한 경계).
+리밸런싱 판정은 기존 주문 엔진의 band 정책을 재사용한다.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from sqlalchemy import func, select
 
@@ -14,6 +14,11 @@ from ...db.models.account import Account as _A
 from ...db.models.event import Event as _E
 from ...db.models.nav import NavDaily as _N
 from ...db.models.price import PriceDaily as _Px
+from ...db.models.holding import Holding
+from ...db.models.order import Order
+from ...db.models.portfolio import PortfolioTarget
+from ...forward.execution import within_band
+from ...forward.rebalance_schedule import next_rebalance_effective
 from ..errors import not_found
 from . import _common as C
 
@@ -65,15 +70,63 @@ def _stale_days() -> int:
 
 
 def _next_rebalance(last: date | None) -> str | None:
-    """월간 리밸런싱 기준: 다음 달 1일. 설정이 monthly 가 아니면 None."""
+    """엔진과 같은 월간/분기 효력일 규칙. 휴일 체결은 실제 종가에 따른다."""
+    if last is None:
+        return None
     try:
         freq = C.load_forward_cfg()["forward_test"]["core_rebalance"]["frequency"]
-    except Exception:
+        upcoming = next_rebalance_effective(max(last, date.today()), freq)
+    except (KeyError, ValueError):
         return None
-    if freq != "monthly" or last is None:
-        return None
-    first_next = (last.replace(day=1) + timedelta(days=32)).replace(day=1)
-    return first_next.isoformat()
+    return upcoming.isoformat() if upcoming else None
+
+
+def _rebalance_status(session, account_id: str, asof: date | None) -> dict:
+    """평가일 현재 효력이 있는 목표와 같은 날의 실제 보유 내역을 비교한다.
+
+    목표를 실제 보유량으로 대체하지 않는다. 누락/불완전한 평가에는 판정을
+    내리지 않으며, pending 주문은 drift 판정과 별도로 그대로 노출한다.
+    """
+    band = C.load_forward_cfg()["forward_test"]["core_rebalance"].get("band")
+    target = session.scalar(select(PortfolioTarget).where(
+        PortfolioTarget.account_id == account_id,
+        PortfolioTarget.effective_date <= (asof or date.today()),
+    ).order_by(PortfolioTarget.effective_date.desc(), PortfolioTarget.created_at.desc(),
+               PortfolioTarget.target_id.desc()).limit(1))
+    nav = session.get(_N, (account_id, asof)) if asof else None
+    holdings = list(session.scalars(select(Holding).where(
+        Holding.account_id == account_id, Holding.date == asof))) if asof else []
+    weights = {h.asset_id: float(h.weight) for h in holdings}
+    targets = dict(target.weights_json) if target else {}
+    orders = list(session.scalars(select(Order).where(
+        Order.account_id == account_id, Order.status == "pending",
+    ).order_by(Order.effective_at, Order.order_id)))
+    # 평가가 전액 현금인 경우 보유 행이 없어도 위험자산 비중 0은 확정된다.
+    has_holdings = bool(holdings) or bool(nav and nav.nav > 0 and nav.cash_balance == nav.nav)
+    state = ("NO_VALUATION" if nav is None else
+             "INCOMPLETE_VALUATION" if nav.nav_status != "OK" else
+             "NO_HOLDINGS" if not has_holdings else
+             "NO_TARGET" if target is None else "READY")
+    rows = []
+    for asset in sorted((set(targets) | set(weights) | {o.asset_id for o in orders}) - {"cash"}):
+        tw = float(targets.get(asset, 0)) if target else None
+        cw = weights.get(asset, 0.0) if has_holdings else None
+        drift, action = "UNAVAILABLE", None
+        if state == "READY":
+            inside = abs(tw - cw) < 1e-9 or within_band(tw, cw, band)
+            drift = "WITHIN_BAND" if inside else "OUTSIDE_BAND"
+            action = "HOLD" if inside else "BUY" if tw > cw else "SELL"
+        rows.append({
+            "asset_id": asset, "target_weight": tw, "current_weight": cw,
+            "drift_status": drift, "action": action,
+            "pending_orders": [{"order_id": o.order_id, "side": o.side.upper(),
+                                "effective_at": C.as_date(o.effective_at).isoformat()}
+                               for o in orders if o.asset_id == asset],
+        })
+    return {"as_of": asof.isoformat() if asof else None, "status": state,
+            "nav_status": nav.nav_status if nav else None,
+            "target_effective_date": C.as_date(target.effective_date).isoformat() if target else None,
+            "band": band, "assets": rows}
 
 
 def status(session, participant_id: str) -> dict:
@@ -84,7 +137,7 @@ def status(session, participant_id: str) -> dict:
                 "last_valuation_date": None, "observation_count": 0,
                 "last_updated_at": None, "latest_price_date": None,
                 "data_freshness": "NO_DATA", "next_rebalance_date": None,
-                "stale_price_days": _stale_days()}
+                "stale_price_days": _stale_days(), "rebalance": None}
 
     row = session.execute(
         select(func.min(_N.date), func.max(_N.date), func.count())
@@ -115,6 +168,7 @@ def status(session, participant_id: str) -> dict:
         "data_freshness": freshness,
         "next_rebalance_date": _next_rebalance(last_d),
         "stale_price_days": _stale_days(),
+        "rebalance": _rebalance_status(session, personal.account_id, last_d),
     }
 
 

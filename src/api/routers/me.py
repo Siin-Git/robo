@@ -91,14 +91,14 @@ def me_performance_dashboard(period: str = Query(default="ALL"),
 
 @router.get("/performance/contributions", summary="Own cumulative asset return contributions")
 def me_performance_contributions(period: str = Query(default="ALL"),
-                                 db=Depends(get_db), user=Depends(get_current_user)):
+                                 db=Depends(get_design_db), user=Depends(get_current_user)):
     return reports.cumulative_contributions(db, _pid(user), period)
 
 
 @router.get("/performance/ledger", summary="Own persisted ledger for performance calculations")
 def me_performance_ledger(start: str | None = Query(default=None),
                           end: str | None = Query(default=None),
-                          db=Depends(get_db), user=Depends(get_current_user)):
+                          db=Depends(get_design_db), user=Depends(get_current_user)):
     return ledger_reads.ledger(db, _pid(user), start, end)
 
 
