@@ -61,10 +61,12 @@ def next_rebalance_effective(after: date, frequency) -> date | None:
     날짜와 같아야 프론트에 표시되는 값이 맞는다.
     """
     freq = normalize_frequency(frequency)
-    year, month = after.year, after.month
+    # 월 초 주말에는 전월 말에 결정한 주문의 효력일이 아직 미래일 수 있다.
+    previous = after.replace(day=1) - timedelta(days=1)
+    year, month = previous.year, previous.month
     for _ in range(_SEARCH_MONTHS):
         end = date(year, month, monthrange(year, month)[1])
-        if end >= after and is_rebalance_period(year, month, freq):
+        if next_trading_weekday(end) > after and is_rebalance_period(year, month, freq):
             return next_trading_weekday(end)
         month += 1
         if month > 12:

@@ -140,3 +140,8 @@ def test_config의_주기가_유효한_값이다():
 def test_건너뛰는_이유가_설명을_담는다():
     msg = skip_reason(2026, 10, "quarterly")
     assert "2026-10" in msg and "quarterly" in msg
+
+
+def test_previous_month_effective_date_can_still_be_upcoming():
+    assert next_rebalance_effective(date(2026, 11, 1), "monthly") == date(2026, 11, 2)
+    assert next_rebalance_effective(date(2023, 4, 1), "quarterly") == date(2023, 4, 3)
