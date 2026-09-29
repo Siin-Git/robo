@@ -113,21 +113,30 @@ def claim_job(db_url: str | None, job_type: str, scheduled_for: str,
     slot = f"{job_type}|{sched.isoformat()}"
     job_id = f"{job_type}-{sched.isoformat()}-{uuid.uuid4().hex[:8]}"
     with _claim_txn(engine, slot) as conn:
+        # "이미 성공했는가"는 존재 여부로 물어야 한다. 건너뛴 기록도 행으로
+        # 남기므로, 가장 최근 행만 보면 두 번째 건너뜀 뒤에 세 번째 시도가
+        # 통과한다(그 행의 status 가 'skipped' 라서). 실제로 그렇게 뚫렸다.
+        done = conn.execute(select(table).where(
+            table.c.job_type == job_type,
+            table.c.scheduled_for == sched,
+            table.c.status == "success")).fetchone()
+        if done is not None:
+            conn.execute(insert(table).values(
+                job_id=job_id, job_type=job_type, scheduled_for=sched,
+                started_at=_now(), completed_at=_now(), status="skipped",
+                error_message=None, github_run_id=github_run_id, stats_json={}))
+            return None, "skipped"
+        # 진행 중인 시도가 있는지는 건너뜀 기록을 빼고 본다.
         existing = conn.execute(select(table).where(
             table.c.job_type == job_type,
-            table.c.scheduled_for == sched).order_by(
+            table.c.scheduled_for == sched,
+            table.c.status != "skipped").order_by(
             table.c.started_at.desc())).fetchone()
         if existing is not None:
             status = existing._mapping["status"]
-            if status == "success":
-                conn.execute(insert(table).values(
-                    job_id=job_id, job_type=job_type, scheduled_for=sched,
-                    started_at=_now(), completed_at=_now(), status="skipped",
-                    error_message=None, github_run_id=github_run_id, stats_json={}))
-                return None, "skipped"
             if status == "running" and _age_hours(existing._mapping["started_at"]) < stale_hours:
                 return None, "locked"
-            # failed / skipped / locked / stale running -> new attempt proceeds
+            # failed / stale running -> new attempt proceeds
         conn.execute(insert(table).values(
             job_id=job_id, job_type=job_type, scheduled_for=sched,
             started_at=_now(), completed_at=None, status="running",
