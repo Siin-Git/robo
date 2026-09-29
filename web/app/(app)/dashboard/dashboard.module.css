@@ -127,5 +127,10 @@
 .operationEvents strong{display:block;color:#284665}
 .operationEvents small{display:block;color:#657991;margin:4px 0}
 .operationEvents li p{color:#526780;line-height:1.6}
+.operationTableWrap{overflow-x:auto;margin-top:12px}
+.operationTable{width:100%;border-collapse:collapse;font-size:13px;min-width:610px}
+.operationTable th,.operationTable td{padding:11px 9px;text-align:left;border-bottom:1px solid #e8edf4}
+.operationTable thead th{color:#657991;font-weight:600}
+.operationTable tbody th{color:#284665;font-weight:600}
 @media(max-width:850px){.operationGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.operations{padding:21px 16px}.operationGrid{gap:8px}.operationGrid>div{padding:12px}.operationGrid dd{font-size:13px}.operationEvents li{gap:9px}}
