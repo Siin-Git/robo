@@ -31,6 +31,9 @@ jobs:
       - name: Monthly rebalance
         env:
           APP_PROFILE: live
+          # 없으면 get_backend() 기본값 sqlite 가 적용되어 DATABASE_URL 을
+          # 무시하고 러너의 빈 SQLite 파일에 기록한다(조용한 실패).
+          DATABASE_BACKEND: postgres
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: >

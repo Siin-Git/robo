@@ -168,13 +168,52 @@ CREATE INDEX IF NOT EXISTS ix_jobs_status ON scheduled_jobs (status);
 """
 
 
-def connect(db_path) -> sqlite3.Connection:
+def connect(db_path):
+    """DATABASE_BACKEND 에 따라 SQLite 파일 또는 PostgreSQL 에 연결한다."""
+    import os
+    # src.db.config 를 import 하면 .env / .env.local 이 로드된다(프로세스 환경변수 우선).
+    try:
+        from ..db.config import get_backend as _get_backend
+        backend = _get_backend()
+    except Exception:
+        backend = os.environ.get("DATABASE_BACKEND", "sqlite").strip().lower()
+    if backend == "postgres":
+        url = os.environ.get("DATABASE_URL", "").strip()
+        if not url:
+            raise ValueError("DATABASE_URL is not set (required for postgres backend)")
+        from .pg_adapter import connect_postgres
+        return connect_postgres(url)
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_design_schema(db_path)
     con = sqlite3.connect(str(db_path))
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     return con
+
+
+def _ensure_design_schema(db_path: Path) -> None:
+    """캡스톤 설계 DB 를 forward 가 먼저 열 때 API 와 같은 스키마로 만든다.
+
+    API(`design_workspace`)는 SQLAlchemy 모델로 테이블을 만든다. forward 의
+    자체 SCHEMA 로 먼저 만들면 두 스키마가 어긋나므로, 이 경우에만 모델 기준으로
+    생성한다. 다른 DB 파일에는 관여하지 않는다.
+    """
+    from .runtime import capstone_design_db
+    design = capstone_design_db()
+    if design is None or Path(design).resolve() != db_path.resolve():
+        return
+    if db_path.exists() and db_path.stat().st_size > 0:
+        return
+    try:
+        from src.db.base import Base
+        import src.db.models  # noqa: F401  (모든 모델 등록)
+        from src.db.session import create_app_engine
+        Base.metadata.create_all(create_app_engine(f"sqlite:///{db_path}"))
+    except Exception as exc:  # noqa: BLE001 - 조용히 빈 DB 를 만드는 편이 더 나쁘다
+        raise RuntimeError(
+            f"설계 DB 스키마를 만들 수 없다({db_path}). API 를 한 번 실행해 "
+            f"테이블을 생성한 뒤 다시 시도할 것: {exc}") from exc
 
 
 def init_db(con: sqlite3.Connection) -> None:
