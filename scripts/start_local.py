@@ -16,6 +16,18 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
 
 
+def npm_cmd() -> str | None:
+    """npm 실행 파일의 실제 경로. 없으면 None.
+
+    Windows 에서 npm 은 npm.cmd(배치 파일)다. subprocess 는 CreateProcess 를
+    쓰고 CreateProcess 는 PATHEXT 를 적용하지 않으므로 ["npm", ...] 로는
+    FileNotFoundError 가 난다(node.exe 는 실행 파일이라 문제없다).
+    shutil.which 가 PATHEXT 를 적용해 실제 경로로 해석해 준다.
+    """
+    import shutil
+    return shutil.which("npm") or shutil.which("npm.cmd")
+
+
 def check(cmd: list[str], label: str) -> bool:
     try:
         subprocess.run(cmd, capture_output=True, check=True, timeout=10)
@@ -101,7 +113,11 @@ def main() -> int:
         print("Frontend dependencies missing.")
         ans = input("Run npm install now? [Y/n] ").strip().lower()
         if ans in ("", "y", "yes"):
-            subprocess.run(["npm", "install"], cwd=WEB, check=False)
+            npm = npm_cmd()
+            if npm is None:
+                print("npm not found. Install Node.js and add it to PATH.")
+                return 1
+            subprocess.run([npm, "install"], cwd=WEB, check=False)
 
     # Fail fast on stale servers: a lingering uvicorn (old code without new
     # routers) or a lingering `next dev` (old .next chunks) causes confusing
@@ -124,7 +140,12 @@ def main() -> int:
     api = subprocess.Popen([sys.executable, "-m", "uvicorn", "src.api.main:app",
                             "--host", "127.0.0.1", "--port", "8000"],
                            cwd=ROOT, env=env_api)
-    web = subprocess.Popen(["npm", "run", "dev"], cwd=WEB, env=env_web)
+    npm = npm_cmd()
+    if npm is None:
+        print("npm not found. Install Node.js and add it to PATH.")
+        api.terminate()
+        return 1
+    web = subprocess.Popen([npm, "run", "dev"], cwd=WEB, env=env_web)
     try:
         print("Backend:", "READY" if wait("http://127.0.0.1:8000/health", 40) else "NOT YET READY")
         print("Frontend:", "READY" if wait("http://localhost:3000/login", 90) else "NOT YET READY")

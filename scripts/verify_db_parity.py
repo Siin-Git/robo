@@ -23,7 +23,12 @@ from src.db.session import create_app_engine  # noqa: E402
 import src.db.models  # noqa: E402,F401
 
 NUM_TOL = 1e-10
-MONEY_TOL = 1e-6
+# holdings_daily.market_value 는 NUMERIC(24,4) 라 행마다 최대 0.00005 의
+# 반올림 오차가 생긴다. 항등식은 보유 행을 합산하므로 오차도 누적된다.
+# 문서(POSTGRES_SCHEMA.md)의 "10x quantum" 방침에 맞춰 0.001 로 둔다.
+# MONEY_TOL = 1e-6(원래 값)
+MONEY_TOL = 1e-3
+
 
 TABLE_ORDER = ["counters", "participants", "themes", "accounts", "views",
                "portfolio_targets", "orders", "trades", "holdings_daily",

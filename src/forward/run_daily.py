@@ -31,7 +31,7 @@ def tickers_map(con, frozen_meta) -> dict:
             out["__FX__"] = t
         else:
             out[aid] = t
-    for r in con.execute("SELECT theme_id, ticker FROM themes WHERE active = 1").fetchall():
+    for r in con.execute("SELECT theme_id, ticker FROM themes WHERE active").fetchall():
         from src.forward.prices import theme_asset_id
         out[theme_asset_id(r["theme_id"])] = r["ticker"]
     return out
@@ -75,7 +75,7 @@ def load_or_build_cov(con, cfg, asof: str, persist: bool = True):
 def rebuild_cov(con, cfg, asof: str):
     from src.forward.prices import CORE_IDS, theme_asset_id
     themes = [r["theme_id"] for r in con.execute(
-        "SELECT theme_id FROM themes WHERE active = 1").fetchall()]
+        "SELECT theme_id FROM themes WHERE active").fetchall()]
     assets = list(CORE_IDS) + [theme_asset_id(t) for t in themes]
     have = {r["asset_id"] for r in con.execute("SELECT DISTINCT asset_id FROM prices_daily").fetchall()}
     assets = [a for a in assets if a in have]
@@ -111,6 +111,34 @@ def main(argv=None) -> int:
     return finish_job(db_path, job_id, decision, code, stats, ctx)
 
 
+def stale_assets(con, asof: str, stale_days: int) -> list[str]:
+    """마지막 가격이 stale_days 를 넘긴 자산.
+
+    "오늘 종가가 아직 없다"(휴장·마감 전)와 "가격이 실제로 밀렸다"를 구분한다.
+    전자는 매일 정상적으로 발생하므로 알림으로 내보내면 안 된다.
+    """
+    from datetime import date as _date, timedelta as _td
+    cutoff = (_date.fromisoformat(asof[:10]) - _td(days=int(stale_days))).isoformat()
+    return sorted(r["asset_id"] for r in con.execute(
+        "SELECT asset_id, MAX(date) m FROM prices_daily GROUP BY asset_id").fetchall()
+        if r["m"] is not None and r["m"] < cutoff)
+
+
+def refresh_payload(con, rep: dict, stale_days: int) -> dict:
+    """가격 수집 결과를 events 에 남길 형태로 정리한다.
+
+    fetch_failed 는 조회가 예외로 끝난 자산이다. 조회 구간에 거래일이 하나도
+    없으면(추석 연휴 등) 야후가 빈 시리즈를 주고 예외가 나므로, 이것만으로는
+    장애인지 휴장인지 알 수 없다. 실제로 문제가 되는 것은 stale_assets 다.
+    """
+    asof = rep.get("asof") or ""
+    return {"asof": asof,
+            "new_points": int(rep.get("new_points") or 0),
+            "fetch_failed": sorted(rep.get("stale") or []),
+            "stale_assets": stale_assets(con, asof, stale_days) if asof else [],
+            "stale_price_days": int(stale_days)}
+
+
 def _dry_run_daily(con, cfg, today) -> int:
     """Read-only plan: zero writes, zero job records."""
     ft = cfg["forward_test"]
@@ -133,9 +161,22 @@ def _execute_daily(con, cfg, today):
     frozen_w, frozen_meta = load_frozen_benchmark(resolve(cfg["frozen_dir"]))
     versions = versions_from_cfg(cfg)
 
-    rep = refresh_live(con, tickers_map(con, frozen_meta))
+    from src.forward.db import log_event as _log_event
+    stale_days = int(ft.get("stale_price_days", 14))
+    try:
+        rep = refresh_live(con, tickers_map(con, frozen_meta))
+    except Exception as exc:  # noqa: BLE001 - 수집 실패는 반드시 기록한다
+        _log_event(con, "PRICE_REFRESH_FAILED", ft["benchmark_version"],
+                   payload={"error": str(exc)[:500], "asof": today})
+        con.commit()
+        raise
     print(f"refresh: {rep}")
     asof = rep["asof"]
+    price_report = refresh_payload(con, rep, stale_days)
+    _log_event(con, "PRICE_REFRESH", ft["benchmark_version"], payload=price_report)
+    con.commit()
+    if price_report["stale_assets"]:
+        print(f"WARNING: stale prices ({stale_days}d+): {price_report['stale_assets']}")
 
     accounts = [dict(r) for r in con.execute("SELECT * FROM accounts WHERE status='active'").fetchall()]
     # Initial orders for accounts that hold targets but never traded: submitted
@@ -154,7 +195,7 @@ def _execute_daily(con, cfg, today):
             if n_orders:
                 continue
             t = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                            " ORDER BY effective_date DESC LIMIT 1", (a["account_id"],)).fetchone()
+                            " ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1", (a["account_id"],)).fetchone()
             if not t:
                 continue
             from src.forward.execution import create_orders as _co
@@ -218,7 +259,7 @@ def _execute_daily(con, cfg, today):
             if a["account_type"] != "personal":
                 continue
             t = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                            " ORDER BY effective_date DESC LIMIT 1", (a["account_id"],)).fetchone()
+                            " ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1", (a["account_id"],)).fetchone()
             if not t:
                 continue
             import json
@@ -230,7 +271,10 @@ def _execute_daily(con, cfg, today):
         partials.append(f"risk check unavailable: {e}")
 
     print(f"valuated {len(results)} accounts at {maxdate}; pending orders: {pend}")
-    stats = {"asof": maxdate, "valuated": len(results), "pending": pend}
+    stats = {"asof": maxdate, "valuated": len(results), "pending": pend,
+             "new_points": price_report["new_points"],
+             "fetch_failed": price_report["fetch_failed"],
+             "stale_assets": price_report["stale_assets"]}
     if fails:
         print("FAIL:")
         for f in fails:

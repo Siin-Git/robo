@@ -138,7 +138,7 @@ def main() -> int:
                               " AND account_type='personal'", (pid,)).fetchone()["account_id"]
             import json as _json
             prev = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                               " AND effective_date < ? ORDER BY effective_date DESC LIMIT 1",
+                               " AND effective_date < ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
                                (acc, effective)).fetchone()
             prev_w = _json.loads(prev["weights_json"]) if prev else {}
             record_target(con, acc, res["weights"], effective, "personal", versions, mv, pid)

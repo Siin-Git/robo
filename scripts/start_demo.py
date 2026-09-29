@@ -5,13 +5,17 @@ import subprocess
 import sys
 import webbrowser
 
-from start_local import check, is_port_in_use, wait
+from start_local import check, is_port_in_use, npm_cmd, wait
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
-    if not check(["node", "--version"], "Node") or not check(["npm", "--version"], "npm"):
+    if not check(["node", "--version"], "Node"):
+        return 1
+    npm = npm_cmd()
+    if npm is None:
+        print("npm not found. Install Node.js and add it to PATH.")
         return 1
     if not (ROOT / "web/node_modules").exists():
         print("Run cd web && npm ci first.")
@@ -32,7 +36,7 @@ def main():
     try:
         processes.append(subprocess.Popen([sys.executable, "-m", "uvicorn", "src.api.main:app",
             "--host", "127.0.0.1", "--port", "8001"], cwd=ROOT, env=env))
-        processes.append(subprocess.Popen(["npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "3001"], cwd=ROOT / "web", env=web_env))
+        processes.append(subprocess.Popen([npm, "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "3001"], cwd=ROOT / "web", env=web_env))
         if not wait("http://127.0.0.1:8001/health", 30) or not wait("http://127.0.0.1:3001/login", 45):
             print("Demo startup failed. Check the server output above.")
             return 1

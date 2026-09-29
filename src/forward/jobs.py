@@ -38,6 +38,15 @@ def _engine_for(db_url: str | None, sqlite_path=None):
     from src.db.session import create_app_engine
     if db_url:
         return create_app_engine(db_url)
+    # 운영 데이터가 PostgreSQL 이면 작업 기록도 같은 DB 에 둔다.
+    # 이전에는 무조건 SQLite 파일로 가서, 재배포 시 기록이 사라지고
+    # 중복 실행 방지(scheduled_jobs)가 무력화됐다.
+    try:
+        from src.db.config import get_backend
+        if get_backend() == "postgres":
+            return create_app_engine()
+    except Exception:
+        pass
     return create_app_engine(f"sqlite:///{sqlite_path}")
 
 

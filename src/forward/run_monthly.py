@@ -22,8 +22,7 @@ from src.forward.participants import list_participants
 from src.forward.portfolio import build_personalized
 from src.forward.prices import theme_asset_id
 from src.forward.run_daily import rebuild_cov
-from src.forward.run_weekly import batch_views
-from src.forward.views import next_weekday
+from src.forward.run_weekly import _base_for_participant, batch_views
 
 
 def main(argv=None) -> int:
@@ -83,10 +82,11 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     from src.forward.config import resolve as _rs
     frozen_w, _ = _lf(_rs(cfg["frozen_dir"]))
     versions = _vv(cfg)
-    first_next = f"{y}-{m}-01"
-    from datetime import timedelta as _td
-    prev_day = (date.fromisoformat(first_next) - _td(days=1)).isoformat()
-    effective = next_weekday(prev_day)
+    # 효력일은 결정 기준일(asof, 그 달 말일)의 다음 거래일이다.
+    # 예전에는 그 달 1일로 잡혀 제출 시점보다 과거였고, 나중 데이터로 판단해
+    # 이전 종가에 체결하는 형태가 됐다(inception 가드가 막아 주문만 쌓였다).
+    from src.forward.rebalance_schedule import effective_date as _eff
+    effective = _eff(asof)
 
     cov, info = rebuild_cov(con, cfg, asof)
     import numpy as _np
@@ -109,8 +109,22 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
         con.commit()
         print(f"ERROR:\nMonthly rebalance refused: {reason}.")
         return 2, {"status": "REFUSED"}
+    # 주기 판정: 분기 설정이면 3·6·9·12월 말에만 주문을 만든다.
+    # 위험 모형 갱신은 주기와 무관하게 매달 돈다(risk_refresh 는 별도 설정).
+    from src.forward.rebalance_schedule import is_rebalance_period, skip_reason
+    frequency = (ft.get("core_rebalance") or {}).get("frequency", "monthly")
+    if not is_rebalance_period(int(y), int(m), frequency):
+        con.commit()
+        reason = skip_reason(int(y), int(m), frequency)
+        print(f"month {y}-{m}: risk refreshed asof {asof}; no rebalance ({reason})")
+        print("STATUS: PASS")
+        return 0, {"asof": asof, "orders": 0, "rebalanced": False,
+                   "frequency": frequency, "status": "PASS"}
     n = 0
-    # core + shadow static legs
+    # 리밸런싱 밴드: 목표 대비 편차가 밴드 안이면 주문을 만들지 않는다.
+    band = (ft.get("core_rebalance") or {}).get("band") or None
+    if band:
+        print(f"rebalance band: {band}")
     # core + shadow static legs (drift-correcting vs current holdings)
     from src.forward.execution import current_weights as _cw
     for r in con.execute("SELECT * FROM accounts WHERE account_type IN ('core','shadow')"
@@ -133,7 +147,8 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
         n += len(place_target_orders(con, r["account_id"], w, f"{asof}T23:59:59+00:00",
                                      effective, ft["benchmark_version"],
                                      r["participant_id"], kind="CORE_REBALANCE",
-                                     baseline=_cw(con, r["account_id"], asof)))
+                                     baseline=_cw(con, r["account_id"], asof),
+                                     band=band))
     # personal accounts: fresh core + current views
     for p_ in list_participants(con, "active"):
         pid = p_["participant_id"]
@@ -143,22 +158,22 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
             continue
         tids = sorted({theme_asset_id(v["theme_id"])
                        for v in batch_views(con, pid, "9999-99-99", effective)})
-        res = build_personalized(frozen_w, tids, cfg, cov)
-        import json as _json
-        prev = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                           " AND effective_date < ? ORDER BY effective_date DESC LIMIT 1",
-                           (acc["account_id"], effective)).fetchone()
-        prev_w = _json.loads(prev["weights_json"]) if prev else {}
+        res = build_personalized(_base_for_participant(con, pid, frozen_w), tids, cfg, cov)
         record_target(con, acc["account_id"], res["weights"], effective, "personal",
                       versions, ft["benchmark_version"], pid)
+        # 월간 리밸런싱은 실제 보유 비중 기준으로 교정한다(core/shadow 와 동일).
+        # 직전 목표 기준이면 가격 변동으로 생긴 드리프트가 누적된 채 남는다.
+        # 목표에서 빠진 테마는 create_orders 가 목표 0 으로 매도한다.
         n += len(place_target_orders(con, acc["account_id"], res["weights"],
                                      f"{asof}T23:59:59+00:00", effective,
                                      ft["benchmark_version"], pid, kind="CORE_REBALANCE",
-                                     baseline=prev_w))
+                                     baseline=_cw(con, acc["account_id"], asof),
+                                     band=band))
     con.commit()
     print(f"month {y}-{m}: risk refreshed asof {asof}, {n} rebalance orders, effective {effective}")
     print("STATUS: PASS")
-    return 0, {"asof": asof, "orders": n, "effective": effective, "status": "PASS"}
+    return 0, {"asof": asof, "orders": n, "effective": effective,
+               "rebalanced": True, "frequency": frequency, "status": "PASS"}
 
 
 if __name__ == "__main__":
