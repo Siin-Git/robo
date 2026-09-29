@@ -65,15 +65,20 @@ def _stale_days() -> int:
 
 
 def _next_rebalance(last: date | None) -> str | None:
-    """월간 리밸런싱 기준: 다음 달 1일. 설정이 monthly 가 아니면 None."""
+    """다음 리밸런싱 효력일. 엔진과 같은 규칙을 쓴다.
+
+    프론트에 보여줄 날짜가 실제 실행 시점과 어긋나면 안 되므로, 판정은
+    ``src.forward.rebalance_schedule`` 한 곳에만 둔다(monthly/quarterly 공통).
+    """
+    if last is None:
+        return None
+    from ...forward.rebalance_schedule import next_rebalance_effective
     try:
         freq = C.load_forward_cfg()["forward_test"]["core_rebalance"]["frequency"]
+        nxt = next_rebalance_effective(last, freq)
     except Exception:
         return None
-    if freq != "monthly" or last is None:
-        return None
-    first_next = (last.replace(day=1) + timedelta(days=32)).replace(day=1)
-    return first_next.isoformat()
+    return nxt.isoformat() if nxt else None
 
 
 def status(session, participant_id: str) -> dict:
