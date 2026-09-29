@@ -89,7 +89,17 @@ def main(argv=None) -> int:
     from src.forward.runtime import get_database_path as _dbp
     ap = argparse.ArgumentParser(prog="run_daily")
     add_job_args(ap)
+    ap.add_argument("--force", action="store_true",
+                    help="장중이어도 실행한다(잠정가가 종가로 저장될 수 있다)")
     args = ap.parse_args(argv)
+    # 장중에는 수집하지 않는다. 가격을 받은 뒤 거르는 것이 아니라 시작을 막는다.
+    # dry-run 은 가격을 받지 않으므로 언제든 허용한다.
+    if not args.force and not args.dry_run:
+        from src.forward.market_hours import guard_message
+        msg = guard_message()
+        if msg:
+            print("ERROR:\n" + msg)
+            return 2
     cfg = load_forward_config()
     db_path = _dbp()
     con = connect(db_path)
