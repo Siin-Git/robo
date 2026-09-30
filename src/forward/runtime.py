@@ -56,7 +56,7 @@ def get_database_path(profile: str | None = None) -> Path:
     if profile not in PROFILES:
         raise ValueError(f"unknown profile {profile!r}")
     # 캡스톤 모드에서는 운용 기록을 대시보드가 읽는 DB 에 남긴다.
-    # (13명 비교 시연 데이터는 capstone_demo.db 에 그대로 두어 섞이지 않는다)
+    # (비교 시연 데이터는 capstone_demo.db 에 그대로 두어 섞이지 않는다)
     design = capstone_design_db()
     if design is not None and profile == "local":
         return design
@@ -111,6 +111,26 @@ def assert_backend_consistent(profile: str | None = None) -> None:
     print(f"WARNING: {msg}", file=sys.stderr, flush=True)
 
 
+def _safe_db_name(url: str | None) -> str:
+    """배너에 찍을 DB 이름. 비밀번호가 섞인 URL 을 그대로 출력하지 않는다.
+
+    표준 라이브러리만 쓴다. 배너는 무언가 잘못됐을 때 보는 것이라, 의존성이
+    빠진 환경에서 먼저 죽으면 정작 필요할 때 아무것도 못 알려준다.
+    """
+    if not url:
+        return "CAPSTONE_DESIGN_DATABASE_URL 미설정"
+    try:
+        from urllib.parse import urlsplit
+        parts = urlsplit(url)
+        database = parts.path.lstrip("/") or "(이름 없음)"
+        host = parts.hostname or ""          # 사용자·비밀번호는 읽지 않는다
+        if parts.port:
+            host = f"{host}:{parts.port}"
+        return f"{database} @ {host}" if host else database
+    except Exception:  # noqa: BLE001 - 파싱 실패해도 비밀번호는 노출하지 않는다
+        return "(URL 파싱 실패)"
+
+
 def safety_banner(profile: str | None = None) -> str:
     profile = profile or get_runtime_profile()
     db = get_database_path(profile)
@@ -118,10 +138,21 @@ def safety_banner(profile: str | None = None) -> str:
         disp = str(db.relative_to(ROOT))
     except ValueError:
         disp = str(db)
-    mode = "CAPSTONE (design workspace)" if capstone_design_db() is not None else "STANDARD"
     backend = get_backend_name()
+    capstone = os.environ.get("CAPSTONE_DEMO") == "1" and profile == "local"
+    mode = "CAPSTONE (design workspace)" if capstone else "STANDARD"
     if backend == "postgres":
+        # 캡스톤 모드에서 엔진이 쓰는 곳은 DATABASE_URL 이 아니라 설계 DB 다.
+        # 배너가 그 구분을 보여주지 않으면 어디에 기록되는지 알 수 없다.
         disp = "PostgreSQL (DATABASE_URL)"
+        if capstone:
+            try:
+                from ..db.config import get_design_database_url
+                url = get_design_database_url(backend)
+            except Exception as exc:  # noqa: BLE001 - 배너는 실패해도 멈추지 않는다
+                disp = f"PostgreSQL (설정 오류: {exc})"
+            else:
+                disp = f"PostgreSQL ({_safe_db_name(url)})"
     return ("=====================================\n"
             f"PROFILE: {profile.upper()}\n"
             f"MODE: {mode}\n"
