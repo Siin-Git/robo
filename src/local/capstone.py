@@ -15,8 +15,13 @@ COHORT = [
     ("참여자 11", ["cybersecurity", "cloud_data_center"]),
     ("참여자 12", ["biotech", "cloud_data_center"]),
     ("참여자 13", ["robotics", "power_grid"]),
+    ("참여자 14", ["cybersecurity", "robotics"]),
+    ("참여자 15", ["ai", "power_grid"]),
 ]
-EMAILS = [f"capstone{i:02d}@example.com" for i in range(1, 14)]
+# 인원수는 COHORT 하나에서만 정한다. 예전에는 range(1, 14) 로 박혀 있어
+# COHORT 를 늘려도 이메일이 따라오지 않았다.
+EMAILS = [f"capstone{i:02d}@example.com" for i in range(1, len(COHORT) + 1)]
+COHORT_SIZE = len(COHORT)
 PASSWORD = "Capstone-Demo-2026!"  # Public local-demo credential, never a production secret.
 
 

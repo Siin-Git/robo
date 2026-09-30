@@ -1,4 +1,4 @@
-"""Start the 13-person lab meeting: python scripts/start_lab.py [--lan]."""
+"""Start the lab meeting: python scripts/start_lab.py [--lan]."""
 import argparse
 import os
 from pathlib import Path

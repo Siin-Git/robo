@@ -1,4 +1,4 @@
-"""사용자별 독립성 테스트 (13명 로그인 시연 전제).
+"""사용자별 독립성 테스트 (다인원 로그인 시연 전제).
 
 "forward 가 돈다" 만으로는 부족하다. 같은 DB 에서 여러 사용자가 동시에 운용될 때
 - 계좌·주문·체결·보유·NAV 가 user(participant) 별로 분리되어 쌓이고,
@@ -30,7 +30,7 @@ CFG = {
 }
 FT = CFG["forward_test"]
 ASOF = "2025-06-30"
-N_USERS = 13  # 시연 인원과 같은 규모로 돌린다
+N_USERS = 13  # 시연 인원과 비슷한 규모. 시연 인원수와 연동되지는 않는다
 
 # 사용자마다 다른 목표 비중(같은 비중이면 분리 여부를 못 본다)
 def _weights(i: int) -> dict:
@@ -163,7 +163,7 @@ def test_이벤트가_participant_id로_구분된다(con, users):
 
 
 def test_전원_재실행해도_행이_늘지_않는다(con, users):
-    """13명 시연 중 배치를 두 번 돌려도 기록이 중복되지 않는다."""
+    """다인원 시연 중 배치를 두 번 돌려도 기록이 중복되지 않는다."""
     for u in users:
         _run(con, u["account_id"], u["weights"])
     snap = {t: con.execute(f"SELECT COUNT(*) AS c FROM {t}").fetchone()["c"]

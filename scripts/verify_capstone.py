@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from src.local.capstone import COHORT, EMAILS, PASSWORD
+from src.local.capstone import COHORT, COHORT_SIZE, EMAILS, PASSWORD
 
 
 def independently_calculate(series):
@@ -72,7 +72,7 @@ def main():
             assert c.get('/api/v1/auth/me').status_code == 401
             assert c.get('/api/v1/auth/me',headers={'Cookie':f'ra_session={cookie}'}).status_code == 401
             accounts.append(dict(email=email,participant_id=pid,themes=themes,result='PASS'))
-        assert len({r['participant_id'] for r in reports}) == 13
+        assert len({r['participant_id'] for r in reports}) == COHORT_SIZE
         assert c.post('/api/v1/auth/login',json=dict(email=EMAILS[0],password=PASSWORD)).status_code == 200
         rankings = {}
         for basis,key in dict(return_='cumulative_return',excess='excess_return',mdd='mdd',volatility='volatility',sharpe='sharpe').items():
@@ -87,7 +87,7 @@ def main():
                     report = c.get(f"/api/v1/participants/{row['participant_id']}/comparison").json()
                     report['independent_metrics'] = independently_calculate(report['series'])
                 active_reports.append(report)
-            assert len(rows) == response.json()['total'] <= response.json()['registered'] <= 13
+            assert len(rows) == response.json()['total'] <= response.json()['registered'] <= COHORT_SIZE
             expected = sorted(active_reports,key=lambda r:((1 if basis=='volatility' else -1)*r['independent_metrics'][key],r['participant_id']))
             assert [r['participant_id'] for r in rows] == [r['participant_id'] for r in expected]
             expected_ranks, previous, rank = [], None, 0
@@ -110,7 +110,7 @@ def main():
                 period=[reports[0]['start'],reports[0]['end']],observations=118,daily_returns=117)
     output.parent.mkdir(exist_ok=True)
     output.write_text(json.dumps(result,ensure_ascii=False,indent=2))
-    print('13/13 accounts PASS; NAV/core/themes/allocations/formulas/rankings/session revocation PASS')
+    print(f'{COHORT_SIZE}/{COHORT_SIZE} accounts PASS; NAV/core/themes/allocations/formulas/rankings/session revocation PASS')
     print('Maximum formula errors:',errors)
     print('Top 3:',{k:[r['display_name'] for r in v[:3]] for k,v in rankings.items()})
     print(output)

@@ -9,7 +9,7 @@ from ...db.models.demo_cohort import DemoCohort, DemoSlot
 from ...db.models.operational import ForwardState
 from ...db.models.user import User
 from ...db.models.theme import Theme
-from ...local.capstone import COHORT, EMAILS, enabled
+from ...local.capstone import COHORT, COHORT_SIZE, EMAILS, enabled
 from ...forward.portfolio import theme_target_weights, fund_from_equities
 from ..errors import ApiError
 from . import _common as C, auth_service as auth
@@ -83,7 +83,7 @@ def status(session, user):
     group, slot = active(session), own(session, user)
     counts = slots(session, group) if group else []
     out = {"status": "not_required", "cohort_id": group.cohort_id if group else "legacy",
-        "capacity": 13, "registered": group.prepared_count + sum(s.confirmed_at is not None for s in counts) if group else 13,
+        "capacity": COHORT_SIZE, "registered": group.prepared_count + sum(s.confirmed_at is not None for s in counts) if group else COHORT_SIZE,
         "reserved": sum(s.confirmed_at is None for s in counts),
         "claimed": sum(s.user_id is not None and s.confirmed_at is None for s in counts)}
     if slot:
