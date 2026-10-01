@@ -1,6 +1,6 @@
 {
-  "source": "C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-3\\test_migration_fails_on_orphan0\\orphan.db",
-  "destination": "sqlite:///C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-3\\test_migration_fails_on_orphan0/d.db",
+  "source": "C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-36\\test_migration_fails_on_orphan0\\orphan.db",
+  "destination": "sqlite:///C:\\Users\\USER\\AppData\\Local\\Temp\\pytest-of-USER\\pytest-36\\test_migration_fails_on_orphan0/d.db",
   "source_sha256_before": "4784421ad70518975abfd6ef5e8d1599a39063cc82520bb82d0c65e0e39f1174",
   "tables": {
     "counters": {
@@ -52,6 +52,15 @@
   "issues": [
     "orphan FKs: [\"orders.account_id='A-missing' (parent accounts missing)\", \"trades.account_id='A-missing' (parent accounts missing)\"]"
   ],
+  "skipped_tables": [
+    "users",
+    "sessions",
+    "base_portfolio_selections",
+    "onboarding_drafts",
+    "demo_cohorts",
+    "demo_slots",
+    "scheduled_jobs"
+  ],
   "warnings": [],
-  "completed_at": "2026-09-26T13:56:17.227186+00:00"
+  "completed_at": "2026-10-01T11:55:37.819434+00:00"
 }
