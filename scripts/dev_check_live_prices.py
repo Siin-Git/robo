@@ -16,12 +16,20 @@ DB 에 아무것도 쓰지 않고, 주문·체결도 만들지 않는다.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+# 맨 프롬프트에서 그냥 실행하면 APP_PROFILE 이 없어 live 로 떨어지고 빈
+# forward_test.db 를 연다. 캡스톤 운용 기록을 보는 도구이므로 기본값을 여기서
+# 정한다. setdefault 라 run_daily_task.bat 처럼 이미 지정한 쪽이 우선이다.
+# DATABASE_BACKEND 는 건드리지 않는다 - 고정하면 PostgreSQL 전환을 막는다.
+os.environ.setdefault("APP_PROFILE", "local")
+os.environ.setdefault("CAPSTONE_DEMO", "1")
 
 from src.forward.config import load_forward_config, resolve          # noqa: E402
 from src.forward.db import connect                                   # noqa: E402
