@@ -134,10 +134,30 @@ def test_주간과_월간이_모두_사용자_선택을_쓴다():
 def test_core_계좌는_여전히_frozen을_쓴다():
     """벤치마크 계좌까지 사용자 선택을 따라가면 비교 기준이 사라진다.
 
-    core/shadow 는 frozen 비중을 그대로 복사해 쓴다. 이 줄이 사라지면
-    벤치마크가 사용자마다 달라져 비교가 성립하지 않는다.
+    예전에는 run_monthly 소스에 ``w = dict(frozen_w)`` 가 있는지 글자로 봤다.
+    비중 계산을 static_weights 로 모으자 그 줄이 사라져 테스트가 깨졌는데,
+    동작은 멀쩡했다. **소스 문자열이 아니라 돌려주는 값**을 본다.
     """
-    root = Path(__file__).resolve().parents[2]
-    text = (root / "src" / "forward" / "run_monthly.py").read_text(encoding="utf-8")
-    assert "w = dict(frozen_w)" in text, \
-        "core/shadow 계좌가 frozen 벤치마크를 쓰지 않는다"
+    from src.forward.accounts import static_weights
+    frozen = {"us_equity": 0.3, "korea_equity": 0.2, "gold": 0.1, "cash": 0.4}
+    assert static_weights("core", None, {}, frozen) == frozen, \
+        "core 계좌가 frozen 벤치마크를 쓰지 않는다"
+    assert static_weights("shadow", "core_v03", {}, frozen) == frozen, \
+        "CORE 그림자가 frozen 벤치마크를 쓰지 않는다"
+
+
+def test_core_비중이_참가자별로_달라지지_않는다():
+    """같은 frozen 을 주면 누구에게나 같은 값이 나와야 한다."""
+    from src.forward.accounts import static_weights
+    frozen = {"us_equity": 0.6, "cash": 0.4}
+    a = static_weights("core", None, {}, frozen)
+    b = static_weights("core", None, {}, frozen)
+    assert a == b == frozen
+
+
+def test_개인_계좌는_static_weights의_대상이_아니다():
+    """personal 은 사용자 선택을 따라가므로 이 함수를 거치면 안 된다."""
+    import pytest
+    from src.forward.accounts import static_weights
+    with pytest.raises(ValueError):
+        static_weights("personal", None, {}, {"cash": 1.0})

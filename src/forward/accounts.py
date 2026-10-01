@@ -100,3 +100,28 @@ def versions_from_cfg(cfg: dict) -> dict:
             "theme_universe_version": ft["theme_universe_version"],
             "risk_model_version": ft["risk_model_version"],
             "execution_rule_version": ft["execution_rule_version"]}
+
+
+def static_weights(account_type: str, shadow_name: str | None, cfg: dict,
+                   frozen_w: dict) -> dict:
+    """참가자가 없는 계좌(core/shadow)의 목표 비중.
+
+    드라이런과 실제 실행이 **같은 값**을 보게 하려고 한 곳에 둔다. 예전에는
+    run_monthly 의 미리보기가 모든 그림자를 frozen 으로 취급해, 24건을 만들겠다
+    예고하고 실제로는 26건을 만들었다. 미리보기가 결과와 다르면 미리보기를
+    기록하는 의미가 없다.
+    """
+    if account_type == "core" or shadow_name == "core_v03":
+        return dict(frozen_w)
+    if shadow_name == "neutral_60_40":
+        import pandas as pd
+        from .config import resolve
+        w = pd.read_csv(resolve(cfg["phase16_outputs"]) / "neutral_60_40_weights.csv",
+                        index_col=0)["weight"].to_dict()
+        return {k: float(v) for k, v in w.items()}
+    if shadow_name == "equal_weight":
+        from .prices import CORE_IDS
+        w = {a: 1 / len(CORE_IDS) for a in CORE_IDS}
+        w["cash"] = 0.0
+        return w
+    raise ValueError(f"unknown shadow {shadow_name!r} (account_type={account_type!r})")

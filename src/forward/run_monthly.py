@@ -121,7 +121,10 @@ def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
             weights = build_personalized(base_w, tids, cfg, cov)["weights"]
             baseline = _cw(con, a["account_id"], asof)
         else:
-            weights = dict(frozen_w)
+            # core 와 shadow 는 비중이 다르다. 실행과 같은 헬퍼를 쓴다.
+            from src.forward.accounts import static_weights
+            weights = static_weights(a["account_type"], a.get("shadow_name"),
+                                     cfg, frozen_w)
             baseline = _cw(con, a["account_id"], asof)
         rows = plan_orders(weights, baseline, band)
         counts = {k: 0 for k in totals}
@@ -200,19 +203,8 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     from src.forward.execution import current_weights as _cw
     for r in con.execute("SELECT * FROM accounts WHERE account_type IN ('core','shadow')"
                          " AND status='active'").fetchall():
-        if r["account_type"] == "core":
-            w = dict(frozen_w)
-        elif r["shadow_name"] == "core_v03":
-            w = dict(frozen_w)
-        elif r["shadow_name"] == "neutral_60_40":
-            import pandas as pd
-            w = pd.read_csv(resolve(cfg["phase16_outputs"]) / "neutral_60_40_weights.csv",
-                            index_col=0)["weight"].to_dict()
-            w = {k: float(v) for k, v in w.items()}
-        else:  # equal_weight
-            from src.forward.prices import CORE_IDS
-            w = {a: 1 / 9 for a in CORE_IDS}
-            w["cash"] = 0.0
+        from src.forward.accounts import static_weights
+        w = static_weights(r["account_type"], r["shadow_name"], cfg, frozen_w)
         record_target(con, r["account_id"], w, effective, "core", versions,
                       ft["benchmark_version"], r["participant_id"])
         n += len(place_target_orders(con, r["account_id"], w, f"{asof}T23:59:59+00:00",
