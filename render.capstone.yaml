@@ -1,0 +1,103 @@
+# Capstone on PostgreSQL. This is the one to use for the semester.
+#
+# Why a fourth blueprint rather than editing an existing one:
+#
+#   render.yaml       live mode, PostgreSQL, but NOT capstone mode - it is not
+#                     the 15-person app.
+#   render.demo.yaml  capstone mode, but SQLite under CAPSTONE_DATA_DIR=/tmp.
+#                     Free instances have no persistent disk and are wiped on
+#                     every spin-down, so every restart threw the ledger away.
+#   render.lab.yaml   same storage problem, and fixed at the 13-person cohort.
+#
+# Capstone mode keeps data in TWO databases and both must be set in the Render
+# dashboard (they are sync: false, so nothing secret lives in this file):
+#
+#   DATABASE_URL                  -> robo_auth    logins, comparison demo data
+#   CAPSTONE_DESIGN_DATABASE_URL  -> robo_design  the forward-test ledger
+#
+# If the second one is missing the app refuses to start. That is deliberate:
+# guessing would either mix the ledger into the auth database or write it to an
+# empty one, and both failures are silent until somebody checks months later.
+#
+# NOT part of this blueprint: the daily batch (run_daily / run_monthly). It runs
+# on the operator's machine via Task Scheduler and writes to the same Neon
+# databases. Render free has no cron, so moving it here needs a paid plan.
+#
+# Free-tier facts that decide how this is run:
+#   - a free web service sleeps after 15 minutes idle and takes ~1 min to wake
+#   - 750 instance-hours per month are shared by ALL free services in the
+#     workspace; when they run out, every free service stops until next month.
+# So suspend the older robo-capstone-* services before running this one, or the
+# four of them will burn the month's hours together.
+
+services:
+  - type: web
+    name: robo-capstone-pg-api
+    runtime: python
+    # Same region as the Neon project (ap-southeast-1): every ledger query is a
+    # round trip, and crossing regions would be felt on each page load.
+    region: singapore
+    plan: free
+    # Keep this at 1. The start command migrates, and two instances starting
+    # together would race each other through alembic.
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: pip install -r requirements.txt
+    # Both databases get migrated. migrations/env.py reads DATABASE_URL and
+    # nothing else, so overriding it for one command is enough. The API also
+    # calls create_all on the design database, but that only creates missing
+    # tables - it does not apply later migrations, so alembic has to run here.
+    startCommand: >-
+      alembic upgrade head &&
+      DATABASE_URL="$CAPSTONE_DESIGN_DATABASE_URL" alembic upgrade head &&
+      python -m uvicorn src.api.main:app --host 0.0.0.0 --port "$PORT" --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: APP_PROFILE
+        value: local
+      - key: CAPSTONE_DEMO
+        value: "1"
+      - key: CAPSTONE_MARKET_COMPARISON
+        value: "1"
+      - key: DATABASE_BACKEND
+        value: postgres
+      # Set both in the dashboard. Paste the Neon connection strings as they
+      # are; the code adds the psycopg3 driver prefix itself.
+      - key: DATABASE_URL
+        sync: false
+      - key: CAPSTONE_DESIGN_DATABASE_URL
+        sync: false
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: ALLOW_PUBLIC_REGISTRATION
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+  - type: web
+    name: robo-capstone-pg-web
+    runtime: node
+    region: singapore
+    plan: free
+    numInstances: 1
+    autoDeployTrigger: "off"
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    # The browser only ever talks to this service; it calls the API server-side,
+    # so there is no cross-origin request and no CORS list to maintain.
+    startCommand: FASTAPI_INTERNAL_URL="https://$FASTAPI_EXTERNAL_HOSTNAME" npx next start --hostname 0.0.0.0 --port "$PORT"
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_APP_PROFILE
+        value: local
+      - key: NEXT_PUBLIC_CAPSTONE_DEMO
+        value: "1"
+      - key: FASTAPI_EXTERNAL_HOSTNAME
+        fromService:
+          type: web
+          name: robo-capstone-pg-api
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
