@@ -38,15 +38,32 @@ def _engine_for(db_url: str | None, sqlite_path=None):
     from src.db.session import create_app_engine
     if db_url:
         return create_app_engine(db_url)
-    # 운영 데이터가 PostgreSQL 이면 작업 기록도 같은 DB 에 둔다.
-    # 이전에는 무조건 SQLite 파일로 가서, 재배포 시 기록이 사라지고
-    # 중복 실행 방지(scheduled_jobs)가 무력화됐다.
+    # 작업 기록은 그 작업이 다루는 데이터와 **같은 DB** 에 있어야 한다.
+    #
+    # 캡스톤 모드는 DB 가 둘이다.
+    #   인증·비교 시연 : DATABASE_URL
+    #   설계·운용 기록 : CAPSTONE_DESIGN_DATABASE_URL   <- 원장이 여기 쌓인다
+    #
+    # 예전에는 postgres 면 무조건 create_app_engine(), 즉 DATABASE_URL(인증 DB)
+    # 로 갔다. SQLite 때는 파일이 하나뿐이라 드러나지 않았지만, PostgreSQL 로
+    # 옮기는 순간 scheduled_jobs 를 **빈 인증 DB** 에서 찾게 된다. 기록이 없으니
+    # 매번 "아직 안 돌았다"로 판정하고, 중복 실행 방지가 통째로 무력해진다.
+    #
+    # 2026-10-01 에 실제로 그렇게 됐다. 그날 월간 리밸런싱이 두 번 실행되어
+    # 벤치마크 계좌 3개에 중복 주문 26건이 생겼다. create_orders 의 "pending
+    # 중복 금지" 2차 방어도, 일간이 먼저 기존 주문을 체결해 버린 탓에 비껴갔다.
     try:
-        from src.db.config import get_backend
-        if get_backend() == "postgres":
-            return create_app_engine()
-    except Exception:
+        from src.db.config import get_backend, get_design_database_url
+    except ImportError:            # 경량 실행 환경 - 예전 동작으로 둔다
         pass
+    else:
+        if get_backend() == "postgres":
+            # 캡스톤이 아니면 None 이 돌아와 DATABASE_URL 로 간다(예전과 동일).
+            # 캡스톤인데 URL 이 없으면 get_design_database_url 이 소리내어 죽는다.
+            design_url = get_design_database_url()
+            if design_url:
+                return create_app_engine(design_url)
+            return create_app_engine()
     return create_app_engine(f"sqlite:///{sqlite_path}")
 
 
