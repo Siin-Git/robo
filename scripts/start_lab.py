@@ -25,7 +25,9 @@ def main():
     if npm is None:
         parser.error("npm not found. Install Node.js and add it to PATH.")
     directory = args.data_dir.resolve()
-    env = dict(os.environ, APP_PROFILE="local", DATABASE_BACKEND="sqlite", CAPSTONE_DEMO="1",
+    # DATABASE_BACKEND 는 여기서 정하지 않는다. .env.local 한 곳이
+    # SQLite/PostgreSQL 을 정하고, 없으면 기본값 sqlite 다.
+    env = dict(os.environ, APP_PROFILE="local", CAPSTONE_DEMO="1",
         CAPSTONE_MARKET_COMPARISON="1", CAPSTONE_DATA_DIR=str(directory),
         AUTH_COOKIE_SECURE="false", ALLOW_PUBLIC_REGISTRATION="false",
         NEXT_PUBLIC_APP_PROFILE="local", NEXT_PUBLIC_CAPSTONE_DEMO="1", NEXT_PUBLIC_LAB_MEETING="1",

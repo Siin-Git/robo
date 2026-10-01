@@ -24,7 +24,9 @@ def main():
         if is_port_in_use(port):
             print(f"Port {port} is already in use. Stop that server before starting the demo.")
             return 1
-    env = dict(os.environ, APP_PROFILE="local", DATABASE_BACKEND="sqlite", CAPSTONE_DEMO="1",
+    # DATABASE_BACKEND 는 여기서 정하지 않는다. .env.local 한 곳이
+    # SQLite/PostgreSQL 을 정하고, 없으면 기본값 sqlite 다.
+    env = dict(os.environ, APP_PROFILE="local", CAPSTONE_DEMO="1",
                AUTH_COOKIE_SECURE="false", ALLOW_PUBLIC_REGISTRATION="false")
     price_source = ROOT / "data" / "forward_local.db"
     if price_source.is_file():

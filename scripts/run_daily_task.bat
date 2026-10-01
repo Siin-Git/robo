@@ -20,7 +20,10 @@ rem --- Environment: point the forward engine at the capstone design DB ------
 set "ROOT=%~dp0.."
 set "APP_PROFILE=local"
 set "CAPSTONE_DEMO=1"
-set "DATABASE_BACKEND=sqlite"
+rem DATABASE_BACKEND is intentionally NOT set here. It comes from .env.local so
+rem that one file decides SQLite vs PostgreSQL for the batch, the API and the
+rem dev scripts alike. get_backend() falls back to sqlite when it is absent.
+rem The banner printed by run_daily always says which database was used.
 
 cd /d "%ROOT%" || exit /b 1
 if not exist "logs" mkdir "logs"
