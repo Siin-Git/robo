@@ -308,3 +308,24 @@ completion wording. Earlier commits are preserved without amendment.
 The later `PR_DEPLOYMENT_READINESS.md` records fixed PR scope, remote/provider
 inspection, owner responsibilities and the independently verified disposable
 Monday-clock browser rehearsal. This synthetic rehearsal does not prove production.
+
+## Separate persistent local operation (2026-10-03)
+
+The later user-authorized local operation is on `feat/local-forward-operation`,
+forked from review commit `c587dae`. It does not expand the frozen integration PR.
+`LOCAL_REAL_OPERATION.md` records real-clock SQLite isolation, live market input,
+one registered macOS daily agent, restart/dedup evidence, controls and limitations.
+The synthetic Monday servers/data remain separate. No remote DB, push, merge,
+deployment or backup PR #12 changes were made. Real user fills/valuations remain
+pending confirmation and eligible post-effective market prices; disposable tests
+are explicitly distinguished from actual local operating records.
+
+## Develop integration verification (2026-10-03)
+
+After PR #13 merged as `0366279`, the user requested integrating the completed
+persistent-local-operation work into develop before broader graph/data-source
+changes. `DEVELOP_INTEGRATION_VERIFICATION.md` records the isolated integration,
+PostgreSQL test-initialization correction, 477 backend tests, 59 frontend tests,
+build/type checks and both Chrome flows. Earlier statements about no merge or
+push describe those earlier stages; this delivery authorizes develop integration.
+Production deployment, main, remote DBs and backup PR #12 remain separate.
