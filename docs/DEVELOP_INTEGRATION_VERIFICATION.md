@@ -63,4 +63,3 @@ before treating the scheduled production backup as verified.
 Codex performed the isolated integration, reproduced and corrected the
 PostgreSQL test setup conflict, executed the checks above and prepared the
 develop delivery. GitHub CI and final merge identifiers are recorded on the PR.
-
