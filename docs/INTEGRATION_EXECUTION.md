@@ -350,3 +350,15 @@ PostgreSQL test-initialization correction, 477 backend tests, 59 frontend tests,
 build/type checks and both Chrome flows. Earlier statements about no merge or
 push describe those earlier stages; this delivery authorizes develop integration.
 Production deployment, main, remote DBs and backup PR #12 remain separate.
+
+
+## 2026-10-04: 초기 Frontier 주기 선택 (로컬 전용)
+
+`feat/initial-rebalance-settings`는 develop `f3110f6`에서 분리했다. 첫 Frontier의
+기존 설정 영역에 monthly/quarterly를 연결하고 최종 결과에는 읽기 전용 요약만 추가했다.
+사용자별 저장 경로가 없었던 점을 확인하고 기존 onboarding API·immutable 판단 JSON·
+월간 엔진의 기존 주기 판정을 최소 보완했다. 변경/검증/시연 경로와 예약 실행의 한계는
+[INITIAL_REBALANCE_SETTINGS.md](INITIAL_REBALANCE_SETTINGS.md)에 기록했다.
+전체 백엔드 504 passed/16 skipped, 추가 스키마 회귀 10 passed, 프론트 62 passed,
+타입 검사/프로덕션 빌드와 데스크톱·모바일 E2E 2 passed.
+기존 실제 앱·운용 DB·예약 실행·원격 설정은 그대로 유지했으며 푸시·병합·배포는 하지 않았다.

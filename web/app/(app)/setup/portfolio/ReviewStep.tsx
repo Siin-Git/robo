@@ -11,6 +11,7 @@ import { ASSET_META } from "./asset-meta";
 import { THEME_INFO } from "./theme-content";
 import { ReviewData, reviewRows } from "./review-data";
 import { useSetupStyles } from "../style-context";
+import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
 const THEME_COLORS = ["#7654c8", "#aa74d6"];
 const GROUPS = [
@@ -21,9 +22,10 @@ const GROUPS = [
   { key: "cash", base: "cash", name: "현금", color: "#c2cad6" },
 ];
 
-export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, experiment }: {
+export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, experiment, rebalanceFrequency }: {
   basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean;
   frontierData?: FrontierData;
+  rebalanceFrequency?: RebalanceFrequency;
   experiment?: { reason: string; notice: ReactNode };
 }) {
   const { review: s } = useSetupStyles();
@@ -55,6 +57,7 @@ export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComple
     <header className={s.header}><div className={s.eyebrow}>BEFORE & AFTER</div><h1>인사이트가 포트폴리오를 어떻게 바꿨나요?</h1>
       <p>{p.themes.length ? <>기본 투자 구성에 <strong>{p.themes.map(t => themeName(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 투자 구성입니다."}</p>
     </header>
+    {rebalanceFrequency && <p aria-label="확정 전 리밸런싱 주기">정기 리밸런싱: <strong>{REBALANCE_LABELS[rebalanceFrequency]}</strong> · 초기 설정에서 선택한 주기로 확정합니다.</p>}
 
     <div className="comparison-intro" aria-label="포트폴리오 설계 관계">
       <div><span className="ui-eyebrow">BEFORE</span><h2>기본 포트폴리오</h2><p>선택한 위험 수준에 맞춘 자산배분을 출발점으로 삼습니다.</p></div>
