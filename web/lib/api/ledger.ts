@@ -2,11 +2,12 @@ import { get } from "./client";
 
 // The persisted, user-scoped forward ledger exposed by the current backend.
 export interface ForwardLedger {
+  data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION";
   as_of: string | null;
   snapshots: {
     date: string;
-    nav_status: string;
-    holdings: { asset_id: string; weight: number }[];
+    nav_status: string; nav:number; nav_base100:number; cash_balance:number; daily_return:number|null; cumulative_return:number;
+    holdings: { asset_id: string; weight: number; quantity:number; market_value:number; price:number; price_date:string|null; price_status:string }[];
   }[];
   orders: {
     order_id: string;
@@ -22,7 +23,7 @@ export interface ForwardLedger {
     trade_id: string;
     order_id: string;
     asset_id: string;
-    execution_at: string;
+    execution_at: string; execution_price:number; quantity:number; gross_value:number; transaction_cost:number; net_value:number;
   }[];
 }
 

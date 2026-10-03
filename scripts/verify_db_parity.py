@@ -30,12 +30,30 @@ NUM_TOL = 1e-10
 MONEY_TOL = 1e-3
 
 
-TABLE_ORDER = ["counters", "participants", "themes", "accounts", "views",
-               "portfolio_targets", "orders", "trades", "holdings_daily",
-               "nav_daily", "performance_daily", "prices_daily", "events",
-               "model_versions", "forward_state"]
+TABLE_ORDER = [
+    # --- 원장 사슬 (반드시 있어야 한다) ---
+    "counters", "participants", "themes", "accounts", "views",
+    "portfolio_targets", "orders", "trades", "holdings_daily",
+    "nav_daily", "performance_daily", "prices_daily", "events",
+    "model_versions", "forward_state",
+    # --- 인증·설계·운영 (소스에 없으면 건너뛴다) ---
+    # 예전에는 이 일곱이 빠져 있었다. 원장은 옮겨지는데 로그인 계정과
+    # 배치 기록은 안 옮겨져, 옮긴 뒤 아무도 로그인하지 못한다.
+    "users", "sessions", "base_portfolio_selections", "onboarding_drafts",
+    "demo_cohorts", "demo_slots", "scheduled_jobs", "portfolio_decisions", "portfolio_choices",
+]
+
+# 원장이 빠진 소스는 옮기면 안 된다. 나머지는 없을 수 있다.
+REQUIRED_TABLES = {
+    "counters", "participants", "themes", "accounts", "views",
+    "portfolio_targets", "orders", "trades", "holdings_daily",
+    "nav_daily", "performance_daily", "prices_daily", "events",
+    "model_versions", "forward_state",
+}
 
 FK_PARENTS = {
+    "portfolio_decisions": [("user_id", "users", "user_id"), ("participant_id", "participants", "participant_id"), ("account_id", "accounts", "account_id"), ("selection_id", "base_portfolio_selections", "selection_id"), ("target_id", "portfolio_targets", "target_id"), ("previous_decision_id", "portfolio_decisions", "decision_id")],
+    "portfolio_choices": [("user_id", "users", "user_id"), ("decision_id", "portfolio_decisions", "decision_id"), ("target_id", "portfolio_targets", "target_id")],
     "accounts": [("participant_id", "participants", "participant_id")],
     "views": [("participant_id", "participants", "participant_id"),
               ("theme_id", "themes", "theme_id")],
@@ -48,6 +66,12 @@ FK_PARENTS = {
     "performance_daily": [("account_id", "accounts", "account_id")],
     "events": [("participant_id", "participants", "participant_id"),
                ("account_id", "accounts", "account_id")],
+    "users": [("participant_id", "participants", "participant_id")],
+    "sessions": [("user_id", "users", "user_id")],
+    "base_portfolio_selections": [("user_id", "users", "user_id"),
+                                  ("participant_id", "participants", "participant_id")],
+    "demo_slots": [("cohort_id", "demo_cohorts", "cohort_id"),
+                   ("user_id", "users", "user_id")],
 }
 
 
@@ -67,7 +91,7 @@ def norm_val(v):
     if isinstance(v, datetime):
         if v.tzinfo is None:
             v = v.replace(tzinfo=__import__("datetime").timezone.utc)
-        return ("ts", v.isoformat())
+        return ("ts", v.astimezone(__import__("datetime").timezone.utc).isoformat())
     if isinstance(v, date):
         return ("d", v.isoformat())
     if isinstance(v, Decimal):
@@ -116,22 +140,58 @@ def dest_rows(engine, table) -> list[dict]:
         return [dict(r._mapping) for r in c.execute(select(table))]
 
 
+def resolve_dest(value: str | None) -> tuple[str, str | None]:
+    """목적지 URL 을 정한다. **환경변수 이름을 줘도 된다.**
+
+    PowerShell 은 ``.env.local`` 을 읽지 않는다. 파이썬은 import 시점에
+    dotenv 로 읽으므로, 셸에서 ``$env:CAPSTONE_DESIGN_DATABASE_URL`` 을 넘기면
+    빈 문자열이 되어 "expected one argument" 로 죽는다. 이름을 그대로 받으면
+    URL 을 셸에 노출하지 않고도 쓸 수 있다(비밀번호가 명령 이력에 안 남는다).
+
+    반환: (url, error) - error 가 None 이 아니면 실패다.
+    """
+    import os
+    if not value:
+        url = os.environ.get("DATABASE_URL", "").strip()
+        return url, None if url else "목적지 URL 이 없다 (--dest 또는 DATABASE_URL)"
+    if "://" in value:
+        return value.strip(), None
+    # URL 이 아니면 환경변수 이름으로 본다.
+    url = os.environ.get(value, "").strip()
+    if not url:
+        return "", (f"환경변수 {value} 가 비어 있다. .env.local 에 있는지 확인할 것 "
+                    f"(셸이 아니라 .env.local 에서 읽는다).")
+    return url, None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default=str(ROOT / "data" / "forward_test.db"))
-    ap.add_argument("--dest", default=None)
+    ap.add_argument("--dest", default=None,
+                    help="SQLAlchemy URL, 또는 환경변수 이름 "
+                         "(예: CAPSTONE_DESIGN_DATABASE_URL). 기본: DATABASE_URL")
     args = ap.parse_args()
     import os
-    dest_url = args.dest or os.environ.get("DATABASE_URL", "").strip()
-    if not dest_url:
-        print("ERROR: destination URL missing (pass --dest or set DATABASE_URL)")
+    dest_url, dest_error = resolve_dest(args.dest)
+    if dest_error:
+        print(f"ERROR: {dest_error}")
         return 2
 
     ok = True
     table_rep: dict = {}
     dest_engine = create_app_engine(dest_url)
     dest_tables: dict[str, list[dict]] = {}
-    for t in TABLE_ORDER:
+    # 소스에 없는 테이블은 비교 대상이 아니다. 원장이 없으면 검증 자체가 의미 없다.
+    live = set(sqlite_reader.list_tables(args.source))
+    missing_required = sorted(REQUIRED_TABLES - live)
+    if missing_required:
+        print(f"ERROR: source missing ledger tables: {missing_required}")
+        return 2
+    tables = [t for t in TABLE_ORDER if t in live]
+    skipped = [t for t in TABLE_ORDER if t not in live]
+    if skipped:
+        print(f"NOTE: source has no {skipped} - not compared")
+    for t in tables:
         table = Base.metadata.tables[t]
         pk_cols = [c.name for c in table.primary_key.columns]
         src = list(sqlite_reader.iter_table(args.source, t))
@@ -181,7 +241,11 @@ def main() -> int:
     # FK orphans on destination
     orphans = 0
     for child, rules in FK_PARENTS.items():
+        if child not in dest_tables:
+            continue                      # 소스에 없던 테이블
         for col, parent, _pcol in rules:
+            if parent not in dest_tables:
+                continue
             pkeys = set()
             for r in dest_tables[parent]:
                 pkeys.add(r.get(_pcol))
@@ -198,7 +262,16 @@ def main() -> int:
         hrows = [r for r in dest_tables["holdings_daily"] if r["account_id"] == acct]
         latest = nrows[-1] if nrows else None
         ident = None
-        if latest:
+        # 회계 항등식(보유 평가액 + 현금 = NAV)은 **원장이 있는 계좌**에만 적용된다.
+        #
+        # 시연 DB(capstone_demo.db)의 NAV 는 차트용 가상 경로다. 보유도 체결도
+        # 없고 cash_balance 도 0이라, 식에 넣으면 gap 이 NAV 값 그대로 나와
+        # 언제나 실패한다. 애초에 만족하도록 만든 데이터가 아니다.
+        #
+        # 보유가 하나라도 있으면(또는 체결이 있으면) 그때는 반드시 맞아야 하므로
+        # 검사를 건너뛰지 않는다. 그래야 진짜 불일치를 놓치지 않는다.
+        has_ledger = bool(hrows) or bool(troows)
+        if latest and has_ledger:
             day = [r for r in hrows if norm_pk(r["date"]) == norm_pk(latest["date"])]
             mv = sum(float(x["market_value"]) for x in day)
             ident = abs(mv + float(latest["cash_balance"]) - float(latest["nav"]))
@@ -214,7 +287,7 @@ def main() -> int:
             ok = False
 
     print(f"{'table':22s} {'sqlite':>8s} {'pg':>8s} {'match':>6s} {'pk':>4s} {'fields':>8s}")
-    for t in TABLE_ORDER:
+    for t in tables:
         r = table_rep[t]
         print(f"{t:22s} {r['sqlite_rows']:8d} {r['postgres_rows']:8d} "
               f"{str(r['match']):>6s} {str(r.get('pk_match')):>4s} "
@@ -222,9 +295,18 @@ def main() -> int:
     print(f"FK orphans on destination: {orphans}")
     if orphans:
         ok = False
-    for acct, f in fin.items():
+    checked = [a for a, f in fin.items() if f["holdings_identity_gap"] is not None]
+    skipped = [a for a in fin if a not in checked]
+    for acct in sorted(fin):
+        f = fin[acct]
+        state = "identity_ok=True" if f["holdings_identity_gap"] is None else (
+            f"identity_ok={f['identity_ok']}")
+        if f["holdings_identity_gap"] is None:
+            state = "identity=n/a (원장 없음)"
         print(f"  {acct}: nav={f['latest_nav']} trades={f['trade_count']} "
-              f"cost={f['cost_sum']:.4f} identity_ok={f['identity_ok']}")
+              f"cost={f['cost_sum']:.4f} {state}")
+    print(f"회계 항등식: {len(checked)}개 계좌 검사"
+          + (f", {len(skipped)}개는 원장이 없어 해당 없음" if skipped else ""))
     out = ROOT / "outputs" / "database" / "parity_report.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"tables": table_rep, "orphans": orphans, "financial": fin,

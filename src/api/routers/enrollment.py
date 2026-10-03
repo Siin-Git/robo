@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from ..authz import get_current_user, require_authenticated_csrf
 from ..dependencies import get_db
+from ..design_workspace import get_design_db, enabled as design_enabled
 from ..services import enrollment_service as svc
 
 router = APIRouter(prefix="/me/experiment", tags=["onboarding"])
@@ -42,5 +43,10 @@ def preview(body: Configuration, db=Depends(get_db), user=Depends(get_current_us
     return svc.preview(db, body.model_dump())
 
 @router.post("/complete")
-def complete(body: Configuration, db=Depends(get_db), user=Depends(require_authenticated_csrf)):
-    return svc.complete(db, user, body.model_dump())
+def complete(body: Configuration, db=Depends(get_db), user=Depends(require_authenticated_csrf), design_db=Depends(get_design_db)):
+    result = svc.complete(db, user, body.model_dump())
+    if design_enabled():
+        from ..services import onboarding_service
+        cfg = result["configuration"]
+        result.update(onboarding_service.complete(design_db, user.user_id, user.participant_id, cfg.get("frontier_id", cfg["core_id"]), cfg["theme_ids"], cfg["reason"], confirmed_preview={**cfg, "personalized": {**cfg["personalized"], "expected_return": cfg["personalized"].get("expected_return")}, "risk_comparison": cfg.get("risk_comparison") or {"as_of": None, "method": None}}))
+    return result

@@ -48,7 +48,7 @@ describe("forward operations", () => {
     expect(within(row).getByText(/BUY ·/)).toBeInTheDocument();
     expect(within(screen.getByRole("row", { name: /0.00% 5.00%/ })).getByText("SELL")).toBeInTheDocument();
     expect(screen.getByText("밴드 이내")).toBeInTheDocument();
-    expect(screen.getByText("유지")).toBeInTheDocument();
+    expect(screen.getByText("조정 없음")).toBeInTheDocument();
     expect(screen.getByText("2026.10.01")).toBeInTheDocument();
     expect(screen.getByText("주문이 생성되었습니다")).toBeInTheDocument();
     expect(screen.getByText(/주문 O-1/)).toBeInTheDocument();

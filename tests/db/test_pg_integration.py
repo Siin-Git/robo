@@ -28,7 +28,9 @@ def test_pg_alembic_and_crud():
     import sys
     from pathlib import Path
     root = Path(__file__).resolve().parents[2]
-    env = dict(os.environ)
+    env = dict(os.environ, DATABASE_URL=URL, DATABASE_BACKEND="postgres")
+    env.pop("CAPSTONE_DEMO", None)
+    env.pop("CAPSTONE_DESIGN_DATABASE_URL", None)
     r = subprocess.run([sys.executable, "-m", "alembic", "-c", "alembic.ini",
                         "upgrade", "head"], cwd=root, env=env,
                        capture_output=True, text=True, timeout=300)
@@ -36,13 +38,15 @@ def test_pg_alembic_and_crud():
     from src.db.session import create_app_engine, session_factory
     from src.db.models import Event, NavDaily
     S = session_factory(create_app_engine(URL))
+    from uuid import uuid4
+    eid="E" + uuid4().hex[:14]
     with S() as s:
         ts = datetime(2026, 9, 12, 17, 18, 40, 780314, tzinfo=timezone.utc)
-        s.add(Event(event_id="E000001", event_type="X", participant_id=None,
+        s.add(Event(event_id=eid, event_type="X", participant_id=None,
                     account_id=None, timestamp=ts, payload_json={"b": 1},
                     model_version="CORE_V0.3"))
         s.commit()
-        back = s.get(Event, "E000001")
+        back = s.get(Event, eid)
         assert back.timestamp == ts and back.timestamp.tzinfo is not None
         assert back.payload_json == {"b": 1}
         s.add(NavDaily(account_id="MISSING", date=date(2026, 1, 1), nav=1,

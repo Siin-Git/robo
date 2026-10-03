@@ -59,10 +59,77 @@ def _apply_portfolio_reset(db, auth_db, user):
 
 
 @lru_cache(maxsize=8)
-def _factory(path: str):
-    engine = create_app_engine(f"sqlite:///{path}")
-    Base.metadata.create_all(engine)
+def _factory(url: str):
+    """설계 DB 세션 팩토리. 인자는 **DB URL** 이다(파일 경로가 아니다).
+
+    예전에는 경로를 받아 안에서 ``sqlite:///`` 를 붙였다. PostgreSQL 을
+    지원하면서 URL 로 바꿨는데, 경로를 그대로 넘기면 SQLAlchemy 가
+    "Could not parse SQLAlchemy URL" 만 남기고 죽어 원인을 찾기 어렵다.
+    """
+    if "://" not in url:
+        raise ValueError(
+            f"_factory 는 DB URL 을 받는다(경로가 아니다): {url!r}. "
+            f"파일이면 'sqlite:///<경로>' 형태로 넘길 것.")
+    engine = create_app_engine(url)
+    from ..db.design_schema import ensure_design_schema
+    ensure_design_schema(engine)
     return session_factory(engine)
+
+
+def _identity(url) -> tuple:
+    """두 DB 가 같은 곳인지 비교할 때 쓰는 값. 비밀번호는 보지 않는다.
+
+    드라이버(``+psycopg``)는 떼고 백엔드만 본다. 같은 데이터베이스를 한쪽은
+    ``postgresql://``, 다른 쪽은 ``postgresql+psycopg://`` 로 가리킬 수 있는데,
+    그 둘은 **같은 곳**이다. 드라이버까지 비교하면 겹치는데도 통과시킨다.
+    """
+    from sqlalchemy.engine import make_url
+    u = make_url(str(url)) if not hasattr(url, "drivername") else url
+    backend = u.drivername.split("+", 1)[0]
+    database = u.database
+    if backend == "sqlite" and database:
+        database = str(Path(database).resolve())
+    return (backend, u.host, u.port, database)
+
+
+def design_database_url(auth_db) -> str:
+    """설계 워크스페이스 DB 의 주소.
+
+    **설계 DB 는 인증 DB 를 따라간다.** 둘은 짝이다.
+
+    - 인증 DB 가 PostgreSQL 이면 ``CAPSTONE_DESIGN_DATABASE_URL`` 을 쓴다.
+    - 인증 DB 가 SQLite 파일이면 그 **옆의** ``portfolio_design.db`` 를 쓴다.
+
+    환경변수를 먼저 보지 않는 이유가 중요하다. 테스트는 임시 SQLite 파일로
+    돌면서 CAPSTONE_DEMO 만 켠다. 개발자의 ``.env.local`` 에 운영용
+    ``CAPSTONE_DESIGN_DATABASE_URL`` 이 들어 있으면, 환경변수를 먼저 보는
+    순간 **테스트가 운영 DB 에 테이블을 만들고 데이터를 쓴다.** 요청이 실제로
+    쓰고 있는 DB 를 따라가면 그런 일이 일어나지 않는다.
+    """
+    import os
+    from ..db.config import normalize_pg_url
+    auth_url = auth_db.get_bind().url
+    auth_backend = auth_url.drivername.split("+", 1)[0]
+    explicit = os.environ.get("CAPSTONE_DESIGN_DATABASE_URL", "").strip()
+    if auth_backend != "sqlite":
+        if not explicit:
+            raise RuntimeError(
+                "인증 DB 가 SQLite 파일이 아니면 설계 DB 를 경로로 찾을 수 없다. "
+                "CAPSTONE_DESIGN_DATABASE_URL 을 설정할 것.")
+        # Neon 콘솔이 주는 'postgresql://' 는 SQLAlchemy 가 psycopg2 로 읽는다.
+        explicit = normalize_pg_url(explicit)
+        if _identity(explicit) == _identity(auth_url):
+            raise RuntimeError("Design and comparison databases must be separate")
+        return explicit
+    source = auth_db.get_bind().url.database
+    if not source or source == ":memory:":
+        raise RuntimeError(
+            "Capstone design workspace requires a file-backed database, or an "
+            "explicit CAPSTONE_DESIGN_DATABASE_URL.")
+    path = Path(source).resolve().with_name("portfolio_design.db")
+    if path == Path(source).resolve():
+        raise RuntimeError("Design and comparison databases must be separate")
+    return f"sqlite:///{path}"
 
 
 def get_design_db(auth_db=Depends(get_db), user=Depends(get_current_user)):
@@ -71,15 +138,10 @@ def get_design_db(auth_db=Depends(get_db), user=Depends(get_current_user)):
         return
     if not user.participant_id:
         raise ApiError("NO_PARTICIPANT", "User has no linked participant.", 409)
-    source = auth_db.get_bind().url.database
-    if not source or source == ":memory:":
-        raise RuntimeError("Capstone design workspace requires a file-backed database")
-    path = Path(source).resolve().with_name("portfolio_design.db")
-    if path == Path(source).resolve():
-        raise RuntimeError("Design and comparison databases must be separate")
+    url = design_database_url(auth_db)
     # Serialize first-use initialization; normal request transactions remain separate.
     with _lock:
-        factory = _factory(str(path))
+        factory = _factory(url)
         with factory() as db:
             from .design_prices import load_reference_prices
             load_reference_prices(db)

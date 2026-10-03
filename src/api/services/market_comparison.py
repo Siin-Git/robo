@@ -61,13 +61,28 @@ def _risk_cov(asset_ids, asof, weeks):
 
 def design_configuration(session, user):
     """Read only a completed design, not an autosaved draft or foreign identity."""
-    source = session.get_bind().url.database
-    if not source or source == ":memory:":
-        return None
-    path = Path(source).resolve().with_name("portfolio_design.db")
-    if not path.is_file():
-        return None
-    engine = create_engine(f"sqlite:///file:{path}?mode=ro&uri=true")
+    # 설계 DB 는 읽기만 한다. SQLite 는 URI 로 읽기 전용을 걸 수 있고,
+    # PostgreSQL 은 그런 수단이 없어 평범하게 연다(이 함수가 쓰기를 하지 않는다).
+    #
+    # 설계 DB 는 **인증 DB 를 따라간다**. 환경변수를 먼저 보면, 개발자의
+    # .env.local 에 운영 URL 이 있을 때 임시 DB 로 도는 테스트가 운영 DB 를
+    # 열게 된다(design_workspace.design_database_url 과 같은 규칙).
+    import os
+    auth_url = session.get_bind().url
+    if auth_url.drivername.split("+", 1)[0] != "sqlite":
+        from ...db.config import normalize_pg_url
+        explicit = os.environ.get("CAPSTONE_DESIGN_DATABASE_URL", "").strip()
+        if not explicit:
+            return None
+        engine = create_engine(normalize_pg_url(explicit))
+    else:
+        source = auth_url.database
+        if not source or source == ":memory:":
+            return None
+        path = Path(source).resolve().with_name("portfolio_design.db")
+        if not path.is_file():
+            return None
+        engine = create_engine(f"sqlite:///file:{path}?mode=ro&uri=true")
     from .enrollment_service import latest_reset
     reset = latest_reset(session, user.participant_id)
     try:
@@ -130,8 +145,8 @@ def evaluate(weights):
     levels = prices.loc[meta["comparison_start"]:meta["comparison_end"], list(active)]
     if len(levels) < 31 or str(levels.index[0].date()) != meta["comparison_start"] or str(levels.index[-1].date()) != meta["comparison_end"]:
         raise ApiError("MARKET_DATA_INSUFFICIENT", "공통 비교 기간의 가격 데이터가 부족합니다.", 422)
-    nav = ((levels / levels.iloc[0]).mul(pd.Series(active)).sum(axis=1) + weights.get("cash", 0)) * 100
-    return pd.DataFrame({"nav": nav, "daily_return": nav.pct_change(fill_method=None).fillna(0)})
+    from ...forward.reference_portfolio import evaluate_levels
+    return evaluate_levels(weights, prices, meta["comparison_start"], meta["comparison_end"], minimum=31)
 
 
 def report(session, user, slot=None):

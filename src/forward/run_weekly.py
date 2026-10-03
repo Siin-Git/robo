@@ -125,6 +125,7 @@ def _execute_weekly(con, cfg, friday):
     cov, _ = load_or_build_cov(con, cfg, friday)
     n_orders = 0
     n_targets = 0
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights
     for p in list_participants(con, "active"):
         pid = p["participant_id"]
         views = batch_views(con, pid, friday, effective)
@@ -139,6 +140,15 @@ def _execute_weekly(con, cfg, friday):
         acc = con.execute("SELECT account_id FROM accounts WHERE participant_id = ?"
                           " AND account_type='personal'", (pid,)).fetchone()
         if acc is None:
+            continue
+        if awaiting_confirmation(con, {"participant_id": pid}):
+            continue
+        con.execute("UPDATE accounts SET status=status WHERE account_id=?", (acc["account_id"],))
+        d = latest_decision(con, acc["account_id"])
+        if d:
+            # Final personal weights change only via a new confirmation. Monthly
+            # band correction remains active; weekly view refresh cannot revise them.
+            con.commit()
             continue
         import json as _json
         prev = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"

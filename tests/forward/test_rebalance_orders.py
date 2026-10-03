@@ -180,3 +180,67 @@ def test_제거된_테마_매도도_중복되지_않는다(con):
     _orders(con, target, baseline, band=BAND)
     assert con.execute("SELECT COUNT(*) AS n FROM orders WHERE asset_id='theme:ai'"
                        ).fetchone()["n"] == 1
+
+
+# --------------------------------------------------------------------------
+# plan_orders: 드라이런과 실제 실행이 같은 결론을 내는가
+# --------------------------------------------------------------------------
+
+def test_plan_orders가_create_orders와_일치한다(con):
+    """미리 본 것과 실제가 다르면 드라이런의 의미가 없다."""
+    from src.forward.execution import plan_orders
+    target = {"us_equity": 0.20, "korea_equity": 0.10, "gold": 0.05, "cash": 0.65}
+    baseline = {"us_equity": 0.21,      # 밴드 안
+                "korea_equity": 0.13,   # 밴드 밖
+                "gold": 0.05,           # 변화 없음
+                "theme:ai": 0.04}       # 목표에서 빠짐 -> 매도
+    planned = {r["asset"]: r["action"] for r in plan_orders(target, baseline, BAND)}
+    _orders(con, target, baseline, band=BAND)
+    actual = set(_rows(con))
+    assert {a for a, act in planned.items() if act == "order"} == actual
+
+
+def test_plan_orders는_DB를_보지_않는다():
+    """드라이런이 어떤 DB 상태에서도 같은 판단을 내려야 한다."""
+    from src.forward.execution import plan_orders
+    rows = plan_orders({"us_equity": 0.20, "cash": 0.80}, {"us_equity": 0.30}, BAND)
+    assert [r["action"] for r in rows] == ["order"]
+
+
+def test_plan_orders가_세_가지_판단을_구분한다():
+    from src.forward.execution import plan_orders
+    target = {"us_equity": 0.20, "korea_equity": 0.10, "gold": 0.05, "cash": 0.65}
+    baseline = {"us_equity": 0.21, "korea_equity": 0.13, "gold": 0.05}
+    by_asset = {r["asset"]: r for r in plan_orders(target, baseline, BAND)}
+    assert by_asset["us_equity"]["action"] == "band"
+    assert by_asset["korea_equity"]["action"] == "order"
+    assert by_asset["gold"]["action"] == "unchanged"
+    assert by_asset["korea_equity"]["side"] == "sell"
+    assert by_asset["korea_equity"]["drift"] == pytest.approx(-0.03)
+
+
+def test_밴드가_없으면_band_판단이_나오지_않는다():
+    from src.forward.execution import plan_orders
+    rows = plan_orders({"us_equity": 0.20, "cash": 0.80}, {"us_equity": 0.21}, None)
+    assert [r["action"] for r in rows] == ["order"]
+
+
+def test_드라이런은_아무것도_쓰지_않는다(con, tmp_path):
+    """--dry-run 이 한 행이라도 남기면 미리보기가 아니다."""
+    import src.forward.run_monthly as rm
+    tables = ("orders", "trades", "holdings_daily", "nav_daily", "events",
+              "portfolio_targets", "model_versions", "scheduled_jobs")
+
+    def snapshot():
+        return {t: con.execute(f"SELECT COUNT(*) AS n FROM {t}").fetchone()["n"]
+                for t in tables}
+
+    cfg = {"forward_test": {"benchmark_version": "CORE_V0.3",
+                            "core_rebalance": {"frequency": "monthly", "band": BAND}},
+           "frozen_dir": "outputs/frozen/CORE_V0.3"}
+    before = snapshot()
+    try:
+        rm._dry_run_monthly(con, cfg, "2026", "09", "2026-09-30", risk_only=True)
+    except Exception:
+        pass          # 데이터가 없어 중단되어도 쓰기는 없어야 한다
+    assert snapshot() == before

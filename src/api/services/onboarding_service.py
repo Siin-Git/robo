@@ -7,7 +7,7 @@ from sqlalchemy import select
 from ..errors import ApiError, not_found
 from . import _common as C
 from .frontier_service import FRONTIER_VERSION, describe_position, find_point, get_frontier
-from .portfolio_service import _cov_asof, _tickers
+from .portfolio_service import _cov_asof, _tickers, _expected_return, EXPECTED_RETURN_BASIS
 from src.forward.config import load_forward_config
 from src.forward.portfolio import build_personalized
 from src.forward.prices import theme_asset_id
@@ -189,6 +189,7 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
         tw = personalized_weights.get(f"theme:{tid}", 0)
         themes_info.append({"theme_id": tid, "display_name": t.display_name if t else tid, "ticker": t.ticker if t else None, "target_weight": float(tw)})
 
+    expected_return = _expected_return(personalized_weights, base_weights)
     frontier_position = {
         "base": describe_position(
             frontier_id=frontier_id,
@@ -196,6 +197,7 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
         ),
         "personalized": describe_position(
             volatility=pers_vol,
+            expected_return=expected_return,
             label="personalized",
         ),
     }
@@ -203,7 +205,7 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
     return {
         "base": {"frontier_id": frontier_id, "expected_return": float(point["expected_return"]), "volatility": float(point["volatility"]), "weights": [{"asset_id": k, "weight": float(v)} for k, v in base_weights.items()], "groups": base_groups},
         "themes": themes_info,
-        "personalized": {"volatility": pers_vol, "tracking_error": pers_te, "weights": [{"asset_id": k, "weight": float(v)} for k, v in personalized_weights.items()], "groups": pers_groups},
+        "personalized": {"expected_return": expected_return, "expected_return_basis": EXPECTED_RETURN_BASIS, "volatility": pers_vol, "tracking_error": pers_te, "weights": [{"asset_id": k, "weight": float(v)} for k, v in personalized_weights.items()], "groups": pers_groups},
         "comparison": active,
         "funding": funding_list,
         "frontier_position": frontier_position,
@@ -217,8 +219,13 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
         },
     }
 
-def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None):
-    prev = preview(session, user_id, participant_id, frontier_id, theme_ids)
+def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None, adjustment_choice_id: str | None = None, confirmed_preview: dict | None = None, expected_decision_id: str | None = None):
+    from . import decision_service as decisions
+    from ...db.models.account import Account as _A
+    acc = session.scalars(select(_A).where(_A.participant_id == participant_id, _A.account_type == "personal")).first()
+    if acc:
+        decisions.lock_account(session, acc.account_id)
+    prev = confirmed_preview if confirmed_preview is not None else preview(session, user_id, participant_id, frontier_id, theme_ids)
     from ...db.models.base_selection import BasePortfolioSelection as _BPS
     from ...db.models.onboarding import OnboardingDraft as _OD
     existing = session.scalars(select(_BPS).where(_BPS.user_id == user_id, _BPS.status == "active").order_by(_BPS.selected_at.desc())).first()
@@ -227,14 +234,25 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
         cur_themes = sorted([v.theme_id for v in session.scalars(select(_V).where(_V.participant_id == participant_id, _V.status.in_(["new", "hold"]), _V.end_at.is_(None))).all()])
         previous_draft = session.get(_OD, user_id)
         if sorted(theme_ids) == cur_themes and previous_draft and previous_draft.completed_at and previous_draft.reason == reason:
-            return {"already_completed": True, "selection_id": existing.selection_id}
+            d = decisions.latest(session, acc.account_id) if acc else None
+            if d and not adjustment_choice_id:
+                return {"already_completed": True, "selection_id": existing.selection_id, "decision_id": d.decision_id}
+            if d and adjustment_choice_id and d.provenance_json.get("adjustment_choice_id") == adjustment_choice_id:
+                return {"already_completed": True, "selection_id": existing.selection_id, "decision_id": d.decision_id}
     from ...db.models.account import Account as _A
     from ...db.models.portfolio import PortfolioTarget as _PT
-    now = datetime.now(timezone.utc)
+    now = C.now_utc()
+    if acc:
+        current = decisions.latest(session, acc.account_id)
+        if expected_decision_id and (not current or current.decision_id != expected_decision_id):
+            raise ApiError("STALE_DECISION", "다른 확정이 이루어졌습니다. 최신 판단에서 다시 설계해 주세요.", 409)
+        decisions.validate_adjustment(session, user_id, acc.account_id, adjustment_choice_id)
+        decisions.check_pending(session, acc.account_id)
+    effective = decisions.effective_day(now)
     for r in session.scalars(select(_BPS).where(_BPS.user_id == user_id, _BPS.status == "active")).all():
         r.status = "superseded"
     sel_id = C.new_id(session, "BP", 3)
-    point = find_point(frontier_id)
+    point = find_point(frontier_id) or {**prev["base"], "sharpe": None}
     weights = {w["asset_id"]: w["weight"] for w in point["weights"]}
     if "cash" not in weights:
         weights["cash"] = 0.0
@@ -249,7 +267,7 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
         sharpe=point["sharpe"],
         weights_json=weights,
         selected_at=now,
-        effective_at=now,
+        effective_at=datetime.combine(effective, datetime.min.time(), tzinfo=timezone.utc),
         status="active",
     )
     session.add(row)
@@ -257,7 +275,10 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
     if acc:
         tgt_id = C.new_id(session, "G")
         pers_weights = {w["asset_id"]: w["weight"] for w in prev["personalized"]["weights"]}
-        session.add(_PT(target_id=tgt_id, account_id=acc.account_id, effective_date=now.date(), kind="personal", weights_json=dict(pers_weights), core_version="CORE_V0.3", theme_universe_version="THEME_UNIVERSE_V0.1", risk_model_version="RISK_5Y_LW_FROZEN_V0", created_at=now))
+        target = _PT(target_id=tgt_id, account_id=acc.account_id, effective_date=effective, kind="decision", weights_json=dict(pers_weights), core_version="CORE_V0.3", theme_universe_version="THEME_UNIVERSE_V0.1", risk_model_version="RISK_5Y_LW_FROZEN_V0", created_at=now)
+        session.add(target)
+        session.flush()
+        decision = decisions.capture(session, user_id, participant_id, acc, target, row, prev, reason, adjustment_choice_id)
     # Close the old choice instead of accumulating every prior Theme as active.
     from ...db.models.view import View as _V
     for view in session.scalars(select(_V).where(_V.participant_id == participant_id,
@@ -272,7 +293,7 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
             vid = C.new_id(session, "V")
             sched = resolve_view_schedule(now.isoformat(), "18:00")
             # For onboarding, make view effective immediately (today) rather than next weekday
-            eff = now.date()
+            eff = effective
             cycle_d = _date.fromisoformat(sched["cycle_date"])
             session.add(_V(view_id=vid, participant_id=participant_id, theme_id=tid, status="new", submitted_at=now, effective_at=eff, end_at=None, reason=reason or "", theme_universe_version="THEME_UNIVERSE_V0.1", cycle_week=cycle_d, cycle_date=cycle_d))
     draft = session.get(_OD, user_id)
@@ -288,4 +309,4 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
         session.add(_OD(user_id=user_id, participant_id=participant_id, frontier_id=frontier_id, frontier_version=FRONTIER_VERSION, theme_ids_json=list(theme_ids), reason=reason, current_step="completed", created_at=now, updated_at=now, completed_at=now))
     C.log_event(session, "ONBOARDING_COMPLETED", "CORE_V0.3", participant_id=participant_id, payload={"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids, "reason": reason})
     session.flush()
-    return {"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids}
+    return {"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids, "decision_id": decision.decision_id if acc else None}

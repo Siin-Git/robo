@@ -114,6 +114,7 @@ def ledger(session, participant_id: str, start: str | None = None,
         snapshots.append({
             "date": valuation_date.isoformat(),
             "nav": C.fnum(nav.nav),
+            "nav_base100": C.fnum(nav.nav_base100),
             "cash_balance": C.fnum(nav.cash_balance),
             "daily_return": C.fnum(nav.daily_return),
             "cumulative_return": C.fnum(nav.cumulative_return),
@@ -124,7 +125,9 @@ def ledger(session, participant_id: str, start: str | None = None,
 
     order_counts = Counter(row.status for row in orders)
     return {
-        "contract_version": "ledger-read-v1",
+        "contract_version": "ledger-read-v2",
+        "data_kind": "TEST_FIXTURE" if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)) is not None else "FORWARD_SIMULATION",
+        "units": {"nav": "KRW", "cash_balance": "KRW", "market_value": "KRW", "nav_base100": "index_100", "returns": "fraction", "weight": "fraction"},
         "participant_id": participant_id,
         "account": {
             "account_id": personal.account_id,

@@ -9,7 +9,7 @@ from ...db.models.demo_cohort import DemoCohort, DemoSlot
 from ...db.models.operational import ForwardState
 from ...db.models.user import User
 from ...db.models.theme import Theme
-from ...local.capstone import COHORT, EMAILS, enabled
+from ...local.capstone import COHORT, COHORT_SIZE, EMAILS, enabled
 from ...forward.portfolio import theme_target_weights, fund_from_equities
 from ..errors import ApiError
 from . import _common as C, auth_service as auth
@@ -83,7 +83,7 @@ def status(session, user):
     group, slot = active(session), own(session, user)
     counts = slots(session, group) if group else []
     out = {"status": "not_required", "cohort_id": group.cohort_id if group else "legacy",
-        "capacity": 13, "registered": group.prepared_count + sum(s.confirmed_at is not None for s in counts) if group else 13,
+        "capacity": COHORT_SIZE, "registered": group.prepared_count + sum(s.confirmed_at is not None for s in counts) if group else COHORT_SIZE,
         "reserved": sum(s.confirmed_at is None for s in counts),
         "claimed": sum(s.user_id is not None and s.confirmed_at is None for s in counts)}
     if slot:
@@ -242,11 +242,13 @@ def complete(session, user, data):
     from ...db.models.account import Account
     acc = session.scalar(select(Account).where(Account.participant_id == user.participant_id, Account.account_type == "personal"))
     ft = C.load_forward_cfg()["forward_test"]
-    session.add(PortfolioTarget(target_id=C.new_id(session, "G"), account_id=acc.account_id,
-        effective_date=slot.confirmed_at.date(), kind="personal",
-        weights_json={(("theme:" + w["asset_id"]) if w["asset_type"] == "theme" else w["asset_id"]): w["weight"] for w in config["allocation"]},
-        core_version=ft["benchmark_version"], theme_universe_version=ft["theme_universe_version"],
-        risk_model_version=ft["risk_model_version"], created_at=slot.confirmed_at))
+    from ..design_workspace import enabled as design_enabled
+    if not design_enabled():
+        session.add(PortfolioTarget(target_id=C.new_id(session, "G"), account_id=acc.account_id,
+            effective_date=slot.confirmed_at.date(), kind="personal",
+            weights_json={(("theme:" + w["asset_id"]) if w["asset_type"] == "theme" else w["asset_id"]): w["weight"] for w in config["allocation"]},
+            core_version=ft["benchmark_version"], theme_universe_version=ft["theme_universe_version"],
+            risk_model_version=ft["risk_model_version"], created_at=slot.confirmed_at))
     C.log_event(session, "DEMO_CONFIGURATION_CONFIRMED", ft["benchmark_version"], participant_id=user.participant_id,
         payload={"cohort_id": slot.cohort_id, "scenario_id": config["scenario_id"], "theme_ids": config["theme_ids"]})
     session.flush()

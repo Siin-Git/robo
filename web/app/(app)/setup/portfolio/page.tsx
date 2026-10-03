@@ -1,4 +1,5 @@
 "use client";
+import { getDecisions } from "@/lib/api/decisions";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
@@ -47,6 +48,8 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
   const { risk: styles } = useSetupStyles();
   const router = useRouter();
   const params = useSearchParams();
+  const priorDecision = useQuery({queryKey:["decisions"],queryFn:getDecisions});
+  const withAdjustment = (path:string) => params.get("adjustment_choice_id") ? `${path}${path.includes("?")?"&":"?"}adjustment_choice_id=${encodeURIComponent(params.get("adjustment_choice_id")!)}` : path;
   const qc = useQueryClient();
   const stepParam = params.get("step");
   const [step, setStep] = useState<"risk" | "themes" | "review">(
@@ -118,10 +121,10 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
   });
   const mutateComplete = useMutation({
     mutationFn: (body: { frontier_id: string; theme_ids: string[]; reason?: string }) =>
-      post("/api/v1/me/onboarding/complete", body),
+      post("/api/v1/me/onboarding/complete", {...body, adjustment_choice_id: params.get("adjustment_choice_id"), expected_decision_id:priorDecision.data?.items[0]?.decision_id}),
     onSuccess: async () => {
-      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
-      router.push(DEMO_MODE && market ? "/portfolio?source=demo" : "/portfolio");
+      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status", "decisions", "decision-review", "portfolio-choices", "forward-ledger", "ledger-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
+      router.push("/portfolio");
     },
   });
 
@@ -138,10 +141,10 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
       });
       setSelectedThemes(ids);
       setReason(nextReason);
-      if (destination === "issues") router.push("/setup/issues");
+      if (destination === "issues") router.push(withAdjustment("/setup/issues"));
       else {
         setStep(destination);
-        router.push(`/setup/portfolio?step=${destination}`);
+        router.push(withAdjustment(`/setup/portfolio?step=${destination}`));
       }
     } catch {
       setSaveError(true);
@@ -156,10 +159,10 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
   function goBack() {
     if (step === "themes") {
       setStep("risk");
-      router.push("/setup/portfolio?step=risk");
+      router.push(withAdjustment("/setup/portfolio?step=risk"));
     } else if (step === "review") {
       setStep("themes");
-      router.push("/setup/portfolio?step=themes");
+      router.push(withAdjustment("/setup/portfolio?step=themes"));
     }
   }
 

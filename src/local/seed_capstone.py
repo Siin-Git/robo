@@ -126,8 +126,8 @@ def main():
     with session_factory(engine)() as session:
         seed(session)
         session.commit()
-    print(f"13 demo accounts ready · {db_path}")
-    print(f"capstone01@example.com … capstone13@example.com / {PASSWORD}")
+    print(f"{len(EMAILS)} demo accounts ready · {db_path}")
+    print(f"{EMAILS[0]} … {EMAILS[-1]} / {PASSWORD}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,310 @@
+# 2026-10-03 integration
+
+## Scope and evidence
+
+User authorized isolated integration, week 4 operations UI, immutable final decisions,
+expected/actual revision review, explicit KEEP/ADJUST choices, local tests and commits.
+Production changes, main/develop merges and deployment are excluded.
+The later GitHub instruction permits integration-branch push and a develop-target
+Draft PR only; current scope/evidence is in `PR_DEPLOYMENT_READINESS.md`.
+Base: origin/develop c7c6e20; merged origin/feat/forward-ledger b580762.
+Original root and robo checkouts (including existing uncommitted changes) are preserved.
+Merge 2fb3781 retains develop rebalance status and all forward database/execution changes.
+Baseline: 448 passed, 3 skipped, 1 legacy test failed because _factory now takes a URL.
+Corrected that test; focused ledger suite: 25 passed. Frontend baseline: 55 passed.
+Database JSON reports are fixture outputs, not evidence of real migration.
+
+## Execution policy
+
+Final confirmation creates an immutable decision and its own target. Date-only prices
+cannot identify whether confirmation preceded that day's close, so new decisions
+become effective on the next weekday in Asia/Seoul; holidays wait for available prices.
+KEEP retains the confirmed composition. It does not freeze quantities, pause scheduled
+band-based rebalancing, or cancel pending orders. ADJUST requests redesign; only final
+confirmation changes the target. Redesign is blocked while orders are pending.
+Managed decisions retain their final weights in scheduled batches; existing financial
+bands, costs and execution logic are reused. Legacy records remain readable and are
+never given invented original estimates. Unconfirmed capstone participants cannot trade.
+
+Annual model expectations are not subtracted from short cumulative realized returns.
+Missing/incompatible metrics include reasons. 3/6 month windows are calendar anniversaries
+of the first eligible valuation; period-not-reached is explicit and no results are fabricated.
+Expected-versus-actual metric differences are currently ALWAYS NOT_COMPARABLE with
+null differences. Elapsed time alone cannot complete comparison: matching period,
+units, reference and sampling definitions require a further agreed design and implementation.
+
+## External dependencies
+
+Backup PR #12: open, head fb402a8, targets main; integrated backup file is byte-identical.
+Do not edit backup.yml. Backup/restore rehearsal and account settings remain separate.
+Render source SHA/router and Vercel proxy settings require independent deployed evidence.
+Actions/notebook must share the design DB and canonical KST job slot; select one executor.
+
+## AI contribution
+
+Codex inspected and integrated existing teammate code, implemented missing contracts,
+record persistence and tests. Existing portfolio/risk/execution engines remain authoritative.
+Validation details and remaining dependencies are updated at delivery.
+
+## Delivered contracts and local evidence (2026-10-03 KST)
+
+- Rebalance: reuse `/me/ledger/status.rebalance`; no duplicate `/me/rebalance`.
+  Ledger query (`ledger-read-v2`) supplies KRW NAV/cash/holdings, index-100 NAV,
+  quantities, prices, order/trade history. Performance and contributions share
+  the current KST-effective decision's window and existing calculation engines.
+  Future confirmations remain pending and do not replace this report's decision.
+- Decisions: `GET /me/decisions`, `GET /me/decisions/{id}/review`.
+  Migration 0007 stores exact confirmed weights, annual model metrics with
+  units/basis/frequency, user/account/target/version links, artifact and price
+  input hashes. SQLite and PostgreSQL triggers reject UPDATE/DELETE.
+- Choices: `GET/POST /me/portfolio/choices`. Ownership, stale version, pending
+  orders and repeated request keys are checked. KEEP records retaining composition;
+  batches enforce confirmed weights independently of whether KEEP was clicked.
+  KEEP/ADJUST are composition/redesign choices, not order approval/rejection.
+  KEEP is not an execution pause. ADJUST does not place orders; its choice ID is
+  attached to the next confirmed decision. Pending orders block redesign confirmation.
+- Weekly processing cannot rewrite a managed decision's composition. Daily processing
+  uses the confirmed target, and monthly corrections retain existing financial bands.
+  Stored order weights remain authoritative at execution, even if newer targets exist.
+- `/dashboard` and `/review` connect these real APIs. Historical decisions stay selectable
+  and read-only; comparison reasons, actual observation dates and calendar 3/6 month
+  not-reached states are displayed. A missing original estimate is never reconstructed.
+- Selected base comparison is a labeled gross-price buy-and-hold reference, using the
+  captured base weights and identical actual observation endpoints. CORE comparison
+  uses the recorded reference account. Neither is presented as a market/safe asset.
+
+Initial delivery validation (before independent review; current follow-up results below):
+
+| Check | Result / evidence |
+| --- | --- |
+| Full Python 3.11 suite, including isolated PostgreSQL tests | **462 passed**, 16 dependency deprecation warnings; no skipped tests in the final run |
+| Frontend unit suite | **56 passed** / 11 files |
+| Next production build | Passed |
+| Chrome end-to-end flow | Passed: new user -> setup/confirm -> Frontier -> empty history -> KEEP -> ADJUST/reconfirm v2 -> recorded history -> rebalance -> contributions -> revision; second user has no records and cannot read the first user's decision (404) |
+| Restart and mobile flow | Passed: re-login after API/web restart retains both decisions and choice history; 390px viewport without page overflow; screenshot visually checked |
+| Actual PostgreSQL split DB | Passed: API and batch use the design DB; cross-user rejection; immutable SQL records; 4 concurrent identical choices yield one record; 4 concurrent same-slot job claims yield one executor; auth job count stays zero |
+| SQLite -> PostgreSQL mirror | Passed on synthetic browser fixture: 266 rows / 24 tables; source file hash unchanged; zero FK orphans and full-field parity; 2 account NAV identities checked |
+| PostgreSQL dump/restore | Passed: custom-format pg_dump, restore into a separate disposable database, repeated source parity check passed |
+| Original workspaces | Existing root and nested branches and uncommitted work preserved |
+
+The browser fixture has **SYNTHETIC_TEST** prices for four future weekdays solely to
+exercise fills and valuation. Every affected screen labels these synthetic results.
+They are not production history, achieved investment returns, or 3/6 month evidence.
+The temporary PostgreSQL mirror/restore validates code on that fixture only; it does
+not prove production migration, a scheduled backup, or PR #12's recovery workflow.
+Generated tracked DB reports and covariance artifacts are restored after tests.
+
+Reproduction (new disposable data directory; never an operating DB):
+
+```sh
+APP_PROFILE=validation .venv/bin/python -m pytest -q
+# Optional full PostgreSQL checks require separate disposable URLs:
+# TEST_DATABASE_URL, TEST_AUTH_DATABASE_URL, TEST_DESIGN_DATABASE_URL.
+# Do not use DATABASE_URL/CAPSTONE_DESIGN_DATABASE_URL as test targets.
+cd web
+npm test
+npm run build
+```
+
+For the full browser flow, start `scripts/start_lab.py --dev --port 3043 --api-port 8043
+--data-dir /private/tmp/<new-isolated-directory>` with the local capstone and market
+comparison flags enabled. Its private accounts.json stays outside Git. In web run
+`E2E_OPERATIONS_DATA_DIR=<same-directory> npx playwright test
+--config=playwright.operations.config.ts`. After a restart, repeat with
+`E2E_OPERATIONS_PERSISTENCE=1`. The first test requires fresh users and deliberately
+seeds only that disposable local design DB; it cannot safely be rerun on used accounts.
+
+## Read-only deployment diagnosis
+
+The public Vercel deployment is Ready, created 2026-09-22 19:01 KST. Its actual source
+SHA is unavailable in returned deployment metadata. Current project settings report
+root `web`, production branch `feat/capstone-demo-mvp`, and FASTAPI_INTERNAL_URL host
+`robo-capstone-api.onrender.com`. Current settings do not prove the deployment's
+historical build environment.
+
+Public `/api/v1/me/ledger/status` returns 404. The target Render server's OpenAPI
+returns 200 and includes onboarding and older performance APIs, but excludes ledger
+status, contributions and decisions. Thus deployed backend router coverage is behind
+this integration. The existing Next proxy path `/api/v1` is retained; recreating local
+APIs would not fix that deployed router absence. At that earlier stage, Render SHA/branch/DB settings were unverified. Subsequent
+read-only inspection is in `PR_DEPLOYMENT_READINESS.md`; intended team account
+identity and actual operating DB revision remain open.
+
+The earlier remote daily Action failed with `no such table: themes`; secret names
+exist, but their contents and actual DB identities are not observable. Workflow fixes
+are local and do not prove a successful production job.
+
+## Account-owner requests and final-review deployment sequence
+
+1. Render/DB owner: confirm the reviewed source commit and `render.capstone.yaml`
+   profile. Set distinct persistent authentication `DATABASE_URL` and operational
+   `CAPSTONE_DESIGN_DATABASE_URL`, `DATABASE_BACKEND=postgres`, `APP_PROFILE=local`,
+   `CAPSTONE_DEMO=1`, `CAPSTONE_MARKET_COMPARISON=1`, secure cookies and registration
+   policy. Check the actual source and deployment logs. Existing URLs must be kept
+   secret and existing user/ledger data must not be reset.
+2. Take both DB backups and perform the separately owned PR #12 recovery rehearsal.
+   Review/migrate existing stores explicitly; do not treat checked-in fixture reports
+   as operational evidence. Migrate both databases to 0007 before enabling new API.
+   The capstone blueprint runs Alembic for both DBs; use one migration executor.
+3. Deploy backend first **after final approval**. Verify `/health`, OpenAPI routes,
+   authenticated owner-scoped ledger/decisions, correct DB identities and records
+   surviving restart. A running process/version 0.1.0 alone is insufficient evidence.
+4. Vercel owner: deploy this reviewed frontend, confirm source branch/commit, root web,
+   local capstone build flags, and FASTAPI_INTERNAL_URL pointing to that backend with
+   no extra `/api/v1` prefix. Recheck cookies/login and the complete production flow.
+5. Batch owner: select exactly one executor. Actions requires repository variable
+   `FORWARD_EXECUTOR=actions`; notebook requires `.env.local` value `notebook` and
+   disabling Actions scheduled jobs. Both URLs/profile must match API configuration.
+   Run dry-run before enabling writes. Same-type/slot DB locks are tested; they are
+   not a global lock across daily/weekly/monthly types. Actions serializes those
+   workflows; disabling the other executor remains necessary.
+6. Before the deployment steps above, merge the reviewed integration branch to develop
+   through team review, then follow the team's release policy for main. Nothing has been
+   pushed, merged to those
+   branches or deployed in that local delivery stage. The later GitHub instruction
+   permits integration push and a Draft PR only. Backup PR #12 remains a separate main-targeted
+   change; coordinate its final commits without overwriting this integration.
+
+## Monday demo and remaining requirements
+
+Monday: the full local flow above is demonstrable. Use a new user to show truthful
+waiting/insufficient-history states and a clearly labeled fixture user for history,
+contribution reconciliation, KEEP/ADJUST, immutable v1/v2 and revision reasons.
+Real post-confirmation observations can only appear after eligible actual price data
+and a configured executor. Synthetic future dates must never be called Monday returns.
+
+Priority through Wednesday:
+
+1. Owner settings, reviewed backend/frontend deployment and production flow/restart
+   verification; then enable the sole scheduler and verify an actual scheduled job.
+2. Production DB migration/backups and PR #12's independent restore proof and recovery
+   runbook (both databases, retention, storage credentials and recovery ownership).
+3. Agree and supply frozen market/safe benchmark definitions and price data. Until
+   then APIs/UI explicitly return `BENCHMARK_DEFINITION_NOT_CONFIGURED`; these two
+   comparisons remain incomplete. Selected base and recorded CORE are connected.
+4. Accumulate eligible real observations for actual outcome tracking. Separately agree
+   and implement period/unit/reference/sampling alignment for expected-versus-actual
+   differences. The current API ALWAYS returns NOT_COMPARABLE and null differences,
+   even when a tracking horizon is reached. 3/6 month persistence/query and not-reached
+   states are implemented; actual periods have not elapsed. Legacy initial estimates
+   remain unavailable. KEEP/ADJUST do not implement order approval or rejection.
+
+The delivered implementation covers immutable judgments, observed-results review and
+composition/redesign choices. Numeric expected-versus-actual differences, order
+approval/rejection and undefined market/safe benchmarks are outside that completion
+claim. Code implementation and local verification are complete only for this scope. Production deployment verification remains incomplete. No completion percentage
+or unsupported implementation duration is asserted.
+
+## Commit handoff
+
+Branch: `integration/forward-pg`; workspace: `.work/integration-forward-pg`.
+Merge `2fb3781` preserves both source branches. Backend `ca9fa7d` delivers decisions,
+contracts and execution policy. Frontend `58e8358` delivers connected screens and
+browser tests. The following operations commit contains scheduler alignment,
+PostgreSQL migration/recovery validation and this handoff. No remote push was performed in that delivery stage; later GitHub preparation
+is recorded separately.
+
+
+## Independent-review follow-up brief (2026-10-03 KST)
+
+Problem: confirming a revision effective on 2026-10-05 immediately switched the
+2026-10-03 dashboard start date and hid two existing valuations. The selected-base
+comparison independently used the latest confirmation, so simply fixing the NAV
+filter would still compare against the wrong base snapshot.
+
+Primary journey: view v1 performance -> confirm future v2 -> keep seeing v1 performance,
+contributions and captured base -> inspect pending v2 -> on its effective date show
+v2's own observations (including 0/1 insufficient states) -> revisit preserved v1.
+
+Acceptance and decisions:
+
+- Determine current operation by KST calendar effective date, not confirmation order
+  or most recent valuation date. "Current" does not assert that a fill has occurred.
+- Return `decision_context` with active/pending/previous summaries and report ID/window.
+  Both dashboard and contribution endpoints use this common resolver. Reference
+  comparison uses that report ID and actual observed endpoints without picking latest.
+- Before effectiveness preserve the existing active performance. At effectiveness
+  switch the reporting decision even if new valuations are absent; do not label old
+  returns as new performance. Keep a direct previous-decision detail link.
+- Managed dashboard windows exclude future valuations. Explicit decision details keep
+  their own original-effective-to-successor-effective historical window.
+- Test before/after effectiveness, 0/1/2 new valuations, UTC-to-KST midnight, initial
+  pending user, ALL/1M contracts, selected base selection and historical details.
+- Confirmation invalidates cached decision reviews along with dashboard/decision queries,
+  so successor-window metadata is refreshed during the ordinary navigation flow.
+- UI and handoff must say KEEP/ADJUST are composition/redesign choices, not order
+  approval/rejection, and current expected/actual metrics are all NOT_COMPARABLE.
+- No finance-rule changes, migrations, operating DB writes, merges to main/develop,
+  push, deployment, or modifications to backup PR #12. Reuse this worktree/history.
+
+This follow-up supersedes the earlier claim that "latest confirmed" anchors the
+performance window. Earlier PostgreSQL migration/restore evidence remains fixture-only.
+
+Follow-up validation and reproduction evidence:
+
+| Check | Follow-up result |
+| --- | --- |
+| Exact reproduction before patch | Regression failed as expected: `observations` became 0 after future confirmation; expected 2 |
+| Same reproduction after patch | 2 -> 2; return metrics unchanged; selected-base comparison remains AVAILABLE, preserves its original return and decision ID |
+| Effective-date and insufficient-history regression | 8 tests passed: ALL/1M, before effectiveness, future records excluded, 0/1/2 new valuations after effectiveness, KST midnight, initial pending user, preserved previous details and matching reference snapshots |
+| Full Python suite with disposable PostgreSQL | **470 passed**, no skipped tests; 16 dependency deprecation warnings |
+| Frontend unit tests | **59 passed**, 12 files; current/pending, insufficient new history and previous-detail link covered |
+| Production build | Passed, including Next lint/type validation; the final rerun stopped dev first and preserved duplicate generated development types outside the worktree |
+| New Chrome regression | Passed without a forced refresh: login -> existing v1's two synthetic valuations -> ADJUST/reconfirm future v2 -> portfolio link returns to retained v1 dashboard -> identical contribution/reference scope -> pending v2 detail empty -> direct v1 detail retains records |
+| Existing Chrome complete flow | Passed again on separate fresh fixture users; future initial decisions correctly have no current dashboard performance; KEEP confirmation selector distinguishes it from the synthetic banner |
+| Mobile and runtime errors | 390px dashboard has no page overflow; current/pending panel screenshots visually inspected; zero browser page errors in both flows |
+
+The additional fixture helper `scripts/seed_pending_decision_fixture.py` accepts only
+fresh `/private/tmp` lab accounts and backdates the first confirmation **inside its
+isolated subprocess** to reproduce existing history. It never rewrites immutable
+records or enables a test clock in the running API. `SYNTHETIC_TEST` prices/returns
+and the fixture decision reason explicitly identify this as test data, not actual
+historical operation or backfilled initial estimates for existing users.
+
+For a fresh follow-up demo, start the local lab in a new disposable directory as above,
+then run `.venv/bin/python scripts/seed_pending_decision_fixture.py --directory <dir>`.
+In web run `E2E_PENDING_DECISION=1 E2E_OPERATIONS_DATA_DIR=<dir>
+E2E_BASE_URL=http://127.0.0.1:<web-port> npx playwright test
+--config=playwright.operations.config.ts`. This scenario uses the running API's actual
+calendar: Oct 3 confirmation is effective Oct 5; Oct 5 confirmation is effective
+Oct 6. Automated API regressions
+control their own clocks and cover both sides of that date independently. The browser
+flow consumes fresh fixture users and must not be rerun against their completed state.
+
+Monday demonstration scope after this follow-up:
+
+- Before new effectiveness, show current v1 and pending v2 together while v1's
+  performance/contributions/captured base remain visible. This was verified on Oct 3.
+- At or after Oct 5, current v2's 0/1 observation state is accurately insufficient.
+  Its previous v1 detail remains accessible. Calendar-transition behavior is API-tested;
+  it was not claimed as a real future browser/production event on Oct 3.
+- Demonstrate immutable original/versions, composition KEEP/redesign ADJUST choices,
+  and read-only observation review. Do not demonstrate these as order approval/rejection.
+- Expected-versus-actual numeric differences remain unimplemented: all current metric
+  comparisons return NOT_COMPARABLE, difference=null. Elapsed 3/6 months alone does
+  not make these comparable. Market/safe benchmark definitions remain team agreements.
+
+Operating-owner work after review remains separate:
+
+- This patch adds no schema migration or provider-setting requirement. Deploy the
+  reviewed backend and frontend together through the team's existing release process;
+  older deployment/DB separation tasks in the earlier handoff still require owners.
+- After any future approved deployment, verify current/pending scope using real owner
+  accounts, the actual deployed commits, the correct persistent DBs and restart behavior.
+  No production validation or provider changes were performed in this follow-up.
+- Select one batch executor and verify eligible real observations; do not populate
+  future production results to make a demo chart. Agree benchmark definitions and
+  expected/actual comparison methodology separately. Backup PR #12 remains untouched.
+
+Local implementation, local verification and additional commits are complete for this
+review fix. main/develop, remote pushes, operating DBs and deployment remain unchanged.
+
+The backend follow-up is committed as `dc0b27a`. Frontend follow-up `813795d`
+contains current/pending display, direct historical review links, confirmation cache
+refresh, clarified feature scope and the synthetic browser reproduction helper/tests.
+The subsequent documentation commit records this evidence and supersedes the old
+completion wording. Earlier commits are preserved without amendment.
+
+The later `PR_DEPLOYMENT_READINESS.md` records fixed PR scope, remote/provider
+inspection, owner responsibilities and the independently verified disposable
+Monday-clock browser rehearsal. This synthetic rehearsal does not prove production.

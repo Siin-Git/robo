@@ -134,3 +134,9 @@
 .operationTable tbody th{color:#284665;font-weight:600}
 @media(max-width:850px){.operationGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.operations{padding:21px 16px}.operationGrid{gap:8px}.operationGrid>div{padding:12px}.operationGrid dd{font-size:13px}.operationEvents li{gap:9px}}
+
+.operations>h2{font-size:18px;font-weight:650;color:#284665;margin-bottom:12px}
+.operations :global(.btn-primary){color:white;text-decoration:none}
+.operations :global(.btn-secondary){text-decoration:none}
+
+.fixtureBanner{display:block;position:static;font-size:13px;line-height:1.8}

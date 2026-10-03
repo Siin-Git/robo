@@ -154,7 +154,7 @@ def test_시스템_알림은_모든_사용자에게_보인다(client, env, two_u
 
 
 # --------------------------------------------------------------------------
-# 사용자별 분리 (13명 로그인 시연 전제)
+# 사용자별 분리 (다인원 로그인 시연 전제)
 # --------------------------------------------------------------------------
 
 USER_A = "demo-a@example.com"
@@ -394,7 +394,7 @@ def test_capstone_all_forward_reads_share_design_store_and_isolate_users(client,
         response = client.get("/api/v1/me/ledger/status", cookies=cookie)
         assert response.status_code == 200, response.text
         assert response.json()["has_history"] is False
-    factory = _factory(str(get_database_path()))
+    factory = _factory(f"sqlite:///{get_database_path()}")
     _seed_nav(factory, pa, ["2026-09-27", "2026-09-28"])
     _seed_rebalance(factory, pa, {"buy": .08}, {"buy": .1})
     _seed_event(factory, pa, "ORDER_CREATED", {"asset": "buy"}, seq=80)

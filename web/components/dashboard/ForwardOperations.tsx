@@ -44,7 +44,7 @@ export function ForwardOperations({ latestValuationDate, observations }: {
       <div><dt>다음 정기 리밸런싱 (예정)</dt><dd>{data?.next_rebalance_date ? fmtDate(data.next_rebalance_date) : "운용 기록 대기"}</dd></div>
       <div><dt>최근 평가 상태</dt><dd>{rebalance?.nav_status ?? "상태 정보 대기 중"}</dd></div>
       <div><dt>최근 시장 데이터</dt><dd>{data?.latest_price_date ? fmtDate(data.latest_price_date) : "확인 대기 중"}{data?.data_freshness === "STALE" ? " · 가격 지연" : ""}</dd></div>
-      <div><dt>첫 평가일</dt><dd>{data?.first_valuation_date ? fmtDate(data.first_valuation_date) : "대기 중"}</dd></div>
+      <div><dt>계좌 첫 평가일</dt><dd>{data?.first_valuation_date ? fmtDate(data.first_valuation_date) : "대기 중"}</dd></div>
     </dl>
     <p>예정일은 정기 운용 일정 기준이며, 휴장일에는 실제 가격이 제공되는 거래일에 체결됩니다.</p>
     {status.isError && <p className={s.infoNote} role="alert">운용 상태를 불러오지 못했습니다. <button onClick={() => status.refetch()}>다시 시도</button></p>}
@@ -55,9 +55,9 @@ export function ForwardOperations({ latestValuationDate, observations }: {
       {rebalance && rebalance.status !== "READY" && <p>{waitingLabel[rebalance.status]}</p>}
       {status.isLoading ? <p role="status">비중을 확인하는 중입니다.</p> : rows.length === 0 ? <p>표시할 목표 또는 보유 내역이 없습니다.</p> :
         <div className={s.operationTableWrap}><table className={s.operationTable}><thead><tr><th>자산</th><th>목표 비중</th><th>현재 비중</th><th>Drift 상태</th><th>매매 필요</th><th>대기 주문</th></tr></thead><tbody>
-          {rows.map(row => <tr key={row.asset_id}><th>{assetName(row.asset_id)}</th><td>{row.target_weight == null ? "—" : fmtPct(row.target_weight)}</td><td>{row.current_weight == null ? "—" : fmtPct(row.current_weight)}</td><td>{driftLabel[row.drift_status]}</td><td>{row.action === "HOLD" ? "유지" : row.action ?? "판정 대기"}</td><td>{row.pending_orders.length ? row.pending_orders.map(order => <div key={order.order_id}>{order.side} · {fmtDate(order.effective_at)}</div>) : "없음"}</td></tr>)}
+          {rows.map(row => <tr key={row.asset_id}><th>{assetName(row.asset_id)}</th><td>{row.target_weight == null ? "—" : fmtPct(row.target_weight)}</td><td>{row.current_weight == null ? "—" : fmtPct(row.current_weight)}</td><td>{driftLabel[row.drift_status]}</td><td>{row.action === "HOLD" ? "조정 없음" : row.action ?? "판정 대기"}</td><td>{row.pending_orders.length ? row.pending_orders.map(order => <div key={order.order_id}>{order.side} · {fmtDate(order.effective_at)}</div>) : "없음"}</td></tr>)}
         </tbody></table></div>}
-      <p>매매 필요는 평가일 기준 판정이며, 대기 주문은 이미 생성된 주문입니다.</p>
+      <p>매매 필요의 HOLD는 엔진의 조정 없음 판정이며 사용자 유지 선택과 다릅니다. 대기 주문은 이미 생성된 주문입니다.</p>
     </div>
     <div className={s.operationEvents}><h3>최근 리밸런싱·주문 이벤트</h3>
       {alerts.isLoading ? <p role="status">이벤트를 확인하는 중입니다.</p> : alerts.isError ?

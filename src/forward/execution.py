@@ -56,6 +56,40 @@ def within_band(target_w: float, current_w: float, band: dict | None) -> bool:
     return gap <= limit + 1e-12  # 경계값이 부동소수점 오차로 밖으로 판정되지 않게
 
 
+def plan_orders(target_w: dict, baseline: dict | None = None,
+                band: dict | None = None) -> list[dict]:
+    """주문이 될 자산과 그 판단을 계산한다. DB 를 보지 않고 쓰지도 않는다.
+
+    create_orders 와 dry-run 이 반드시 같은 결론을 내도록 판단을 여기 한 곳에
+    둔다. 따로 구현하면 갈라지고, 그러면 미리 본 것과 실제가 달라진다.
+
+    반환 항목의 action:
+      order      주문을 만든다
+      unchanged  목표와 현재가 같다
+      band       밴드 안이라 건너뛴다
+    """
+    cur = dict(baseline) if baseline is not None else {}
+    apply_band = band is not None and baseline is not None
+    targets = {a: float(w) for a, w in target_w.items() if a != "cash"}
+    # 목표에서 빠진 보유 자산은 목표 0(전량 매도)으로 편입한다.
+    for asset in cur:
+        if asset != "cash" and asset not in targets:
+            targets[asset] = 0.0
+    rows = []
+    for asset, tw in sorted(targets.items()):
+        cw = float(cur.get(asset, 0.0))
+        if abs(tw - cw) < 1e-9:
+            action = "unchanged"
+        elif apply_band and within_band(tw, cw, band):
+            action = "band"
+        else:
+            action = "order"
+        rows.append({"asset": asset, "current": cw, "target": tw,
+                     "drift": tw - cw, "side": "buy" if tw > cw else "sell",
+                     "action": action})
+    return rows
+
+
 def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
                   submitted_at: str, effective_at: str, model_version: str,
                   participant_id=None, kind: str = "REBALANCE",
@@ -76,20 +110,11 @@ def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
     같은 계좌·자산에 같은 effective_at 로 대기 중(pending)인 주문이 이미 있으면
     새로 만들지 않는다. 배치를 두 번 돌려도 체결 전 주문이 중복되지 않는다.
     """
-    cur = dict(baseline) if baseline is not None else {}
-    apply_band = band is not None and baseline is not None
-    # 목표에서 빠진 보유 자산을 목표 0 으로 편입한다(cash 는 잔여로 계산된다).
-    targets = {a: float(w) for a, w in target_w.items() if a != "cash"}
-    for asset in cur:
-        if asset != "cash" and asset not in targets:
-            targets[asset] = 0.0
     oids = []
-    for asset, tw in sorted(targets.items()):
-        cw = cur.get(asset, 0.0)
-        if abs(tw - cw) < 1e-9:
+    for row in plan_orders(target_w, baseline, band):
+        if row["action"] != "order":
             continue
-        if apply_band and within_band(tw, cw, band):
-            continue
+        asset, tw, cw = row["asset"], row["target"], row["current"]
         if con.execute("SELECT 1 FROM orders WHERE account_id = ? AND asset_id = ?"
                        " AND effective_at = ? AND status = 'pending'",
                        (account_id, asset, effective_at)).fetchone():
@@ -164,14 +189,6 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
     tids = []
     for exec_date in sorted(plan):
         nav_pre, qty_now, _ = nav_before_trades(con, account_id, exec_date, capital)
-        # target weights snapshot per order (target at order creation)
-        tgts = {}
-        for o in plan[exec_date]:
-            tw = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                             " AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
-                             (account_id, o["effective_at"])).fetchone()
-            import json
-            tgts[o["order_id"]] = json.loads(tw["weights_json"]) if tw else {}
         # size sequentially in asset order; scale buys if cash would go negative
         pxmap = {}
         for o in plan[exec_date]:
@@ -180,7 +197,7 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
         # two-pass: compute raw deltas, then scale buys to fit cash
         raw = []
         for o in plan[exec_date]:
-            tw = tgts[o["order_id"]].get(o["asset_id"], 0.0)
+            tw = float(o["target_weight"])
             target_qty = tw * nav_pre / pxmap[o["order_id"]]
             raw.append((o, target_qty - qty_now.get(o["asset_id"], 0.0)))
         cash_now = nav_before_trades(con, account_id, exec_date, capital)[2]
