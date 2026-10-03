@@ -5,6 +5,8 @@
 User authorized isolated integration, week 4 operations UI, immutable final decisions,
 expected/actual revision review, explicit KEEP/ADJUST choices, local tests and commits.
 Production changes, main/develop merges and deployment are excluded.
+The later GitHub instruction permits integration-branch push and a develop-target
+Draft PR only; current scope/evidence is in `PR_DEPLOYMENT_READINESS.md`.
 Base: origin/develop c7c6e20; merged origin/feat/forward-ledger b580762.
 Original root and robo checkouts (including existing uncommitted changes) are preserved.
 Merge 2fb3781 retains develop rebalance status and all forward database/execution changes.
@@ -124,8 +126,9 @@ Public `/api/v1/me/ledger/status` returns 404. The target Render server's OpenAP
 returns 200 and includes onboarding and older performance APIs, but excludes ledger
 status, contributions and decisions. Thus deployed backend router coverage is behind
 this integration. The existing Next proxy path `/api/v1` is retained; recreating local
-APIs would not fix that deployed router absence. Render's deployed SHA, source branch,
-DB identity and account settings cannot be verified without the owner's access.
+APIs would not fix that deployed router absence. At that earlier stage, Render SHA/branch/DB settings were unverified. Subsequent
+read-only inspection is in `PR_DEPLOYMENT_READINESS.md`; intended team account
+identity and actual operating DB revision remain open.
 
 The earlier remote daily Action failed with `no such table: themes`; secret names
 exist, but their contents and actual DB identities are not observable. Workflow fixes
@@ -158,7 +161,8 @@ are local and do not prove a successful production job.
 6. Before the deployment steps above, merge the reviewed integration branch to develop
    through team review, then follow the team's release policy for main. Nothing has been
    pushed, merged to those
-   branches or deployed in this work. Backup PR #12 remains a separate main-targeted
+   branches or deployed in that local delivery stage. The later GitHub instruction
+   permits integration push and a Draft PR only. Backup PR #12 remains a separate main-targeted
    change; coordinate its final commits without overwriting this integration.
 
 ## Monday demo and remaining requirements
@@ -197,7 +201,8 @@ Branch: `integration/forward-pg`; workspace: `.work/integration-forward-pg`.
 Merge `2fb3781` preserves both source branches. Backend `ca9fa7d` delivers decisions,
 contracts and execution policy. Frontend `58e8358` delivers connected screens and
 browser tests. The following operations commit contains scheduler alignment,
-PostgreSQL migration/recovery validation and this handoff. No remote push is performed.
+PostgreSQL migration/recovery validation and this handoff. No remote push was performed in that delivery stage; later GitHub preparation
+is recorded separately.
 
 
 ## Independent-review follow-up brief (2026-10-03 KST)
@@ -260,8 +265,9 @@ For a fresh follow-up demo, start the local lab in a new disposable directory as
 then run `.venv/bin/python scripts/seed_pending_decision_fixture.py --directory <dir>`.
 In web run `E2E_PENDING_DECISION=1 E2E_OPERATIONS_DATA_DIR=<dir>
 E2E_BASE_URL=http://127.0.0.1:<web-port> npx playwright test
---config=playwright.operations.config.ts`. This October 3 scenario requires current
-calendar date before the new target's October 5 effectiveness; automated API regressions
+--config=playwright.operations.config.ts`. This scenario uses the running API's actual
+calendar: Oct 3 confirmation is effective Oct 5; Oct 5 confirmation is effective
+Oct 6. Automated API regressions
 control their own clocks and cover both sides of that date independently. The browser
 flow consumes fresh fixture users and must not be rerun against their completed state.
 
@@ -293,8 +299,12 @@ Operating-owner work after review remains separate:
 Local implementation, local verification and additional commits are complete for this
 review fix. main/develop, remote pushes, operating DBs and deployment remain unchanged.
 
-The backend follow-up is committed as `dc0b27a`. Frontend follow-up `813795d
+The backend follow-up is committed as `dc0b27a`. Frontend follow-up `813795d`
 contains current/pending display, direct historical review links, confirmation cache
 refresh, clarified feature scope and the synthetic browser reproduction helper/tests.
 The subsequent documentation commit records this evidence and supersedes the old
 completion wording. Earlier commits are preserved without amendment.
+
+The later `PR_DEPLOYMENT_READINESS.md` records fixed PR scope, remote/provider
+inspection, owner responsibilities and the independently verified disposable
+Monday-clock browser rehearsal. This synthetic rehearsal does not prove production.
