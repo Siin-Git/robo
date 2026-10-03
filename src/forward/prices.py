@@ -110,7 +110,11 @@ def refresh_live(con: sqlite3.Connection, tickers: dict[str, str]) -> dict:
     # aligner: theme:* and core unhedged equities convert; HEDGED set stays local.
     panels = dict(raw)
     if not panels:
-        return {"new_points": 0, "stale": stale, "asof": end}
+        fx_new = fx[fx.index.dayofweek < 5]
+        if have.get('__FX__'):
+            fx_new = fx_new[fx_new.index > pd.Timestamp(have['__FX__'])]
+        points = upsert_prices(con, fx_new.to_frame('__FX__'), 'live-refresh') if not fx_new.empty else 0
+        return {"new_points": points, "stale": stale, "asof": end}
     tmp = align_daily_krw(panels, fx, HEDGED)
     # Never rewrite history: keep only dates beyond existing per-asset coverage.
     keep = pd.DataFrame(index=tmp.index)
@@ -120,6 +124,14 @@ def refresh_live(con: sqlite3.Connection, tickers: dict[str, str]) -> dict:
         if cutoff:
             col = col[col.index > pd.Timestamp(cutoff)]
         keep[aid] = col
+    # Persist observed FX as an input too. Otherwise the next refresh has no
+    # stored fallback when Yahoo returns an empty FX series on a holiday/weekend.
+    # Never overwrite historical FX or change the existing conversion rules.
+    fx_new = fx[fx.index.dayofweek < 5].copy()
+    if have.get('__FX__'):
+        fx_new = fx_new[fx_new.index > pd.Timestamp(have['__FX__'])]
+    keep = keep.reindex(keep.index.union(fx_new.index))
+    keep['__FX__'] = fx_new
     keep = keep.dropna(how="all")
     new_points = upsert_prices(con, keep, source="live-refresh") if not keep.empty else 0
     return {"new_points": new_points, "stale": stale, "asof": end}

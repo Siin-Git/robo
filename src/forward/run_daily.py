@@ -254,7 +254,8 @@ def _execute_daily(con, cfg, today):
     # latch global first execution once (never overwritten)
     latch_first_execution(con, ft["benchmark_version"])
     con.commit()
-    maxdate = con.execute("SELECT MAX(date) m FROM prices_daily").fetchone()["m"]
+    # FX is a conversion input, not an investable close or a NAV observation.
+    maxdate = con.execute("SELECT MAX(date) m FROM prices_daily WHERE asset_id != '__FX__'").fetchone()["m"]
     results = {}
     for a in accounts:
         r = valuate(con, a["account_id"], maxdate, versions,
