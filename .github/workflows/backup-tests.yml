@@ -2,9 +2,9 @@ name: backup restore tests
 
 on:
   push:
-    paths: ['scripts/postgres_backup.py', 'tests/backup/**', '.github/workflows/backup*.yml', 'docs/POSTGRES_BACKUP.md']
+    paths: ['scripts/postgres_backup*.py', 'tests/backup/**', '.github/workflows/backup*.yml', 'docs/POSTGRES_BACKUP.md']
   pull_request:
-    paths: ['scripts/postgres_backup.py', 'tests/backup/**', '.github/workflows/backup*.yml', 'docs/POSTGRES_BACKUP.md']
+    paths: ['scripts/postgres_backup*.py', 'tests/backup/**', '.github/workflows/backup*.yml', 'docs/POSTGRES_BACKUP.md']
 
 permissions:
   contents: read

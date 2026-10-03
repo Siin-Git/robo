@@ -1,0 +1,39 @@
+"""Diagnostics never expose credentials or raw error text."""
+import json
+import pytest
+from scripts.postgres_backup import connection_error
+from scripts.postgres_backup_diagnose import Libpq, compare
+from tests.backup.test_postgres_backup import cluster
+
+@pytest.mark.parametrize('message,code',[
+    ('PRIVATE invalid channel_binding value: "PRIVATE"','CONNECT_CHANNEL_BINDING_INVALID'),
+    ('PRIVATE invalid sslmode value: "PRIVATE"','CONNECT_TLS_MODE_INVALID'),
+    ('PRIVATE invalid target_session_attrs value: "PRIVATE"','CONNECT_TARGET_SESSION_INVALID'),
+    ('PRIVATE channel binding required but unavailable','CONNECT_CHANNEL_BINDING_FAILED'),
+    ('PRIVATE server does not support SSL','CONNECT_TLS_UNAVAILABLE'),
+    ('PRIVATE password authentication failed','CONNECT_AUTH_FAILED'),
+    ('PRIVATE invalid percent-encoded token','CONNECT_URI_ENCODING_INVALID'),
+    ('PRIVATE could not translate host name','CONNECT_DNS_FAILED'),
+    ('PRIVATE timeout expired','CONNECT_TIMEOUT'),
+    ('PRIVATE database "PRIVATE" does not exist','CONNECT_DATABASE_MISSING'),
+    ('PRIVATE unexpected failure','CONNECT_FAILED'),
+])
+def test_fixed_error_codes_only(message,code):
+    assert connection_error(message)==code
+    assert 'PRIVATE' not in connection_error(message)
+
+def test_native_and_converted_use_same_secret_and_read_only_database(cluster,monkeypatch):
+    url=cluster.url+'?application_name=backup%20fixture&channel_binding=prefer&target_session_attrs=read-write&connect_timeout=2'
+    monkeypatch.setenv('BACKUP_AUTH_DATABASE','deliberately-wrong-unrelated-approval')
+    result=compare(url)
+    assert result['same_connected_database']
+    assert all(result['parameter_equivalence'].values())
+    assert result['native']['read_only'] and result['converted']['read_only']
+    assert url not in json.dumps(result)
+    assert result['expected_target_check']=='NOT_APPLIED_CONNECTION_DIAGNOSIS_ONLY'
+
+def test_native_uri_parser_keeps_literal_plus_and_decodes_percent_once():
+    # URI encoding is not HTML form query encoding.
+    parsed=Libpq().parse('postgresql://fixture:p%2B%2525@localhost/db?application_name=a+b%2Bc%20d')
+    assert parsed['password']=='p+%25'
+    assert parsed['application_name']=='a+b+c d'
