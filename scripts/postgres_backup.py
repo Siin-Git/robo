@@ -35,6 +35,17 @@ def tool(command, env=None, code='TOOL_FAILED'):
     except (OSError, subprocess.TimeoutExpired):
         raise BackupError(code) from None
     if result.returncode:
+        if code == 'CONNECT_FAILED':
+            # Never propagate stderr: classify only fixed, nonsecret phrases.
+            reasons = {'channel binding':'CONNECT_CHANNEL_BINDING_FAILED',
+                'password authentication failed':'CONNECT_AUTH_FAILED',
+                'certificate verify failed':'CONNECT_TLS_FAILED',
+                'session is read-only':'CONNECT_TARGET_SESSION_MISMATCH',
+                'could not translate host name':'CONNECT_DNS_FAILED',
+                'timeout expired':'CONNECT_TIMEOUT'}
+            for phrase, reason in reasons.items():
+                if phrase in result.stderr.lower():
+                    raise BackupError(reason) from None
         raise BackupError(code) from None
     return result.stdout
 

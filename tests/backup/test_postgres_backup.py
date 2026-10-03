@@ -252,7 +252,7 @@ def test_nonempty_restore_destination_is_preserved(cluster,tmp_path):
     assert Connection(destination).query('SELECT id FROM must_keep')=='123'
 
 
-def test_version_boundaries_and_neon_pooler_alias():
+def test_version_boundaries_and_neon_pooler_alias(monkeypatch):
     clients={'psql':17,'pg_dump':17,'pg_restore':17}
     with pytest.raises(BackupError,match='SERVER_VERSION_INCOMPATIBLE'):check_version({'server_version_num':'180000'},clients)
     with pytest.raises(BackupError,match='RESTORE_VERSION_INCOMPATIBLE'):check_version({'server_version_num':'140019'},clients,True)
@@ -264,3 +264,10 @@ def test_version_boundaries_and_neon_pooler_alias():
     assert mapped['PGAPPNAME']=='backup-fixture' and mapped['PGCONNECT_TIMEOUT']=='2'
     assert not same_database({'database':'a','database_oid':1,'server_addr':'127.0.0.1','server_port':5432},
         {'database':'b','database_oid':2,'server_addr':'127.0.0.1','server_port':5432})
+    from types import SimpleNamespace
+    from scripts.postgres_backup import tool
+    monkeypatch.setattr(subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=1,stdout='',
+        stderr='PRIVATE_URL_OR_PASSWORD channel binding required but unavailable'))
+    with pytest.raises(BackupError) as failure:
+        tool(['psql'],code='CONNECT_FAILED')
+    assert str(failure.value)=='CONNECT_CHANNEL_BINDING_FAILED'
