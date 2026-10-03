@@ -146,6 +146,15 @@ main 반영은 CI 통과, 실제 Actions 두 대상/권한 확인, main 앱 배�
 - [18로 재검사](https://github.com/Siin-Git/robo/actions/runs/37107828751)는 auth/design
   모두 `INSPECTED_ONLY`. 서로 다른 DB OID, 같은 cluster, 기대 컬럼/PK·조회 접근을
   확인했다. 덤프는 생성하지 않았고 `restore_verified=false`다.
+- 이후 URL의 libpq 보안·대상 옵션 전달을 바로잡은 최종 코드의
+  [연결 재검사](https://github.com/Siin-Git/robo/actions/runs/37109498633)는 인증 DB
+  `INSPECTED_ONLY`, 운용 DB `CONNECT_FAILED`로 부분 실패했다. 반복 검사에서도
+  동일 결과이며, 인증 검사도 상대 DB 식별을 확인하지 못했다. 앞선 양쪽 성공을
+  최종 코드의 운영 준비 완료로 취급하지 않는다. 비밀이 포함될 수 있는 원문 오류는
+  출력하지 않았고 안전한 오류 분류로도 세부 원인은 확인되지 않았다.
+  소유자는 `CAPSTONE_DESIGN_DATABASE_URL`의 실제 endpoint·DB·계정·접근 권한과
+  URL 인코딩, TLS·channel binding·대상 session 옵션을 비공개로 확인해야 한다.
+  원인을 추정해 보안 옵션을 제거하거나 연결값을 채팅에 게시하지 않는다.
 - 현재 `BACKUP_AUTH_HOST/DATABASE`, `BACKUP_DESIGN_HOST/DATABASE`는 미설정.
   관측한 이름·호스트를 자동으로 승인 기준에 복사하지 않았다. 실제 앱의 인증/운용
   연결과 일치하는지는 소유자의 독립 확인이 필요하다.
