@@ -7,9 +7,14 @@ depends_on = None
 def upgrade():
     from alembic import op
     import sqlalchemy as sa
-    # Local ORM workspaces may already have received the additive column.
-    if 'rebalance_frequency' not in {c['name'] for c in sa.inspect(op.get_bind()).get_columns('onboarding_drafts')}:
-        op.add_column("onboarding_drafts", sa.Column("rebalance_frequency", sa.String(16), nullable=True))
+    # Offline migrations only render SQL: their MockConnection cannot inspect
+    # the database. Emit the column for the declared 0007 schema in that mode.
+    # Online local ORM workspaces may already have received the additive column.
+    if not op.get_context().as_sql:
+        columns = sa.inspect(op.get_bind()).get_columns("onboarding_drafts")
+        if "rebalance_frequency" in {column["name"] for column in columns}:
+            return
+    op.add_column("onboarding_drafts", sa.Column("rebalance_frequency", sa.String(16), nullable=True))
 
 def downgrade():
     from alembic import op

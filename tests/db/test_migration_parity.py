@@ -143,3 +143,4 @@ def test_offline_postgres_ddl_renders():
     for token in ("TIMESTAMP WITH TIME ZONE", "JSONB", "NUMERIC(24, 8)", "ON DELETE RESTRICT",
                   "CREATE INDEX ix_trades_account_execution"):
         assert token in r.stdout, token
+    assert r.stdout.count("ALTER TABLE onboarding_drafts ADD COLUMN rebalance_frequency VARCHAR(16)") == 1

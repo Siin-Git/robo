@@ -8,6 +8,40 @@ from .test_lab_meeting import lab, login as lab_login
 from src.api.services import _common as C
 from src.forward.decision_policy import rebalance_frequency
 
+
+@pytest.mark.parametrize('frequency', ['monthly', 'quarterly'])
+def test_0008_adopts_local_column_without_changing_confirmed_history(client, env, identity, frequency):
+    from alembic import command
+    from alembic.config import Config
+    from pathlib import Path
+    from sqlalchemy import text
+
+    cookies, headers = identity
+    fid = client.get('/api/v1/me/frontier', cookies=cookies).json()['benchmark_frontier_id']
+    body = dict(frontier_id=fid, theme_ids=['ai'], reason='preserve original', rebalance_frequency=frequency)
+    assert client.put('/api/v1/me/onboarding/draft', cookies=cookies, headers=headers, json=body).status_code == 200
+    confirmed = client.post('/api/v1/me/onboarding/complete', cookies=cookies, headers=headers, json=body)
+    assert confirmed.status_code == 200, confirmed.text
+    original = client.get('/api/v1/me/decisions', cookies=cookies).json()
+    with env.factory() as session:
+        before = {table: session.execute(text(f'SELECT * FROM {table}')).all()
+                  for table in ('users', 'onboarding_drafts', 'portfolio_decisions', 'portfolio_targets', 'orders')}
+    root = Path(__file__).resolve().parents[2]
+    config = Config(str(root / 'alembic.ini'))
+    config.attributes['database_url'] = f'sqlite:///{env.dbfile}'
+    # Model-created local SQLite already has the nullable column but is behind
+    # the formal revision, just like a local additive upgrade at revision 0007.
+    command.stamp(config, '0007')
+    command.upgrade(config, 'head')
+    command.upgrade(config, 'head')
+    with env.factory() as session:
+        assert {table: session.execute(text(f'SELECT * FROM {table}')).all()
+                for table in before} == before
+        assert session.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0008'
+        assert session.execute(text('PRAGMA foreign_key_check')).all() == []
+    assert client.get('/api/v1/me/decisions', cookies=cookies).json() == original
+    assert client.get('/api/v1/me/portfolio/summary', cookies=cookies).json()['rebalance_frequency'] == frequency
+
 def test_draft_confirmation_reload_login_and_version_preserve_frequency(client, env, identity, monkeypatch):
     cookies, headers = identity
     monkeypatch.setattr(C, 'now_utc', lambda: datetime(2026, 9, 1, tzinfo=timezone.utc))
