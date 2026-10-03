@@ -330,6 +330,17 @@ cover the persistent local SQLite operation. See POSTGRES_BACKUP.md for evidence
 required target/version checks and the separately gated main activation/operating
 recovery status. Existing local apps, operating data and daily LaunchAgent are preserved.
 
+### Read-only connection diagnosis follow-up (2026-10-03)
+
+The user narrowed the task to the design connection failure. Actions run
+37119843115 compared native libpq and the converted environment with the same
+secret/client: malformed URI query, raw controls and an invalid channel-binding
+value were identified; the previously successful code ignored that option.
+Minimal URI validation/encoding corrections and safe diagnosis have 35 local
+backup/restore regression passes. Secrets/security requirements and BACKUP_*
+approval variables were not changed. Main/operating backup remain held; the
+owner must privately correct only the design URI and confirm actual app wiring.
+
 ## Develop integration verification (2026-10-03)
 
 After PR #13 merged as `0366279`, the user requested integrating the completed

@@ -195,7 +195,7 @@ def test_connection_failure_never_prints_url_password_or_raw_error(cluster,tmp_p
     invalid='postgresql://backup_test:REDACTION_TEST_ONLY_SECRET@127.0.0.1:1/missing?connect_timeout=1'
     code,report=invoke('backup',tmp_path,(invalid,design))
     assert code==1 and report['status']=='PARTIAL_SUCCESS'
-    assert report['targets'][0]['error']=='CONNECT_FAILED'
+    assert report['targets'][0]['error']=='CONNECT_REFUSED'
     logged=json.dumps(report)+'\n'+(tmp_path/'robo_auth.json').read_text()
     assert invalid not in logged and 'REDACTION_TEST_ONLY_SECRET' not in logged
     assert (tmp_path/'robo_design.dump').exists()

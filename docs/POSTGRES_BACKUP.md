@@ -88,6 +88,69 @@ UNIQUE·인덱스·시퀀스 값과 다음 ID·함수/트리거를 비교·실�
 컬럼 누락, 접속 실패, 동일 대상, 기대 대상 불일치, 손상 덤프, 실제 SQL 권한 부족
 복원 실패와 전체 rollback, 비어 있지 않은 목적지 보존도 검사한다.
 
+## 연결 실패의 읽기 전용 비교
+
+`backup.yml`을 PR #12 head ref에서 `diagnose_connection=true`로 수동 실행하면
+같은 runner·설치 클라이언트·동일 secret으로 다음 두 방식을 비교한다. 이 입력은
+`inspection_only`나 일반 백업보다 우선하며 덤프·운영 쓰기를 수행하지 않는다.
+
+- 해당 `psql`이 사용하는 공유 libpq로 원래 URI를 직접 파싱·연결한다
+  (`PQconninfoParse`, `PQconnectdbParams`의 expanded dbname).
+- 현재 `Connection`의 URI→환경변수 변환을 거쳐 같은 `psql`로 연결한다.
+- 양쪽에서 `BEGIN READ ONLY` 후 연결 식별/SSL/읽기 전용 상태만 SELECT하고
+  연결을 닫아 rollback한다. URI/자격값은 argv·로그·artifact에 넣지 않는다.
+  원문 오류·notice는 메모리에서 분류하거나 폐기한다. 출력은 파라미터 이름별
+  일치 여부, 고정 오류 코드, 비밀 없는 버전/상태와 DB 식별 fingerprint뿐이다.
+- `BACKUP_*` 승인 변수는 **이 연결 진단에 적용하지 않는다**. 연결 성공이나
+  두 방식의 일치는 실제 앱의 인증/운용 역할과 일치한다는 증거가 아니다.
+  승인값은 앱의 실제 연결을 별도로 확인한 뒤에만 지정한다.
+
+로컬에서도 secret은 환경에만 설정하고 아래처럼 실행할 수 있다.
+
+```sh
+python -m scripts.postgres_backup_diagnose --target design --output-dir /restricted/new-diagnostic
+```
+
+보안/대상 옵션을 제거해 연결을 시도하지 않는다. 고정 오류 코드는 URI 인코딩,
+TLS 모드, channel binding 값/요구, 대상 session 값/불일치, 인증, DNS, 거부,
+timeout, 존재하지 않는 DB 등을 구분하며 미분류는 `CONNECT_FAILED`로 남는다.
+
+### 같은 secret 비교 결과 (2026-10-03)
+
+[상세 비교 실행](https://github.com/Siin-Git/robo/actions/runs/37119843115)의 양쪽 job은
+동일 secret, `psql/pg_dump/pg_restore` 18, 실제 공유 libpq 180006을 사용했다.
+secret 갱신 시각은 이전 성공·실패 실행과 동일하다. 인증은 원래 URI/현재 변환의
+모든 지정 파라미터가 일치하고 같은 DB로 읽기 전용 연결에 성공했다.
+`sslmode=require`, `channel_binding=require`가 유효하며 native client TLS도 확인했다.
+`pg_stat_ssl`의 backend SSL은 proxy 이후 구간이므로 client TLS와 혼동하지 않는다.
+
+운용은 원래 URI의 **query에 여분 `=`**가 있어 native 파싱/연결이
+`CONNECT_URI_EXTRA_EQUALS`로 실패했다. URI에는 제어 문자도 있다. 기존 변환은
+`urlsplit`이 일부 제어 문자를 제거하고 HTML form 방식 query 파서를 사용해
+malformed URI를 통과시켰으며, 변환된 `channel_binding`은 인정되는 값이 아니고
+여분 assignment separator를 포함해 `CONNECT_CHANNEL_BINDING_INVALID`였다.
+값 자체나 원문 오류를 공개하지 않았으므로 붙은 내용의 출처는 단정하지 않는다.
+
+성공 커밋 `5f9e102`은 `PGCHANNEL_BINDING`이라는 잘못된 이름을 사용해 옵션을
+무시했다. `623bb4d`가 공식 이름 `PGCHANNELBINDING`으로 바꾼 뒤 실패한 것은
+유효하지 않은 원래 값이 실제 적용됐기 때문이다. 인증 비밀번호/TLS/network 문제로
+단정할 근거가 없으며, 보안 옵션을 다시 무시해 성공시키지 않는다.
+
+최소 코드 수정은 raw 제어 문자와 잘못된 query separator/percent encoding을
+고정 설정 오류로 거부하고 URI의 literal `+`를 공백으로 바꾸지 않는 것이다.
+encoded `+`, `%`, 공백, `options`의 `=`는 한 번만 percent-decode한다.
+secret은 변경하지 않았다. `BACKUP_*` 승인 변수도 설정하지 않았다.
+
+소유자는 Actions의 **`CAPSTONE_DESIGN_DATABASE_URL`만** 실제 앱의 운용 연결과
+비공개 대조하여 **한 개의 PostgreSQL URI**가 저장됐는지 확인한다. raw 제어 문자,
+URI 외에 붙은 내용과 query의 여분 `=`를 제거해야 하며 원래 host/DB/user/password와
+보안 정책은 유지한다. `channel_binding=require`라면 값은 정확히 `require`여야
+하며 `sslmode=require`도 유지한다. option 값 안의 필요한 예약 문자는 URI 규칙대로
+percent-encode한다. secret 값이나 잘못 붙은 내용을 채팅/공개 로그로 보내지 않는다.
+수정 후 `diagnose_connection=true`를 다시 실행해 양쪽 연결/파라미터 일치를 확인한다.
+그 다음에만 별도 앱 연결 확인을 통해 `BACKUP_*` 승인값을 지정한다.
+main 병합·첫 운영 백업·운영 복원은 계속 보류한다.
+
 ## 실제 운영 덤프의 격리 복원 절차
 
 1. 성공한 auth/design artifact와 **같은 실행의** JSON manifest를 제한된 장소에
@@ -146,15 +209,17 @@ main 반영은 CI 통과, 실제 Actions 두 대상/권한 확인, main 앱 배�
 - [18로 재검사](https://github.com/Siin-Git/robo/actions/runs/37107828751)는 auth/design
   모두 `INSPECTED_ONLY`. 서로 다른 DB OID, 같은 cluster, 기대 컬럼/PK·조회 접근을
   확인했다. 덤프는 생성하지 않았고 `restore_verified=false`다.
-- 이후 URL의 libpq 보안·대상 옵션 전달을 바로잡은 최종 코드의
+- 이후 URL의 libpq 보안·대상 옵션 전달을 바로잡은 당시 코드의
   [연결 재검사](https://github.com/Siin-Git/robo/actions/runs/37109498633)는 인증 DB
   `INSPECTED_ONLY`, 운용 DB `CONNECT_FAILED`로 부분 실패했다. 반복 검사에서도
   동일 결과이며, 인증 검사도 상대 DB 식별을 확인하지 못했다. 앞선 양쪽 성공을
-  최종 코드의 운영 준비 완료로 취급하지 않는다. 비밀이 포함될 수 있는 원문 오류는
-  출력하지 않았고 안전한 오류 분류로도 세부 원인은 확인되지 않았다.
-  소유자는 `CAPSTONE_DESIGN_DATABASE_URL`의 실제 endpoint·DB·계정·접근 권한과
-  URL 인코딩, TLS·channel binding·대상 session 옵션을 비공개로 확인해야 한다.
-  원인을 추정해 보안 옵션을 제거하거나 연결값을 채팅에 게시하지 않는다.
+  운영 준비 완료로 취급하지 않는다. 비밀이 포함될 수 있는 원문 오류는
+  출력하지 않아 그때는 세부 원인을 확인하지 못했다. 이후 위의 같은 secret 비교로
+  malformed query·제어 문자와 기존 코드의 옵션 무시/URI 변형을 확인했다.
+  보안 옵션은 유지하며 소유자의 조치는 위 `CAPSTONE_DESIGN_DATABASE_URL` 항목을 따른다.
+- 진단/URI 수정 후 폐기 PostgreSQL 로컬 회귀 **35 passed**. 읽기 전용 동일 DB 비교,
+  비밀 없는 오류/옵션 형태, literal/encoded `+`·`%`·공백·`options`의 `=`,
+  제어 문자와 잘못된 query 거부를 기존 실제 복원 시험과 함께 검증했다.
 - 현재 `BACKUP_AUTH_HOST/DATABASE`, `BACKUP_DESIGN_HOST/DATABASE`는 미설정.
   관측한 이름·호스트를 자동으로 승인 기준에 복사하지 않았다. 실제 앱의 인증/운용
   연결과 일치하는지는 소유자의 독립 확인이 필요하다.

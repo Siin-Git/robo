@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
-from urllib.parse import parse_qsl, unquote, urlsplit
+from urllib.parse import unquote, urlsplit
 
 SUPPORTED_MAJORS = range(14, 19)
 TARGETS = {'auth': 'DATABASE_URL', 'design': 'CAPSTONE_DESIGN_DATABASE_URL'}
@@ -29,6 +29,43 @@ REQUIRED = {
 class BackupError(Exception):
     """Only constant error codes are safe for logs."""
 
+def connection_error(stderr):
+    """Classify in memory; never return captured text or matched values."""
+    text = stderr.lower()
+    reasons = (
+        ('invalid channel_binding value', 'CONNECT_CHANNEL_BINDING_INVALID'),
+        ('invalid sslmode value', 'CONNECT_TLS_MODE_INVALID'),
+        ('invalid target_session_attrs value', 'CONNECT_TARGET_SESSION_INVALID'),
+        ('invalid percent-encoded token', 'CONNECT_URI_ENCODING_INVALID'),
+        ('forbidden value %00', 'CONNECT_URI_ENCODING_INVALID'),
+        ('unexpected spaces found', 'CONNECT_URI_UNENCODED_SPACE'),
+        ('extra key/value separator', 'CONNECT_URI_EXTRA_EQUALS'),
+        ('missing key/value separator', 'CONNECT_URI_MISSING_EQUALS'),
+        ('missing "=" after', 'CONNECT_URI_SYNTAX_INVALID'),
+        ('unterminated quoted string', 'CONNECT_URI_SYNTAX_INVALID'),
+        ('invalid connection option', 'CONNECT_URI_PARAMETER_INVALID'),
+        ('invalid uri query parameter', 'CONNECT_URI_PARAMETER_INVALID'),
+        ('channel binding', 'CONNECT_CHANNEL_BINDING_FAILED'),
+        ('password authentication failed', 'CONNECT_AUTH_FAILED'),
+        ('no password supplied', 'CONNECT_PASSWORD_MISSING'),
+        ('certificate verify failed', 'CONNECT_TLS_FAILED'),
+        ('server does not support ssl', 'CONNECT_TLS_UNAVAILABLE'),
+        ('ssl connection is required', 'CONNECT_TLS_REQUIRED'),
+        ('session is read-only', 'CONNECT_TARGET_SESSION_MISMATCH'),
+        ('session is not read-only', 'CONNECT_TARGET_SESSION_MISMATCH'),
+        ('could not translate host name', 'CONNECT_DNS_FAILED'),
+        ('connection refused', 'CONNECT_REFUSED'),
+        ('timeout expired', 'CONNECT_TIMEOUT'),
+        ('connection timed out', 'CONNECT_TIMEOUT'),
+        ('endpoint is disabled', 'CONNECT_ENDPOINT_DISABLED'),
+    )
+    for phrase, code in reasons:
+        if phrase in text:
+            return code
+    if re.search(r'database [^\n]* does not exist', text):
+        return 'CONNECT_DATABASE_MISSING'
+    return 'CONNECT_FAILED'
+
 def tool(command, env=None, code='TOOL_FAILED'):
     try:
         result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=1800)
@@ -36,16 +73,7 @@ def tool(command, env=None, code='TOOL_FAILED'):
         raise BackupError(code) from None
     if result.returncode:
         if code == 'CONNECT_FAILED':
-            # Never propagate stderr: classify only fixed, nonsecret phrases.
-            reasons = {'channel binding':'CONNECT_CHANNEL_BINDING_FAILED',
-                'password authentication failed':'CONNECT_AUTH_FAILED',
-                'certificate verify failed':'CONNECT_TLS_FAILED',
-                'session is read-only':'CONNECT_TARGET_SESSION_MISMATCH',
-                'could not translate host name':'CONNECT_DNS_FAILED',
-                'timeout expired':'CONNECT_TIMEOUT'}
-            for phrase, reason in reasons.items():
-                if phrase in result.stderr.lower():
-                    raise BackupError(reason) from None
+            raise BackupError(connection_error(result.stderr)) from None
         raise BackupError(code) from None
     return result.stdout
 
@@ -60,6 +88,9 @@ class Connection:
     def __init__(self, url):
         if not url:
             raise BackupError('CONFIG_MISSING')
+        # urlsplit silently strips raw LF/CR/TAB. Never join secret lines.
+        if any(ord(c)<32 or ord(c)==127 for c in url):
+            raise BackupError('CONFIG_URI_CONTROL_CHARACTERS')
         try:
             parsed = urlsplit(url)
             if parsed.scheme not in ('postgres', 'postgresql', 'postgresql+psycopg'):
@@ -77,7 +108,15 @@ class Connection:
                 'sslkey':'PGSSLKEY','sslcrl':'PGSSLCRL','channel_binding':'PGCHANNELBINDING',
                 'options':'PGOPTIONS','connect_timeout':'PGCONNECT_TIMEOUT',
                 'target_session_attrs':'PGTARGETSESSIONATTRS','application_name':'PGAPPNAME'}
-            params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+            # libpq URIs use percent encoding, not HTML form '+' decoding.
+            params = {}
+            for field in parsed.query.split('&') if parsed.query else []:
+                if field.count('=') != 1:
+                    raise BackupError('CONFIG_URI_QUERY_SEPARATOR_INVALID')
+                key, value = field.split('=', 1)
+                if re.search(r'%(?![0-9a-fA-F]{2})', field) or '%00' in field.lower():
+                    raise BackupError('CONFIG_URI_ENCODING_INVALID')
+                params[unquote(key)] = unquote(value)
             if set(params) - set(libpq_keys):
                 raise ValueError()
             self.env.update({libpq_keys[k]:v for k,v in params.items()})
