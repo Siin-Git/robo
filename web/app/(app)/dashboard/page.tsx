@@ -14,6 +14,7 @@ import s from "./dashboard.module.css";
 import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
 import { useComparisonMode } from "@/lib/api/use-comparison-mode";
+import { LedgerHistory } from "@/components/dashboard/LedgerHistory";
 import { ForwardOperations } from "@/components/dashboard/ForwardOperations";
 
 export default function DashboardPage() {
@@ -46,10 +47,13 @@ function LegacyDashboardPage() {
   const m=report?.metrics;
   const portfolioHref = "/portfolio";
   return <AppShell headerTitle="포트폴리오 운용 성과" softBackground><div className={s.page}>
-    <header className={s.header}><div><span className={s.eyebrow}>FORWARD LEDGER</span><h1>포트폴리오 운용 성과</h1><p>실제 시장 가격으로 기록한 모의운용 평가액을 CORE와 비교하고, 위험과 수익 기여도를 확인합니다.</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link>{DEMO_MODE && <Link className={s.outlineLink} href="/dashboard?source=demo">시연 비교 데이터 보기</Link>}<Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
+    <header className={s.header}><div><span className={s.eyebrow}>FORWARD LEDGER</span><h1>포트폴리오 운용 성과</h1><p>실제 시장 가격으로 기록한 모의운용 평가액을 CORE와 비교하고, 위험과 수익 기여도를 확인합니다.</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link><Link className={s.outlineLink} href="/review">최초 예상·실제 검토</Link>{DEMO_MODE && <Link className={s.outlineLink} href="/dashboard?source=demo">시연 비교 데이터 보기</Link>}<Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
     <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시 · 가상 데이터":"Forward 운용 기록"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
     {example&&<div className={s.exampleBanner} role="status"><Info size={19}/><div><strong>DEMO / EXAMPLE · 가상 데이터</strong><span>확정한 포트폴리오의 성과가 아닙니다. 시연용 가상 데이터이며 랭킹에 반영되지 않습니다.</span></div><button onClick={()=>{setExample(false);setSelected(null);}}>내 모의운용 기록으로 돌아가기</button></div>}
     {!example && <ForwardOperations latestValuationDate={query.data?.end ?? null} observations={query.data?.observations ?? null}/>}
+    {!example && report?.data_kind === "TEST_FIXTURE" && <p className={`${s.exampleBanner} ${s.fixtureBanner}`} role="status">검증용 합성 데이터 · 실제 운용 기록이 아닙니다. 장기 성과나 발표 실적의 근거로 사용하지 않습니다.</p>}
+    {!example && <LedgerHistory/>}
+    {!example && report?.comparators && <section className={s.operations} aria-label="같은 기간 비교"><h2>같은 관측 기간의 비교 기준</h2><p>{report.start ?? "기록 대기"} — {report.end ?? "기록 대기"}</p><ul>{report.comparators.map(c=><li key={c.key}>{c.label}: {c.status === "AVAILABLE" ? fmtReturn(c.return) : c.reason === "BENCHMARK_DEFINITION_NOT_CONFIGURED" ? "비교 불가 · 기준 포트폴리오 정의 미정" : "비교 불가 · 같은 기간 데이터 부족"}{c.source === "REFERENCE_PRICE_REPLAY_GROSS" && " · 실제 계좌 운용 아님 / 거래비용 제외"}</li>)}</ul></section>}
     {!example&&query.isLoading?<LoadingSkeleton rows={6}/>:!example&&query.isError?<ErrorState message="성과 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/>:<>
       {ready && <div className={s.kpis}>
         <Metric label="내 누적수익률" value={fmtReturn(m?.cumulative_return)} hint={ready?`${fmtDate(report?.start)} — ${fmtDate(report?.end)}`:"첫 평가액 이후의 변화"} primary/>
@@ -75,7 +79,7 @@ function LegacyDashboardPage() {
       </>}
       <details className={s.details}><summary>성과와 기여도는 어떻게 계산하나요?</summary><div className={s.method}>
         <p><strong>성과 기준</strong> 원화 기준 모의운용 평가액을 사용하며, 선택 기간 첫 평가액을 출발점으로 계산합니다. 첫 기록 이전의 손익·비용은 포함하지 않습니다. 입출금이 없는 현재 모의계좌를 기준으로 합니다.</p>
-        <p><strong>비교 기준</strong> 시스템 기준 CORE입니다. 고객이 선택한 기본 구성과는 다를 수 있습니다. 같은 시작일과 종료일 기록이 없으면 비교 수익률을 표시하지 않습니다. 내 기본 구성의 별도 운용 이력은 아직 연결되지 않았습니다.</p>
+        <p><strong>비교 기준</strong> 시스템 기준 CORE입니다. 고객이 선택한 기본 구성과는 다를 수 있습니다. 같은 시작일과 종료일 기록이 없으면 비교 수익률을 표시하지 않습니다. 사용자 선택 기본 구성은 가격 자료가 있는 같은 기간에 매수 후 보유 기준으로 비교하며, 실제 계좌 운용이나 거래비용을 포함한 결과는 아닙니다.</p>
         <p><strong>기여도</strong> 자산 평가액 변화에서 순매수 금액을 제외해 손익을 계산한 뒤, 기간 시작 평가액으로 나눠 누적합니다. 거래비용은 별도 표시하며, 합계는 전체 누적수익률과 대조합니다.</p>
         <p><strong>미설명 차이</strong> 보유 내역 누락이나 장부 차이로 자산에 배분할 수 없는 손익입니다. 특정 자산의 수익으로 배분하지 않습니다. 현금은 현재 모의계좌에서 이자를 발생시키지 않습니다.</p>
         {report&&<p><strong>데이터 상태</strong> 미설명 구간 {report.quality.unresolved_intervals}개 · 오래된 가격 평가일 {report.quality.stale_observations}개 · 평일 평가 공백 {report.quality.missing_nav_dates}개</p>}

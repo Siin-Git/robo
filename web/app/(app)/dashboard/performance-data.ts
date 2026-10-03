@@ -6,11 +6,13 @@ export const PERIODS = [{key:"1M",label:"1개월"},{key:"3M",label:"3개월"},{k
 export type Period = typeof PERIODS[number]["key"];
 export type Asset = {asset_id:string;group:string;contribution:number;average_weight:number|null;price_return:number|null};
 export interface Report {
+  data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION";
   status:string;period:string;start:string|null;end:string|null;since:string|null;observations:number;benchmark_name:string;
   metrics:{cumulative_return:number|null;benchmark_return:number|null;difference_pp:number|null;mdd:number|null;volatility:number|null;tracking_error:number|null;information_ratio:number|null};
   series:{date:string;personal:number;benchmark:number|null;drawdown:number}[];
   attribution:{date:string;values:Record<string,number>;total:number}[];
   assets:Asset[];
+  comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string}[];
   quality:{unresolved_intervals:number;stale_observations:number;missing_nav_dates:number;benchmark_complete:boolean};
 }
 export const GROUPS:Record<string,{name:string;color:string}> = {
