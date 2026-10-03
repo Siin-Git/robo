@@ -37,3 +37,4 @@ data/archive/
 # Dependency symlinks in isolated worktrees
 /.venv
 /web/node_modules
+web/.next-monday-demo/

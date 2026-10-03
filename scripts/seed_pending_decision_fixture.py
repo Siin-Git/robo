@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=Path, required=True)
+    parser.add_argument('--account-index', type=int, default=0)
     args = parser.parse_args()
     directory = args.directory.resolve()
     if not directory.is_relative_to(Path('/private/tmp')):
@@ -32,7 +33,10 @@ def main():
     from fastapi.testclient import TestClient
     from src.api.main import app
     from src.api.services import _common as common
-    account = json.loads((directory/'accounts.json').read_text())['accounts'][0]
+    accounts = json.loads((directory/'accounts.json').read_text())['accounts']
+    if not 0 <= args.account_index < len(accounts):
+        parser.error('Account index is outside this fresh lab cohort.')
+    account = accounts[args.account_index]
     with TestClient(app) as client:
         assert client.post('/api/v1/auth/login',json={'email':account['email'],'password':account['password']}).status_code == 200
         existing = client.get('/api/v1/me/decisions').json()['items']
@@ -48,7 +52,8 @@ def main():
     subprocess.run([sys.executable,str(ROOT/'scripts/seed_integration_fixture.py'),
         '--database',str(directory/'portfolio_design.db'),'--account',original['account_id']],
         cwd=ROOT,check=True,env={**os.environ,'APP_PROFILE':'validation','CAPSTONE_DEMO':'0'})
-    (directory/'pending-fixture.json').write_text(json.dumps({'original':original},indent=2))
+    name = 'pending-fixture.json' if args.account_index == 0 else f'pending-fixture-{args.account_index}.json'
+    (directory/name).write_text(json.dumps({'original':original},indent=2))
     print('TEST_FIXTURE only; immutable synthetic original decision and past valuations created.')
 
 
