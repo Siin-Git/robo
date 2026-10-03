@@ -29,6 +29,9 @@ LaunchAgent를 보존했다. 푸시·병합·배포·운영 DB 변경은 하지 
   판단의 주기를 사용한다. 금융 판정·주문 계획·가격·거래 보호·중복 방지는 기존 엔진이다.
 
 `0008`은 nullable 초안 컬럼의 additive migration이다. 과거 판단을 채우지 않는다.
+온라인에서는 기존 컬럼을 확인해 로컬 추가 업그레이드와 중복되지 않게 적용한다.
+오프라인에서는 DB 조회 없이 선언된 0007 스키마에 대한 `ADD COLUMN` SQL을 생성한다.
+오프라인 SQL은 대상 스키마를 검사하거나 임의의 기존 DB에 대한 중복 실행을 보장하지 않는다.
 SQLite 추가 업그레이드 및 이후 Alembic 적용은 폐기용 DB에서 검증했다.
 실제 로컬/원격 DB에는 적용하지 않았다. 프론트는 주기 계약이 없는 API에서 설정 진행을
 막고, 저장/확정 응답이 선택값을 확인해 주어야 성공 처리한다.
@@ -45,11 +48,50 @@ SQLite 추가 업그레이드 및 이후 Alembic 적용은 폐기용 DB에서 �
 
 ## 실행한 검증
 
-- Python 3.11 전체 `pytest tests -q`: **504 passed, 16 skipped**.
-  폐기용 PostgreSQL URL이 필요한 API/DB/복원 검사는 이번 실행에서 건너뛰었다.
-- 마지막 스키마 회귀 추가 후 `test_legacy_design_upgrade.py` 및
-  `test_migration_covers_models.py` 재검사: **10 passed**. 최종 API/배치/기존 원장/스키마 관련 재검사는 **51 passed**이며,
-  추가 예정일 경계 검증을 포함한 주기 API 재검사도 **8 passed**다.
+### 0008 오프라인 회귀 수정 (2026-10-04)
+
+`72dbb2f`에서 기존 `test_offline_postgres_ddl_renders`를 다시 실행해
+MockConnection inspection 실패를 재현했다. 이전 **504 passed / 16 skipped**는
+0008의 마지막 변경 전 결과여서 해당 최종 커밋의 검증 근거로 사용할 수 없었다.
+이번 결과가 이전 백엔드 결과를 대체한다. 코드·테스트 수정 커밋은 `9da434c`다.
+
+- Python **3.11.15**, 최종 `python -m pytest tests -q -ra`: **528 passed,
+  0 failed, 0 skipped**. 기존 라이브 PostgreSQL API/DB/인증·운용 분리/실제 복원 검사까지
+  포함한다. 기존 deprecation 경고 22개가 있으며 실패로 처리되지는 않는다.
+- 관련 마이그레이션·모델 대조·주기 API 검사 **30 passed**, 개인별 배치 검사 **1 passed**.
+  요청한 오프라인 PostgreSQL 재현 테스트도 **1 passed**다.
+- 오프라인 SQL 생성은 inspection을 수행하지 않는다. 기존 테스트의 모든 검사를 유지하고,
+  0008의 실제 `ADD COLUMN` SQL이 정확히 한 번 포함되는지도 검증한다.
+- 새 빈 SQLite의 전체 upgrade 및 downgrade, 0007 → 0008 직접 upgrade,
+  로컬에 컬럼이 이미 있는 null/monthly/quarterly 상태의 upgrade·반복 upgrade를 검증했다.
+  초안 내용·시각·운용 메타데이터, 저장된 주기와 nullable 계약을 보존한다.
+- 실제 API로 저장·확정한 monthly/quarterly 사용자에 대해 로컬 모델 생성 스키마를
+  0007로 stamp한 뒤 0008을 적용했다. 사용자·초안·불변 판단·목표·주문 행의 전후 일치,
+  판단 조회·확정 주기 조회, 외래키 정합성을 검증했다. stamp는 폐기용 테스트 DB에서만 수행했다.
+- PostgreSQL **14.19**의 전용 폐기용 클러스터(127.0.0.1:55494)에서도 새 DB,
+  0007 → 0008, 컬럼이 미리 있는 monthly/quarterly 상태를 검증했다.
+  전체 오프라인 생성 SQL을 별도 빈 DB에 `psql -v ON_ERROR_STOP=1`로 실제 적용했고,
+  모든 경로에서 0008 revision·단일 nullable 컬럼·기존 값 보존을 확인했다.
+  생성 SQL의 목차/문자열 확인만으로 적용 성공을 보고하지 않았다.
+- 이번 수정은 migration 및 백엔드 회귀 테스트만 변경했다. 아래 프론트·브라우저 결과는
+  기존 기능 커밋의 검사 결과이며 이번 후속 수정에서 재실행하지 않았다.
+
+폐기용 PostgreSQL 검사 코드·생성 SQL·결과 JSON·전체 테스트 로그는
+`/private/tmp/robo-migration-0008-g_738wxd/`에 남겼다. 실제 로컬 운용 DB,
+기존 5432 PostgreSQL, Render/원격 DB는 사용하거나 변경하지 않았다.
+최종 전체 로그는 `backend-final-allpg-9da434c.log`다. 처음 전체 실행은 분리 DB 변수
+미지정으로 527 passed/1 skipped였고, 해당 검사를 별도로 통과한 다음 새 DB를 준비해
+전체를 528 passed/0 skipped로 재실행했다. 기존 테스트를 삭제하거나 skip 조건을 바꾸지 않았다.
+
+전체 재현에는 오직 폐기용 PostgreSQL에 대한 `TEST_DATABASE_URL`,
+`TEST_AUTH_DATABASE_URL`, `TEST_DESIGN_DATABASE_URL`, `BACKUP_TEST_ADMIN_URL`을 지정하고,
+PostgreSQL 14.19 도구를 PATH에 넣어 `BACKUP_REQUIRE_RESTORE_TESTS=1`로 실행했다.
+기본 `DATABASE_BACKEND=sqlite`, `DATABASE_URL=''`, `CAPSTONE_DESIGN_DATABASE_URL=''`로
+앱의 원격 설정 유입도 차단했다. 실행 후 테스트 클러스터만 종료하며 산출물은 Git에 포함하지 않는다.
+후속 인수 문서 커밋은 실행 코드·테스트를 바꾸지 않는다.
+
+### 초기 기능의 화면 검증
+
 - 사용자 격리·초안/확정 저장·반복 요청·재로그인·불변 버전·효력일 전후 주기,
   개인별 monthly/quarterly·전역 quarterly gate·분기말·dry-run 읽기 전용 검증 포함.
 - 프론트 **62 passed (13 files)**, `tsc --noEmit` 및 Next.js 프로덕션 빌드 통과.

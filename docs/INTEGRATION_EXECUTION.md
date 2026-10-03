@@ -359,6 +359,27 @@ Production deployment, main, remote DBs and backup PR #12 remain separate.
 사용자별 저장 경로가 없었던 점을 확인하고 기존 onboarding API·immutable 판단 JSON·
 월간 엔진의 기존 주기 판정을 최소 보완했다. 변경/검증/시연 경로와 예약 실행의 한계는
 [INITIAL_REBALANCE_SETTINGS.md](INITIAL_REBALANCE_SETTINGS.md)에 기록했다.
-전체 백엔드 504 passed/16 skipped, 추가 스키마 회귀 10 passed, 프론트 62 passed,
-타입 검사/프로덕션 빌드와 데스크톱·모바일 E2E 2 passed.
+이전 백엔드 504 passed/16 skipped 보고는 0008의 마지막 변경을 포함하지 못했으므로
+아래 회귀 수정의 최종 결과로 대체한다. 기존 프론트 62 passed, 타입 검사/프로덕션 빌드와
+데스크톱·모바일 E2E 2 passed는 초기 기능 커밋의 화면 검사이며 이번 백엔드 수정에서 재실행하지 않았다.
 기존 실제 앱·운용 DB·예약 실행·원격 설정은 그대로 유지했으며 푸시·병합·배포는 하지 않았다.
+
+### 0008 오프라인 마이그레이션 회귀 수정
+
+`72dbb2f`의 기존 오프라인 PostgreSQL DDL 검사가 MockConnection inspection으로
+실패함을 재현했다. `9da434c`는 SQL 생성 시 inspection 없이 ADD COLUMN을 생성하고,
+온라인에서는 기존 컬럼 감지를 유지한다. 기존 테스트를 보존하고 회귀 6개와
+필수 ALTER SQL 검사를 추가했다. nullable 기존 값·저장 주기·불변 판단·사용자·목표·주문을 보존한다.
+
+Python 3.11.15 최종 전체 백엔드 **528 passed / 0 failed / 0 skipped**.
+마이그레이션·모델·주기 API 관련 **30 passed**, 개인별 배치 **1 passed**.
+새 SQLite 전체 적용/되돌리기, 0007 upgrade, 컬럼 사전 추가 후 반복 upgrade를 검증했다.
+별도 PostgreSQL 14.19(127.0.0.1:55494)의 새 DB·0007·사전 컬럼/주기를 검증했고,
+오프라인 생성 SQL도 빈 DB에 오류 시 중단 설정으로 실제 적용했다.
+기존 라이브 PG API/DB/인증·운용 분리/복원 검사도 최종 전체 실행에 포함했다.
+
+증거는 [INITIAL_REBALANCE_SETTINGS.md](INITIAL_REBALANCE_SETTINGS.md) 및
+`/private/tmp/robo-migration-0008-g_738wxd/`에 있다. 폐기용 클러스터만 종료하고,
+기존 5432 DB·로컬 앱/운용 기록/자동 적립·Render/원격 DB는 변경하지 않았다.
+테스트 생성 보고서/계산 산출물은 원복하고 이 수정 및 인수 문서만 로컬 커밋한다.
+푸시·병합·배포는 하지 않는다. 후속 문서 커밋에는 실행 코드 변경이 없다.
