@@ -27,6 +27,9 @@ never given invented original estimates. Unconfirmed capstone participants canno
 Annual model expectations are not subtracted from short cumulative realized returns.
 Missing/incompatible metrics include reasons. 3/6 month windows are calendar anniversaries
 of the first eligible valuation; period-not-reached is explicit and no results are fabricated.
+Expected-versus-actual metric differences are currently ALWAYS NOT_COMPARABLE with
+null differences. Elapsed time alone cannot complete comparison: matching period,
+units, reference and sampling definitions require a further agreed design and implementation.
 
 ## External dependencies
 
@@ -46,7 +49,8 @@ Validation details and remaining dependencies are updated at delivery.
 - Rebalance: reuse `/me/ledger/status.rebalance`; no duplicate `/me/rebalance`.
   Ledger query (`ledger-read-v2`) supplies KRW NAV/cash/holdings, index-100 NAV,
   quantities, prices, order/trade history. Performance and contributions share
-  the latest decision's effective-date window and existing calculation engines.
+  the current KST-effective decision's window and existing calculation engines.
+  Future confirmations remain pending and do not replace this report's decision.
 - Decisions: `GET /me/decisions`, `GET /me/decisions/{id}/review`.
   Migration 0007 stores exact confirmed weights, annual model metrics with
   units/basis/frequency, user/account/target/version links, artifact and price
@@ -54,6 +58,7 @@ Validation details and remaining dependencies are updated at delivery.
 - Choices: `GET/POST /me/portfolio/choices`. Ownership, stale version, pending
   orders and repeated request keys are checked. KEEP records retaining composition;
   batches enforce confirmed weights independently of whether KEEP was clicked.
+  KEEP/ADJUST are composition/redesign choices, not order approval/rejection.
   KEEP is not an execution pause. ADJUST does not place orders; its choice ID is
   attached to the next confirmed decision. Pending orders block redesign confirmation.
 - Weekly processing cannot rewrite a managed decision's composition. Daily processing
@@ -66,7 +71,7 @@ Validation details and remaining dependencies are updated at delivery.
   captured base weights and identical actual observation endpoints. CORE comparison
   uses the recorded reference account. Neither is presented as a market/safe asset.
 
-Validation:
+Initial delivery validation (before independent review; current follow-up results below):
 
 | Check | Result / evidence |
 | --- | --- |
@@ -173,13 +178,17 @@ Priority through Wednesday:
 3. Agree and supply frozen market/safe benchmark definitions and price data. Until
    then APIs/UI explicitly return `BENCHMARK_DEFINITION_NOT_CONFIGURED`; these two
    comparisons remain incomplete. Selected base and recorded CORE are connected.
-4. Accumulate eligible real observations. Short history cannot provide long-horizon
-   performance or annual-model-versus-realized differences with mismatched definitions.
-   3/6 month persistence/query and not-reached states are implemented; actual periods
-   have not elapsed. Legacy initial estimates remain unavailable.
+4. Accumulate eligible real observations for actual outcome tracking. Separately agree
+   and implement period/unit/reference/sampling alignment for expected-versus-actual
+   differences. The current API ALWAYS returns NOT_COMPARABLE and null differences,
+   even when a tracking horizon is reached. 3/6 month persistence/query and not-reached
+   states are implemented; actual periods have not elapsed. Legacy initial estimates
+   remain unavailable. KEEP/ADJUST do not implement order approval or rejection.
 
-Code implementation and local integration verification are complete for the delivered
-scope. Production deployment verification remains incomplete. No completion percentage
+The delivered implementation covers immutable judgments, observed-results review and
+composition/redesign choices. Numeric expected-versus-actual differences, order
+approval/rejection and undefined market/safe benchmarks are outside that completion
+claim. Code implementation and local verification are complete only for this scope. Production deployment verification remains incomplete. No completion percentage
 or unsupported implementation duration is asserted.
 
 ## Commit handoff
@@ -189,3 +198,103 @@ Merge `2fb3781` preserves both source branches. Backend `ca9fa7d` delivers decis
 contracts and execution policy. Frontend `58e8358` delivers connected screens and
 browser tests. The following operations commit contains scheduler alignment,
 PostgreSQL migration/recovery validation and this handoff. No remote push is performed.
+
+
+## Independent-review follow-up brief (2026-10-03 KST)
+
+Problem: confirming a revision effective on 2026-10-05 immediately switched the
+2026-10-03 dashboard start date and hid two existing valuations. The selected-base
+comparison independently used the latest confirmation, so simply fixing the NAV
+filter would still compare against the wrong base snapshot.
+
+Primary journey: view v1 performance -> confirm future v2 -> keep seeing v1 performance,
+contributions and captured base -> inspect pending v2 -> on its effective date show
+v2's own observations (including 0/1 insufficient states) -> revisit preserved v1.
+
+Acceptance and decisions:
+
+- Determine current operation by KST calendar effective date, not confirmation order
+  or most recent valuation date. "Current" does not assert that a fill has occurred.
+- Return `decision_context` with active/pending/previous summaries and report ID/window.
+  Both dashboard and contribution endpoints use this common resolver. Reference
+  comparison uses that report ID and actual observed endpoints without picking latest.
+- Before effectiveness preserve the existing active performance. At effectiveness
+  switch the reporting decision even if new valuations are absent; do not label old
+  returns as new performance. Keep a direct previous-decision detail link.
+- Managed dashboard windows exclude future valuations. Explicit decision details keep
+  their own original-effective-to-successor-effective historical window.
+- Test before/after effectiveness, 0/1/2 new valuations, UTC-to-KST midnight, initial
+  pending user, ALL/1M contracts, selected base selection and historical details.
+- Confirmation invalidates cached decision reviews along with dashboard/decision queries,
+  so successor-window metadata is refreshed during the ordinary navigation flow.
+- UI and handoff must say KEEP/ADJUST are composition/redesign choices, not order
+  approval/rejection, and current expected/actual metrics are all NOT_COMPARABLE.
+- No finance-rule changes, migrations, operating DB writes, merges to main/develop,
+  push, deployment, or modifications to backup PR #12. Reuse this worktree/history.
+
+This follow-up supersedes the earlier claim that "latest confirmed" anchors the
+performance window. Earlier PostgreSQL migration/restore evidence remains fixture-only.
+
+Follow-up validation and reproduction evidence:
+
+| Check | Follow-up result |
+| --- | --- |
+| Exact reproduction before patch | Regression failed as expected: `observations` became 0 after future confirmation; expected 2 |
+| Same reproduction after patch | 2 -> 2; return metrics unchanged; selected-base comparison remains AVAILABLE, preserves its original return and decision ID |
+| Effective-date and insufficient-history regression | 8 tests passed: ALL/1M, before effectiveness, future records excluded, 0/1/2 new valuations after effectiveness, KST midnight, initial pending user, preserved previous details and matching reference snapshots |
+| Full Python suite with disposable PostgreSQL | **470 passed**, no skipped tests; 16 dependency deprecation warnings |
+| Frontend unit tests | **59 passed**, 12 files; current/pending, insufficient new history and previous-detail link covered |
+| Production build | Passed, including Next lint/type validation; the final rerun stopped dev first and preserved duplicate generated development types outside the worktree |
+| New Chrome regression | Passed without a forced refresh: login -> existing v1's two synthetic valuations -> ADJUST/reconfirm future v2 -> portfolio link returns to retained v1 dashboard -> identical contribution/reference scope -> pending v2 detail empty -> direct v1 detail retains records |
+| Existing Chrome complete flow | Passed again on separate fresh fixture users; future initial decisions correctly have no current dashboard performance; KEEP confirmation selector distinguishes it from the synthetic banner |
+| Mobile and runtime errors | 390px dashboard has no page overflow; current/pending panel screenshots visually inspected; zero browser page errors in both flows |
+
+The additional fixture helper `scripts/seed_pending_decision_fixture.py` accepts only
+fresh `/private/tmp` lab accounts and backdates the first confirmation **inside its
+isolated subprocess** to reproduce existing history. It never rewrites immutable
+records or enables a test clock in the running API. `SYNTHETIC_TEST` prices/returns
+and the fixture decision reason explicitly identify this as test data, not actual
+historical operation or backfilled initial estimates for existing users.
+
+For a fresh follow-up demo, start the local lab in a new disposable directory as above,
+then run `.venv/bin/python scripts/seed_pending_decision_fixture.py --directory <dir>`.
+In web run `E2E_PENDING_DECISION=1 E2E_OPERATIONS_DATA_DIR=<dir>
+E2E_BASE_URL=http://127.0.0.1:<web-port> npx playwright test
+--config=playwright.operations.config.ts`. This October 3 scenario requires current
+calendar date before the new target's October 5 effectiveness; automated API regressions
+control their own clocks and cover both sides of that date independently. The browser
+flow consumes fresh fixture users and must not be rerun against their completed state.
+
+Monday demonstration scope after this follow-up:
+
+- Before new effectiveness, show current v1 and pending v2 together while v1's
+  performance/contributions/captured base remain visible. This was verified on Oct 3.
+- At or after Oct 5, current v2's 0/1 observation state is accurately insufficient.
+  Its previous v1 detail remains accessible. Calendar-transition behavior is API-tested;
+  it was not claimed as a real future browser/production event on Oct 3.
+- Demonstrate immutable original/versions, composition KEEP/redesign ADJUST choices,
+  and read-only observation review. Do not demonstrate these as order approval/rejection.
+- Expected-versus-actual numeric differences remain unimplemented: all current metric
+  comparisons return NOT_COMPARABLE, difference=null. Elapsed 3/6 months alone does
+  not make these comparable. Market/safe benchmark definitions remain team agreements.
+
+Operating-owner work after review remains separate:
+
+- This patch adds no schema migration or provider-setting requirement. Deploy the
+  reviewed backend and frontend together through the team's existing release process;
+  older deployment/DB separation tasks in the earlier handoff still require owners.
+- After any future approved deployment, verify current/pending scope using real owner
+  accounts, the actual deployed commits, the correct persistent DBs and restart behavior.
+  No production validation or provider changes were performed in this follow-up.
+- Select one batch executor and verify eligible real observations; do not populate
+  future production results to make a demo chart. Agree benchmark definitions and
+  expected/actual comparison methodology separately. Backup PR #12 remains untouched.
+
+Local implementation, local verification and additional commits are complete for this
+review fix. main/develop, remote pushes, operating DBs and deployment remain unchanged.
+
+The backend follow-up is committed as `dc0b27a`. Frontend follow-up `813795d
+contains current/pending display, direct historical review links, confirmation cache
+refresh, clarified feature scope and the synthetic browser reproduction helper/tests.
+The subsequent documentation commit records this evidence and supersedes the old
+completion wording. Earlier commits are preserved without amendment.
