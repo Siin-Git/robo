@@ -2,7 +2,7 @@
 import json
 import pytest
 from scripts.postgres_backup import connection_error
-from scripts.postgres_backup_diagnose import Libpq, compare
+from scripts.postgres_backup_diagnose import Libpq, compare, option_shape
 from tests.backup.test_postgres_backup import cluster
 
 @pytest.mark.parametrize('message,code',[
@@ -13,6 +13,9 @@ from tests.backup.test_postgres_backup import cluster
     ('PRIVATE server does not support SSL','CONNECT_TLS_UNAVAILABLE'),
     ('PRIVATE password authentication failed','CONNECT_AUTH_FAILED'),
     ('PRIVATE invalid percent-encoded token','CONNECT_URI_ENCODING_INVALID'),
+    ('PRIVATE extra key/value separator "=" in URI query parameter','CONNECT_URI_EXTRA_EQUALS'),
+    ('PRIVATE unexpected spaces found','CONNECT_URI_UNENCODED_SPACE'),
+    ('PRIVATE missing "=" after','CONNECT_URI_SYNTAX_INVALID'),
     ('PRIVATE could not translate host name','CONNECT_DNS_FAILED'),
     ('PRIVATE timeout expired','CONNECT_TIMEOUT'),
     ('PRIVATE database "PRIVATE" does not exist','CONNECT_DATABASE_MISSING'),
@@ -37,3 +40,11 @@ def test_native_uri_parser_keeps_literal_plus_and_decodes_percent_once():
     parsed=Libpq().parse('postgresql://fixture:p%2B%2525@localhost/db?application_name=a+b%2Bc%20d')
     assert parsed['password']=='p+%25'
     assert parsed['application_name']=='a+b+c d'
+
+def test_invalid_security_option_shape_never_prints_its_value():
+    result=option_shape({'PGCHANNELBINDING':"require PRIVATE='PRIVATE'",'PGSSLMODE':'require'})
+    assert not result['channel_binding']['recognized']
+    assert result['channel_binding']['has_quote'] and result['channel_binding']['has_assignment_separator']
+    assert result['channel_binding']['has_whitespace']
+    assert result['sslmode']['value']=='require'
+    assert 'PRIVATE' not in json.dumps(result)
