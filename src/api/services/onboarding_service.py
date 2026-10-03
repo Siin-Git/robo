@@ -15,6 +15,12 @@ from src.forward.prices import theme_asset_id
 def _now():
     return datetime.now(timezone.utc)
 
+def saved_frequency(session, user_id: str):
+    from ...db.models.decision import PortfolioDecision
+    row = session.scalars(select(PortfolioDecision).where(PortfolioDecision.user_id == user_id)
+        .order_by(PortfolioDecision.version.desc())).first()
+    return (row.provenance_json or {}).get('rebalance_frequency', 'monthly') if row else 'monthly'
+
 def get_draft(session, user_id: str):
     from ...db.models.onboarding import OnboardingDraft as _OD
     row = session.get(_OD, user_id)
@@ -28,9 +34,10 @@ def get_draft(session, user_id: str):
         "theme_ids": list(row.theme_ids_json or []),
         "reason": row.reason,
         "current_step": row.current_step,
+        "rebalance_frequency": row.rebalance_frequency or saved_frequency(session, user_id),
     }
 
-def upsert_draft(session, user_id: str, participant_id: str, frontier_id: str | None, theme_ids: list[str] | None, reason: str | None, current_step: str):
+def upsert_draft(session, user_id: str, participant_id: str, frontier_id: str | None, theme_ids: list[str] | None, reason: str | None, current_step: str, rebalance_frequency: str | None = None):
     from ...db.models.onboarding import OnboardingDraft as _OD
     row = session.get(_OD, user_id)
     now = _now()
@@ -43,6 +50,7 @@ def upsert_draft(session, user_id: str, participant_id: str, frontier_id: str | 
             theme_ids_json=list(theme_ids or []),
             reason=reason,
             current_step=current_step,
+            rebalance_frequency=rebalance_frequency or saved_frequency(session, user_id),
             created_at=now,
             updated_at=now,
             completed_at=None,
@@ -60,6 +68,8 @@ def upsert_draft(session, user_id: str, participant_id: str, frontier_id: str | 
         if reason is not None:
             row.reason = reason
         row.current_step = current_step
+        if rebalance_frequency is not None:
+            row.rebalance_frequency = rebalance_frequency
         row.updated_at = now
     session.flush()
     return get_draft(session, user_id)
@@ -219,7 +229,7 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
         },
     }
 
-def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None, adjustment_choice_id: str | None = None, confirmed_preview: dict | None = None, expected_decision_id: str | None = None):
+def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None, adjustment_choice_id: str | None = None, confirmed_preview: dict | None = None, expected_decision_id: str | None = None, rebalance_frequency: str | None = None):
     from . import decision_service as decisions
     from ...db.models.account import Account as _A
     acc = session.scalars(select(_A).where(_A.participant_id == participant_id, _A.account_type == "personal")).first()
@@ -228,6 +238,9 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
     prev = confirmed_preview if confirmed_preview is not None else preview(session, user_id, participant_id, frontier_id, theme_ids)
     from ...db.models.base_selection import BasePortfolioSelection as _BPS
     from ...db.models.onboarding import OnboardingDraft as _OD
+    draft = session.get(_OD, user_id)
+    from ...forward.rebalance_schedule import normalize_frequency
+    frequency = normalize_frequency(rebalance_frequency or (draft.rebalance_frequency if draft else None) or saved_frequency(session, user_id))
     existing = session.scalars(select(_BPS).where(_BPS.user_id == user_id, _BPS.status == "active").order_by(_BPS.selected_at.desc())).first()
     if existing and existing.frontier_id == frontier_id:
         from ...db.models.view import View as _V
@@ -235,10 +248,9 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
         previous_draft = session.get(_OD, user_id)
         if sorted(theme_ids) == cur_themes and previous_draft and previous_draft.completed_at and previous_draft.reason == reason:
             d = decisions.latest(session, acc.account_id) if acc else None
-            if d and not adjustment_choice_id:
-                return {"already_completed": True, "selection_id": existing.selection_id, "decision_id": d.decision_id}
-            if d and adjustment_choice_id and d.provenance_json.get("adjustment_choice_id") == adjustment_choice_id:
-                return {"already_completed": True, "selection_id": existing.selection_id, "decision_id": d.decision_id}
+            if d and d.provenance_json.get('rebalance_frequency') == frequency:
+                if not adjustment_choice_id or d.provenance_json.get("adjustment_choice_id") == adjustment_choice_id:
+                    return {"already_completed": True, "selection_id": existing.selection_id, "decision_id": d.decision_id, "rebalance_frequency": frequency}
     from ...db.models.account import Account as _A
     from ...db.models.portfolio import PortfolioTarget as _PT
     now = C.now_utc()
@@ -278,7 +290,7 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
         target = _PT(target_id=tgt_id, account_id=acc.account_id, effective_date=effective, kind="decision", weights_json=dict(pers_weights), core_version="CORE_V0.3", theme_universe_version="THEME_UNIVERSE_V0.1", risk_model_version="RISK_5Y_LW_FROZEN_V0", created_at=now)
         session.add(target)
         session.flush()
-        decision = decisions.capture(session, user_id, participant_id, acc, target, row, prev, reason, adjustment_choice_id)
+        decision = decisions.capture(session, user_id, participant_id, acc, target, row, prev, reason, adjustment_choice_id, rebalance_frequency=frequency)
     # Close the old choice instead of accumulating every prior Theme as active.
     from ...db.models.view import View as _V
     for view in session.scalars(select(_V).where(_V.participant_id == participant_id,
@@ -305,8 +317,9 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
         draft.completed_at = now
         draft.updated_at = now
         draft.current_step = "completed"
+        draft.rebalance_frequency = frequency
     else:
-        session.add(_OD(user_id=user_id, participant_id=participant_id, frontier_id=frontier_id, frontier_version=FRONTIER_VERSION, theme_ids_json=list(theme_ids), reason=reason, current_step="completed", created_at=now, updated_at=now, completed_at=now))
+        session.add(_OD(user_id=user_id, participant_id=participant_id, frontier_id=frontier_id, frontier_version=FRONTIER_VERSION, theme_ids_json=list(theme_ids), reason=reason, current_step="completed", rebalance_frequency=frequency, created_at=now, updated_at=now, completed_at=now))
     C.log_event(session, "ONBOARDING_COMPLETED", "CORE_V0.3", participant_id=participant_id, payload={"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids, "reason": reason})
     session.flush()
-    return {"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids, "decision_id": decision.decision_id if acc else None}
+    return {"selection_id": sel_id, "frontier_id": frontier_id, "theme_ids": theme_ids, "decision_id": decision.decision_id if acc else None, "rebalance_frequency": frequency}

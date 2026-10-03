@@ -50,7 +50,7 @@ def effective_day(now):
         day += timedelta(days=1)
     return day
 
-def capture(session, user_id, pid, account, target, selection, preview, reason, adjustment_choice_id=None):
+def capture(session, user_id, pid, account, target, selection, preview, reason, adjustment_choice_id=None, rebalance_frequency=None):
     old = latest(session, account.account_id)
     from .portfolio_service import EXPECTED_RETURN_BASIS
     def metric(value, basis, frequency):
@@ -79,7 +79,8 @@ def capture(session, user_id, pid, account, target, selection, preview, reason, 
             "theme_universe_version": target.theme_universe_version, "risk_model_version": target.risk_model_version,
             "risk_comparison": preview["risk_comparison"], "artifact_sha256": hashes,
             "data_version": data_version, "price_data_as_of": preview["risk_comparison"]["as_of"], "capture": "AT_CONFIRMATION",
-            "adjustment_choice_id": adjustment_choice_id, "execution_policy": POLICY})
+            "adjustment_choice_id": adjustment_choice_id, "execution_policy": POLICY,
+            **({"rebalance_frequency": rebalance_frequency} if rebalance_frequency else {})})
     session.add(row)
     session.flush()
     return row

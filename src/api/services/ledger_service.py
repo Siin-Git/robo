@@ -69,12 +69,12 @@ def _stale_days() -> int:
         return STALE_DAYS_DEFAULT
 
 
-def _next_rebalance(last: date | None) -> str | None:
+def _next_rebalance(last: date | None, frequency: str | None = None) -> str | None:
     """엔진과 같은 월간/분기 효력일 규칙. 휴일 체결은 실제 종가에 따른다."""
     if last is None:
         return None
     try:
-        freq = C.load_forward_cfg()["forward_test"]["core_rebalance"]["frequency"]
+        freq = frequency or C.load_forward_cfg()["forward_test"]["core_rebalance"]["frequency"]
         upcoming = next_rebalance_effective(max(last, date.today()), freq)
     except (KeyError, ValueError):
         return None
@@ -158,6 +158,12 @@ def status(session, participant_id: str) -> dict:
         gap = (date.today() - price_d).days
         freshness = "STALE" if gap > _stale_days() else "OK"
 
+    from .decision_service import operation_context
+    from ...db.models.decision import PortfolioDecision
+    context = operation_context(session, personal.account_id)
+    active = session.get(PortfolioDecision, context['report_decision_id']) if context['report_decision_id'] else None
+    frequency = (active.provenance_json or {}).get('rebalance_frequency') if active else None
+
     return {
         "has_history": count > 0,
         "first_valuation_date": first_d.isoformat() if first_d else None,
@@ -166,7 +172,7 @@ def status(session, participant_id: str) -> dict:
         "last_updated_at": updated.isoformat() if updated is not None else None,
         "latest_price_date": price_d.isoformat() if price_d else None,
         "data_freshness": freshness,
-        "next_rebalance_date": _next_rebalance(last_d),
+        "next_rebalance_date": _next_rebalance(last_d, frequency),
         "stale_price_days": _stale_days(),
         "rebalance": _rebalance_status(session, personal.account_id, last_d),
     }

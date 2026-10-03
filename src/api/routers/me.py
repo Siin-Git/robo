@@ -43,7 +43,14 @@ def me_portfolio(db=Depends(get_design_db), user=Depends(get_current_user)):
 
 @router.get("/portfolio/summary", summary="Own portfolio summary (base + personalized)")
 def me_summary(db=Depends(get_design_db), user=Depends(get_current_user)):
-    return pf.summary(db, _pid(user), user.user_id)
+    result = pf.summary(db, _pid(user), user.user_id)
+    from ..services.decision_service import latest
+    from ...db.models.account import Account
+    from sqlalchemy import select
+    account = db.scalar(select(Account).where(Account.participant_id == _pid(user), Account.account_type == 'personal'))
+    decision = latest(db, account.account_id) if account else None
+    result['rebalance_frequency'] = decision.provenance_json.get('rebalance_frequency') if decision else None
+    return result
 
 
 @router.get("/portfolio/comparison", summary="Own core vs personalized")

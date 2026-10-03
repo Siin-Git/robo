@@ -95,9 +95,6 @@ def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
     if risk_only:
         print("  risk_only: would refresh the risk model and place no orders.")
         return 0
-    if not is_rebalance_period(int(y), int(m), frequency):
-        print(f"  no rebalance: {skip_reason(int(y), int(m), frequency)}")
-        return 0
 
     accounts = [dict(r) for r in con.execute(
         "SELECT * FROM accounts WHERE status='active' ORDER BY account_type, account_id"
@@ -111,18 +108,24 @@ def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
     banded = {}
     print(f"\n  {'account':24s} {'type':9s} {'order':>5s} {'band':>5s} {'same':>5s}")
     print("  " + "-" * 54)
-    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights, rebalance_frequency
     for a in accounts:
         if awaiting_confirmation(con, a):
             continue
+        account_frequency = rebalance_frequency(con, a['account_id'], asof, frequency) if a['account_type'] == 'personal' else frequency
+        if not is_rebalance_period(int(y), int(m), account_frequency):
+            print(f"  {a['account_id']}: {skip_reason(int(y), int(m), account_frequency)}")
+            continue
         if a["account_type"] == "personal":
+            d = latest_decision(con, a["account_id"], asof)
+            if latest_decision(con, a["account_id"]) and not d:
+                continue
             if cov is None:
                 cov, _info = rebuild_cov(con, cfg, asof)   # 읽기 전용(캐시 저장 안 함)
             pid = a["participant_id"]
             tids = sorted({theme_asset_id(v["theme_id"])
                            for v in batch_views(con, pid, "9999-99-99", effective)})
             base_w = _base_for_participant(con, pid, frozen_w)
-            d = latest_decision(con, a["account_id"], asof)
             weights = decision_weights(d) if d else build_personalized(base_w, tids, cfg, cov)["weights"]
             baseline = _cw(con, a["account_id"], asof)
         else:
@@ -192,25 +195,22 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     # 위험 모형 갱신은 주기와 무관하게 매달 돈다(risk_refresh 는 별도 설정).
     from src.forward.rebalance_schedule import is_rebalance_period, skip_reason
     frequency = (ft.get("core_rebalance") or {}).get("frequency", "monthly")
-    if not is_rebalance_period(int(y), int(m), frequency):
-        con.commit()
-        reason = skip_reason(int(y), int(m), frequency)
-        print(f"month {y}-{m}: risk refreshed asof {asof}; no rebalance ({reason})")
-        print("STATUS: PASS")
-        return 0, {"asof": asof, "orders": 0, "rebalanced": False,
-                   "frequency": frequency, "status": "PASS"}
     n = 0
+    eligible = 0
     # 리밸런싱 밴드: 목표 대비 편차가 밴드 안이면 주문을 만들지 않는다.
     band = (ft.get("core_rebalance") or {}).get("band") or None
     if band:
         print(f"rebalance band: {band}")
     # core + shadow static legs (drift-correcting vs current holdings)
     from src.forward.execution import current_weights as _cw
-    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights, rebalance_frequency
     for r in con.execute("SELECT * FROM accounts WHERE account_type IN ('core','shadow')"
                          " AND status='active'").fetchall():
         if awaiting_confirmation(con, dict(r)):
             continue
+        if not is_rebalance_period(int(y), int(m), frequency):
+            continue
+        eligible += 1
         from src.forward.accounts import static_weights
         w = static_weights(r["account_type"], r["shadow_name"], cfg, frozen_w)
         record_target(con, r["account_id"], w, effective, "core", versions,
@@ -229,11 +229,16 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
             continue
         if awaiting_confirmation(con, {"participant_id": pid}):
             continue
+        account_frequency = rebalance_frequency(con, acc['account_id'], asof, frequency)
+        if not is_rebalance_period(int(y), int(m), account_frequency):
+            print(f"  {acc['account_id']}: {skip_reason(int(y), int(m), account_frequency)}")
+            continue
         con.execute("UPDATE accounts SET status=status WHERE account_id=?", (acc["account_id"],))
-        d = latest_decision(con, acc["account_id"])
-        if d and str(d["effective_date"])[:10] > asof:
+        d = latest_decision(con, acc["account_id"], asof)
+        if latest_decision(con, acc['account_id']) and not d:
             con.commit()
             continue
+        eligible += 1
         tids = sorted({theme_asset_id(v["theme_id"])
                        for v in batch_views(con, pid, "9999-99-99", effective)})
         res = {"weights": decision_weights(d)} if d else build_personalized(_base_for_participant(con, pid, frozen_w), tids, cfg, cov)
@@ -251,7 +256,7 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     print(f"month {y}-{m}: risk refreshed asof {asof}, {n} rebalance orders, effective {effective}")
     print("STATUS: PASS")
     return 0, {"asof": asof, "orders": n, "effective": effective,
-               "rebalanced": True, "frequency": frequency, "status": "PASS"}
+               "rebalanced": eligible > 0, "eligible_accounts": eligible, "frequency": frequency, "status": "PASS"}
 
 
 if __name__ == "__main__":

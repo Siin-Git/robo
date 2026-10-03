@@ -20,6 +20,15 @@ def weights(decision):
     v = decision["weights_json"]
     return json.loads(v) if isinstance(v, str) else v
 
+def rebalance_frequency(con, account_id, asof, fallback='monthly'):
+    """Use only the calendar-effective confirmation; preserve unmanaged accounts."""
+    from .rebalance_schedule import normalize_frequency
+    decision = latest_decision(con, account_id, asof)
+    provenance = (decision or {}).get('provenance_json') or {}
+    if isinstance(provenance, str):
+        provenance = json.loads(provenance)
+    return normalize_frequency(provenance.get('rebalance_frequency') or fallback)
+
 def awaiting_confirmation(con, account):
     if os.environ.get("CAPSTONE_DEMO") != "1" or os.environ.get("APP_PROFILE") != "local" or not account.get("participant_id"):
         return False
