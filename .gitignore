@@ -38,3 +38,5 @@ data/archive/
 /.venv
 /web/node_modules
 web/.next-monday-demo/
+.local/
+web/.next-local-operation/
