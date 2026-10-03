@@ -319,3 +319,13 @@ The synthetic Monday servers/data remain separate. No remote DB, push, merge,
 deployment or backup PR #12 changes were made. Real user fills/valuations remain
 pending confirmation and eligible post-effective market prices; disposable tests
 are explicitly distinguished from actual local operating records.
+
+## Develop integration verification (2026-10-03)
+
+After PR #13 merged as `0366279`, the user requested integrating the completed
+persistent-local-operation work into develop before broader graph/data-source
+changes. `DEVELOP_INTEGRATION_VERIFICATION.md` records the isolated integration,
+PostgreSQL test-initialization correction, 477 backend tests, 59 frontend tests,
+build/type checks and both Chrome flows. Earlier statements about no merge or
+push describe those earlier stages; this delivery authorizes develop integration.
+Production deployment, main, remote DBs and backup PR #12 remain separate.
