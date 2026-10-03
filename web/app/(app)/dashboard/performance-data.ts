@@ -5,14 +5,21 @@ import { ASSET_COLORS } from "../setup/portfolio/FrontierChart";
 export const PERIODS = [{key:"1M",label:"1개월"},{key:"3M",label:"3개월"},{key:"6M",label:"6개월"},{key:"1Y",label:"1년"},{key:"ALL",label:"전체"}] as const;
 export type Period = typeof PERIODS[number]["key"];
 export type Asset = {asset_id:string;group:string;contribution:number;average_weight:number|null;price_return:number|null};
+export interface DecisionSummary {decision_id:string;version:number;target_effective_date:string}
+export interface DecisionContext {
+  as_of:string;selection_basis:"KST_EFFECTIVE_DATE";status:"ACTIVE"|"AWAITING_INITIAL_EFFECTIVE_DATE"|"LEGACY_UNRECORDED";
+  active_decision:DecisionSummary|null;pending_decision:DecisionSummary|null;previous_decision:DecisionSummary|null;
+  report_decision_id:string|null;window_start:string|null;window_end_exclusive:string|null;
+}
 export interface Report {
+  decision_context?:DecisionContext;
   data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION";
   status:string;period:string;start:string|null;end:string|null;since:string|null;observations:number;benchmark_name:string;
   metrics:{cumulative_return:number|null;benchmark_return:number|null;difference_pp:number|null;mdd:number|null;volatility:number|null;tracking_error:number|null;information_ratio:number|null};
   series:{date:string;personal:number;benchmark:number|null;drawdown:number}[];
   attribution:{date:string;values:Record<string,number>;total:number}[];
   assets:Asset[];
-  comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string}[];
+  comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string;decision_id?:string|null;start?:string|null;end?:string|null}[];
   quality:{unresolved_intervals:number;stale_observations:number;missing_nav_dates:number;benchmark_complete:boolean};
 }
 export const GROUPS:Record<string,{name:string;color:string}> = {

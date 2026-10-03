@@ -123,7 +123,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
     mutationFn: (body: { frontier_id: string; theme_ids: string[]; reason?: string }) =>
       post("/api/v1/me/onboarding/complete", {...body, adjustment_choice_id: params.get("adjustment_choice_id"), expected_decision_id:priorDecision.data?.items[0]?.decision_id}),
     onSuccess: async () => {
-      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status", "decisions", "portfolio-choices", "forward-ledger", "ledger-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status", "decisions", "decision-review", "portfolio-choices", "forward-ledger", "ledger-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
       router.push("/portfolio");
     },
   });
