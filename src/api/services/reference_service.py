@@ -1,18 +1,21 @@
 """Same-period benchmark evidence, never substituted for actual holdings."""
 import pandas as pd
 from sqlalchemy import select
-from ...db.models import PriceDaily, Account
+from ...db.models import PriceDaily, PortfolioDecision
 from ...forward.reference_portfolio import evaluate_levels
 from . import _common as C
-from .decision_service import latest
 
 def comparisons(session, participant_id, report):
     start,end=report['start'],report['end']
     core={'key':'core','label':'시스템 기준 CORE','status':'AVAILABLE' if report['metrics']['benchmark_return'] is not None else 'UNAVAILABLE',
         'return':report['metrics']['benchmark_return'],'reason':None if report['metrics']['benchmark_return'] is not None else 'SAME_PERIOD_LEDGER_MISSING',
         'source':'ACCOUNT_LEDGER','start':start,'end':end}
-    personal=session.scalar(select(Account).where(Account.participant_id==participant_id,Account.account_type=='personal'))
-    decision=latest(session,personal.account_id) if personal else None
+    # The report supplies the authoritative decision and observed endpoints.
+    # Never independently select the newest confirmation for this comparison.
+    decision_id = report.get('decision_context', {}).get('report_decision_id')
+    decision = session.scalar(select(PortfolioDecision).where(
+        PortfolioDecision.decision_id == decision_id,
+        PortfolioDecision.participant_id == participant_id)) if decision_id else None
     # No project-wide market or safe-asset benchmark definition is frozen.
     # US equity and Treasuries cannot silently stand in for those definitions.
     rows=[core]
@@ -35,4 +38,6 @@ def comparisons(session, participant_id, report):
     rows.append(selected)
     for key,label in [('market','시장 비교'),('safe_asset','안전자산 비교')]:
         rows.append({'key':key,'label':label,'status':'UNAVAILABLE','return':None,'reason':'BENCHMARK_DEFINITION_NOT_CONFIGURED','start':start,'end':end})
+    for row in rows:
+        row['decision_id'] = decision_id
     return rows

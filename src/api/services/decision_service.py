@@ -16,6 +16,26 @@ POLICY = {"composition": "confirmed_decision_weights", "scheduled_rebalance": "c
 def latest(session, account_id):
     return session.scalars(select(D).where(D.account_id == account_id).order_by(D.version.desc())).first()
 
+def operation_context(session, account_id):
+    """Calendar-effective decision, separate from the latest confirmation.
+
+    This is a read boundary, not an assertion that an order has executed.
+    Decision details retain their explicit historical windows independently.
+    """
+    as_of = C.now_utc().astimezone(ZoneInfo("Asia/Seoul")).date()
+    rows = session.scalars(select(D).where(D.account_id == account_id).order_by(D.version.desc())).all() if account_id else []
+    active = next((d for d in rows if C.as_date(d.effective_date) <= as_of), None)
+    pending = next((d for d in rows if C.as_date(d.effective_date) > as_of), None)
+    previous = next((d for d in rows if active and d.version < active.version), None)
+    def describe(d):
+        return {"decision_id": d.decision_id, "version": d.version,
+                "target_effective_date": C.as_date(d.effective_date).isoformat()} if d else None
+    return {"as_of": as_of.isoformat(), "selection_basis": "KST_EFFECTIVE_DATE",
+            "active_decision": describe(active), "pending_decision": describe(pending),
+            "previous_decision": describe(previous),
+            "report_decision_id": active.decision_id if active else None,
+            "status": "ACTIVE" if active else "AWAITING_INITIAL_EFFECTIVE_DATE" if pending else "LEGACY_UNRECORDED"}
+
 def lock_account(session, account_id):
     # A write lock serializes version allocation on both SQLite and PostgreSQL.
     session.execute(update(Account).where(Account.account_id == account_id).values(status=Account.status))

@@ -1,4 +1,5 @@
 """Read-only dashboard report over the recorded simulation ledger."""
+from datetime import timedelta
 from sqlalchemy import select
 from ...db.models.nav import NavDaily
 from ...db.models.holding import Holding
@@ -14,11 +15,20 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
     if period not in PERIODS:
         raise ApiError("INVALID_PERIOD", "period must be 1M, 3M, 6M, 1Y or ALL", 400)
     personal, core = _accounts(session, participant_id)
-    if anchor_latest and personal:
-        from .decision_service import latest
-        d = latest(session, personal.account_id)
-        if d:
-            start = C.as_date(d.effective_date)
+    # Keep the keyword for historical callers, but anchor to the current
+    # KST-effective decision rather than the newest (possibly future) one.
+    context = None
+    if anchor_latest:
+        from .decision_service import operation_context
+        context = operation_context(session, personal.account_id if personal else None)
+        active = context["active_decision"]
+        pending = context["pending_decision"]
+        if active or pending:
+            start = C.as_date((active or pending)["target_effective_date"])
+            cutoff = C.as_date(context["as_of"]) + timedelta(days=1)
+            end_exclusive = min(C.as_date(end_exclusive), cutoff) if end_exclusive else cutoff
+        context["window_start"] = start.isoformat() if start else None
+        context["window_end_exclusive"] = end_exclusive.isoformat() if end_exclusive else None
     def nav_rows(account):
         if not account:
             return []
@@ -30,6 +40,8 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
     def calculate(*args):
         result = calculate_report(*args)
         result["data_kind"] = kind
+        if context is not None:
+            result["decision_context"] = context
         return result
     nav = nav_rows(personal)
     if len(nav) < 2:
@@ -60,6 +72,7 @@ def cumulative_contributions(session, participant_id, period="ALL"):
         "start": report["start"],
         "end": report["end"],
         "observations": report["observations"],
+        "decision_context": report["decision_context"],
         "cumulative_return": cumulative_return,
         "assets": [
             {
