@@ -34,7 +34,7 @@ TABLE_ORDER = [
     # 예전에는 이 일곱이 빠져 있었다. 원장은 옮겨지는데 로그인 계정과
     # 배치 기록은 안 옮겨져, 옮긴 뒤 아무도 로그인하지 못한다.
     "users", "sessions", "base_portfolio_selections", "onboarding_drafts",
-    "demo_cohorts", "demo_slots", "scheduled_jobs",
+    "demo_cohorts", "demo_slots", "scheduled_jobs", "portfolio_decisions", "portfolio_choices",
 ]
 
 # 원장이 빠진 소스는 옮기면 안 된다. 나머지는 없을 수 있다.
@@ -46,6 +46,8 @@ REQUIRED_TABLES = {
 }
 
 FK_PARENTS = {
+    "portfolio_decisions": [("user_id", "users", "user_id"), ("participant_id", "participants", "participant_id"), ("account_id", "accounts", "account_id"), ("selection_id", "base_portfolio_selections", "selection_id"), ("target_id", "portfolio_targets", "target_id"), ("previous_decision_id", "portfolio_decisions", "decision_id")],
+    "portfolio_choices": [("user_id", "users", "user_id"), ("decision_id", "portfolio_decisions", "decision_id"), ("target_id", "portfolio_targets", "target_id")],
     "accounts": [("participant_id", "participants", "participant_id")],
     "views": [("participant_id", "participants", "participant_id"),
               ("theme_id", "themes", "theme_id")],
@@ -260,7 +262,7 @@ def main() -> int:
                 _os.environ.pop("DATABASE_URL", None)
             else:
                 _os.environ["DATABASE_URL"] = prev
-        print(f"bootstrapped schema ({len(missing_tables)} tables) + stamped 0001")
+        print(f"bootstrapped schema ({len(missing_tables)} tables) + stamped head")
 
     from sqlalchemy.orm import Session
     with Session(engine) as session:
@@ -268,7 +270,7 @@ def main() -> int:
             for t in tables:
                 table = Base.metadata.tables[t]
                 if payload[t]:
-                    session.execute(table.insert(), payload[t])
+                    session.execute(table.insert(), sorted(payload[t], key=lambda r: r["version"]) if t == "portfolio_decisions" else payload[t])
                 report["tables"][t]["destination_rows"] = len(payload[t])
                 report["tables"][t]["match"] = True
 

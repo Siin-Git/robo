@@ -20,8 +20,9 @@
 # empty one, and both failures are silent until somebody checks months later.
 #
 # NOT part of this blueprint: the daily batch (run_daily / run_monthly). It runs
-# on the operator's machine via Task Scheduler and writes to the same Neon
-# databases. Render free has no cron, so moving it here needs a paid plan.
+# via exactly one selected executor: notebook Task Scheduler or GitHub Actions.
+# Both must use the same design DB. Set FORWARD_EXECUTOR explicitly and disable
+# the other scheduler; API confirmation does not turn either scheduler on.
 #
 # Free-tier facts that decide how this is run:
 #   - a free web service sleeps after 15 minutes idle and takes ~1 min to wake

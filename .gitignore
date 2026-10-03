@@ -33,3 +33,7 @@ data/archive/
 # DB 백업 (*.db 패턴에 안 걸린다)
 *.db.bak*
 *.bak-*
+
+# Dependency symlinks in isolated worktrees
+/.venv
+/web/node_modules

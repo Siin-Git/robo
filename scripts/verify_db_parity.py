@@ -40,7 +40,7 @@ TABLE_ORDER = [
     # 예전에는 이 일곱이 빠져 있었다. 원장은 옮겨지는데 로그인 계정과
     # 배치 기록은 안 옮겨져, 옮긴 뒤 아무도 로그인하지 못한다.
     "users", "sessions", "base_portfolio_selections", "onboarding_drafts",
-    "demo_cohorts", "demo_slots", "scheduled_jobs",
+    "demo_cohorts", "demo_slots", "scheduled_jobs", "portfolio_decisions", "portfolio_choices",
 ]
 
 # 원장이 빠진 소스는 옮기면 안 된다. 나머지는 없을 수 있다.
@@ -52,6 +52,8 @@ REQUIRED_TABLES = {
 }
 
 FK_PARENTS = {
+    "portfolio_decisions": [("user_id", "users", "user_id"), ("participant_id", "participants", "participant_id"), ("account_id", "accounts", "account_id"), ("selection_id", "base_portfolio_selections", "selection_id"), ("target_id", "portfolio_targets", "target_id"), ("previous_decision_id", "portfolio_decisions", "decision_id")],
+    "portfolio_choices": [("user_id", "users", "user_id"), ("decision_id", "portfolio_decisions", "decision_id"), ("target_id", "portfolio_targets", "target_id")],
     "accounts": [("participant_id", "participants", "participant_id")],
     "views": [("participant_id", "participants", "participant_id"),
               ("theme_id", "themes", "theme_id")],
@@ -89,7 +91,7 @@ def norm_val(v):
     if isinstance(v, datetime):
         if v.tzinfo is None:
             v = v.replace(tzinfo=__import__("datetime").timezone.utc)
-        return ("ts", v.isoformat())
+        return ("ts", v.astimezone(__import__("datetime").timezone.utc).isoformat())
     if isinstance(v, date):
         return ("d", v.isoformat())
     if isinstance(v, Decimal):

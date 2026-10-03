@@ -20,17 +20,22 @@ concurrency:
 
 jobs:
   monthly:
+    if: ${{ vars.FORWARD_EXECUTOR == 'actions' || inputs.dry_run == true }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
       - name: Monthly rebalance
         env:
-          APP_PROFILE: live
+          APP_PROFILE: local
+          CAPSTONE_DEMO: "1"
+          FORWARD_EXECUTOR: actions
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          TZ: Asia/Seoul
           # 없으면 get_backend() 기본값 sqlite 가 적용되어 DATABASE_URL 을
           # 무시하고 러너의 빈 SQLite 파일에 기록한다(조용한 실패).
           DATABASE_BACKEND: postgres

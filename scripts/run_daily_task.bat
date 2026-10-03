@@ -35,6 +35,13 @@ if not exist "%PY%" (
   exit /b 1
 )
 
+rem One unattended owner only. .env.local is loaded by runtime.
+"%PY%" -c "from src.forward.runtime import configured_executor; import sys; sys.exit(0 if configured_executor()=='notebook' else 2)"
+if errorlevel 1 (
+  echo Scheduler disabled here: FORWARD_EXECUTOR must be notebook. >> "%LOG%"
+  exit /b 2
+)
+
 echo. >> "%LOG%"
 echo ======================================================== >> "%LOG%"
 echo RUN START %DATE% %TIME% >> "%LOG%"
@@ -47,7 +54,7 @@ echo run_daily EXIT=%CODE% >> "%LOG%"
 
 rem --- 2. Monthly rebalance on the first of the month -----------------------
 rem Ask Python for the day of month: %DATE% formatting depends on the locale.
-"%PY%" -c "import datetime,sys; sys.exit(0 if datetime.date.today().day==1 else 1)"
+"%PY%" -c "from src.forward.runtime import kst_today; import sys; sys.exit(0 if kst_today().day==1 else 1)"
 if not errorlevel 1 (
   echo. >> "%LOG%"
   echo -------- first of month: monthly rebalance -------- >> "%LOG%"
