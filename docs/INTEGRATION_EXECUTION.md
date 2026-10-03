@@ -320,6 +320,16 @@ deployment or backup PR #12 changes were made. Real user fills/valuations remain
 pending confirmation and eligible post-effective market prices; disposable tests
 are explicitly distinguished from actual local operating records.
 
+## Backup PR #12 follow-up authorization (2026-10-03)
+
+The user took over PR #12 and explicitly superseded the separately-owned restriction.
+Only backup validation, an isolated actual restore test and its documentation change.
+The same patch is applied on the PR #12 head and this develop candidate; develop is
+never merged wholesale into the main-target backup PR. PostgreSQL backups do not
+cover the persistent local SQLite operation. See POSTGRES_BACKUP.md for evidence,
+required target/version checks and the separately gated main activation/operating
+recovery status. Existing local apps, operating data and daily LaunchAgent are preserved.
+
 ## Develop integration verification (2026-10-03)
 
 After PR #13 merged as `0366279`, the user requested integrating the completed
