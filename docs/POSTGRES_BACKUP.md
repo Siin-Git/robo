@@ -54,6 +54,9 @@ Settings → Secrets and variables → Actions:
 기대 식별값은 선택 설정이며 설정하면 불일치 시 실패한다. 처음 main 활성화 전에는
 소유자가 대상 역할을 확인하고 이 값들을 지정하는 것을 권장한다. URL 전체나 secret
 값을 보고서에 복사하지 않는다. 지원하지 않는 URL 옵션은 조용히 무시하지 않고 거부한다.
+`channel_binding`, `target_session_attrs`, `application_name` 등 지원 옵션은
+[공식 libpq 환경 변수](https://www.postgresql.org/docs/18/libpq-envars.html)에
+명시적으로 매핑해 보안·대상 선택 조건을 유지한다.
 
 지원 정책: PostgreSQL 서버/도구 major 14–18. `psql`, `pg_dump`, `pg_restore`는
 같은 major여야 한다. 덤프 도구는 원본 서버 이상, 복원 서버는 덤프 도구 이상이어야

@@ -259,5 +259,8 @@ def test_version_boundaries_and_neon_pooler_alias():
     assert check_version({'server_version_num':'170001'},clients)==17
     assert host_key('ep-example-pooler.eu-central-1.aws.neon.tech')==host_key('ep-example.eu-central-1.aws.neon.tech')
     assert Connection('postgres://name:123@localhost:5432/db?sslmode=require').endpoint==Connection('postgresql+psycopg://other:456@localhost/db').endpoint
+    mapped=Connection('postgresql://name@localhost/db?channel_binding=require&target_session_attrs=read-write&application_name=backup-fixture&connect_timeout=2').env
+    assert mapped['PGCHANNELBINDING']=='require' and mapped['PGTARGETSESSIONATTRS']=='read-write'
+    assert mapped['PGAPPNAME']=='backup-fixture' and mapped['PGCONNECT_TIMEOUT']=='2'
     assert not same_database({'database':'a','database_oid':1,'server_addr':'127.0.0.1','server_port':5432},
         {'database':'b','database_oid':2,'server_addr':'127.0.0.1','server_port':5432})

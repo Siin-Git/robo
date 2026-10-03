@@ -62,12 +62,14 @@ class Connection:
             self.env.update(PGHOST=self.host, PGPORT=str(self.port), PGDATABASE=self.database,
                 PGUSER=unquote(parsed.username), PGPASSWORD=unquote(parsed.password or ''),
                 PGCONNECT_TIMEOUT='15', PGPASSFILE=os.devnull, PGSERVICEFILE=os.devnull)
-            allowed = {'sslmode','sslrootcert','sslcert','sslkey','sslcrl','channel_binding',
-                'options','connect_timeout','target_session_attrs','application_name'}
+            libpq_keys = {'sslmode':'PGSSLMODE','sslrootcert':'PGSSLROOTCERT','sslcert':'PGSSLCERT',
+                'sslkey':'PGSSLKEY','sslcrl':'PGSSLCRL','channel_binding':'PGCHANNELBINDING',
+                'options':'PGOPTIONS','connect_timeout':'PGCONNECT_TIMEOUT',
+                'target_session_attrs':'PGTARGETSESSIONATTRS','application_name':'PGAPPNAME'}
             params = dict(parse_qsl(parsed.query, keep_blank_values=True))
-            if set(params) - allowed:
+            if set(params) - set(libpq_keys):
                 raise ValueError()
-            self.env.update({'PG'+k.upper():v for k,v in params.items()})
+            self.env.update({libpq_keys[k]:v for k,v in params.items()})
             self.secrets = [url, parsed.password or '', self.env['PGPASSWORD']]
         except (ValueError, TypeError):
             raise BackupError('CONFIG_INVALID') from None
