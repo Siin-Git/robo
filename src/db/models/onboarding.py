@@ -17,6 +17,7 @@ class OnboardingDraft(Base):
     theme_ids_json: Mapped[dict] = mapped_column(JSONBType, nullable=False, default=list)
     reason: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     current_step: Mapped[str] = mapped_column(String(16), nullable=False, default="risk")
+    rebalance_frequency: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[object] = mapped_column(TZDateTime, nullable=False)
     updated_at: Mapped[object] = mapped_column(TZDateTime, nullable=False)
     completed_at: Mapped[object] = mapped_column(TZDateTime, nullable=True)

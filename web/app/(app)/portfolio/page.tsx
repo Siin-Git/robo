@@ -19,8 +19,10 @@ import { FrontierChart, type FrontierData } from "../setup/portfolio/FrontierCha
 import { SetupStyleProvider } from "../setup/SetupStyleProvider";
 import { ASSET_META } from "../setup/portfolio/asset-meta";
 import s from "./portfolio.module.css";
+import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
 export interface PortfolioSummary {
+  rebalance_frequency?: RebalanceFrequency | null;
   base: { frontier_id: string | null; expected_return: number | null; volatility: number | null; weights: Weight[]; groups: Record<string, number> };
   personalized: { expected_return?: number | null; volatility: number | null; tracking_error: number | null; weights: Weight[]; groups: Record<string, number> };
   themes: { theme_id: string; display_name?: string; ticker?: string | null; weight: number }[];
@@ -82,6 +84,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       <div><span className={s.eyebrow}>CONFIRMED ALLOCATION</span><h1>{DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"}</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
       <div className="ui-actions">{DEMO_MODE && <Link className={s.edit} href="/portfolio?source=demo">시연 비교 구성</Link>}<Link className={s.edit} href="/setup/portfolio?step=risk"><SlidersHorizontal size={16} />구성 변경</Link></div>
     </header>
+    {p.rebalance_frequency && <p aria-label="저장된 리밸런싱 주기">확정한 정기 리밸런싱: <strong>{REBALANCE_LABELS[p.rebalance_frequency]}</strong></p>}
 
     <section className={s.composition} aria-labelledby="portfolio-composition">
       <div className={s.compositionHeader}><div><h2 id="portfolio-composition">나의 자산 구성</h2><p>자산 위에 커서를 올려 비중을 확인해 보세요.</p></div>

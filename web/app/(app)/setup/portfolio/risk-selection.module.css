@@ -55,6 +55,14 @@
 .slider::-moz-range-thumb { width: 16px; height: 16px; border: 3px solid white; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 1px #c8d8f7; }
 .rangeLabels { display: flex; justify-content: space-between; color: #4b5c70; font-size: 13px; }
 .riskControl p { color: #526174; font-size: 12px; margin-top: 12px; }
+.rebalanceSettings { min-width: 0; border: 1px solid #d2dce8; border-radius: 10px; padding: 16px 18px; margin-top: 22px; }
+.rebalanceSettings legend { padding: 0 6px; font-size: 14px; font-weight: 600; }
+.rebalanceSettings p { font-size: 13px; color: #526174; line-height: 1.7; }
+.frequencyOptions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.frequencyOptions label { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 10px 14px; border: 1px solid #d2dce8; border-radius: var(--radius-control); cursor: pointer; }
+.frequencyOptions label[data-selected="true"] { border-color: var(--brand); background: #edf3fe; color: var(--brand); }
+.frequencyOptions input { accent-color: var(--brand); }
+.frequencyOptions label:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
 .result { border: 1px solid #ccd6e3; background: #ffffff; border-radius:var(--radius-card); padding: 28px; min-width: 0; }
 .eyebrow { font-size: 13px; font-weight: 500; color: #4b5c70; }
 .result h2 { margin: 8px 0 3px; font-size: 30px; font-weight: 650; letter-spacing: -.04em; line-height: 1.3; }

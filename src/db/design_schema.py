@@ -24,3 +24,9 @@ def ensure_design_schema(engine):
                 if con.exec_driver_sql('PRAGMA foreign_key_check').fetchall():
                     raise RuntimeError('Design migration failed foreign-key verification.')
     Base.metadata.create_all(engine)
+    if engine.dialect.name == 'sqlite' and 'onboarding_drafts' in tables:
+        columns = {c['name'] for c in inspect(engine).get_columns('onboarding_drafts')}
+        if 'rebalance_frequency' not in columns:
+            # Additive local upgrade: existing identities, snapshots and ledgers stay intact.
+            with engine.begin() as con:
+                con.exec_driver_sql('ALTER TABLE onboarding_drafts ADD COLUMN rebalance_frequency VARCHAR(16)')
