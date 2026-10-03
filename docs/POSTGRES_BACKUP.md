@@ -133,5 +133,21 @@ main 반영은 CI 통과, 실제 Actions 두 대상/권한 확인, main 앱 배�
 - PR #12 기존 CI와 같은 백엔드 명령: **87 passed + 37 passed**
   (기존 선택 조건에 따른 deselected 5+2). 운영 DB는 사용하지 않았다.
 - PR #12 프론트 **50 passed(9 files)**, 별도 출력 디렉터리의 프로덕션 빌드 통과.
-- 원격 CI, 실제 Actions 대상 inspection 및 반영 결과는 후속 검증 기록으로
-  구분한다. 폐기 DB 성공은 운영 덤프 복원 증거가 아니다.
+- 최신 develop 기반 전체 백엔드 **489 passed**(폐기 PostgreSQL 포함), 프론트
+  **59 passed**, build 통과. PR #12보다 많은 기존 기능을 포함한 develop에서도 검증했다.
+- [PR #12 복원 CI](https://github.com/Siin-Git/robo/actions/runs/37107421267):
+  PostgreSQL **14/17/18 각각 12 passed**. PR #12 기존 backend/frontend push·PR CI도 통과.
+- [첫 실제 Actions inspection](https://github.com/Siin-Git/robo/actions/runs/37107499779)은
+  연결된 두 서버가 18인데 client 17이어서 의도대로 `SERVER_VERSION_INCOMPATIBLE`.
+  이 요청에서 백업 전용 비밀 아닌 variable `PG_BACKUP_CLIENT_MAJOR=18`을 설정했다.
+- [18로 재검사](https://github.com/Siin-Git/robo/actions/runs/37107828751)는 auth/design
+  모두 `INSPECTED_ONLY`. 서로 다른 DB OID, 같은 cluster, 기대 컬럼/PK·조회 접근을
+  확인했다. 덤프는 생성하지 않았고 `restore_verified=false`다.
+- 현재 `BACKUP_AUTH_HOST/DATABASE`, `BACKUP_DESIGN_HOST/DATABASE`는 미설정.
+  관측한 이름·호스트를 자동으로 승인 기준에 복사하지 않았다. 실제 앱의 인증/운용
+  연결과 일치하는지는 소유자의 독립 확인이 필요하다.
+- main 자동 배포 연결도 확인되지 않았다(현재 GitHub 계정으로 webhook/배포 연결
+  관리 정보를 조회할 수 없음). 따라서 조건부 main 병합과 첫 운영 백업은 보류한다.
+  main에는 아직 기존 주간 단일 DB/14일 보관 workflow가 남아 있다.
+- 폐기 DB 성공은 운영 덤프 복원 증거가 아니다. 운영 덤프의 격리 복원은 미검증이며
+  이 기록은 운영 DB 변경이나 실제 앱 배포 완료를 의미하지 않는다.
