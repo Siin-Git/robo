@@ -1,5 +1,5 @@
 name: backup
-run-name: ${{ inputs.inspection_only && 'Inspect PostgreSQL targets (no dumps)' || 'Back up authentication and ledger DBs' }}
+run-name: ${{ inputs.diagnose_connection && 'Compare libpq connections (read only, no dumps)' || inputs.inspection_only && 'Inspect PostgreSQL targets (no dumps)' || 'Back up authentication and ledger DBs' }}
 
 on:
   schedule:
@@ -9,6 +9,10 @@ on:
     inputs:
       inspection_only:
         description: Read identities/schema/version only; do not create dumps
+        type: boolean
+        default: false
+      diagnose_connection:
+        description: Compare native libpq URI and converted environment; read only, no dumps
         type: boolean
         default: false
 
@@ -56,7 +60,12 @@ jobs:
           BACKUP_DESIGN_HOST: ${{ vars.BACKUP_DESIGN_HOST }}
           BACKUP_DESIGN_DATABASE: ${{ vars.BACKUP_DESIGN_DATABASE }}
           INSPECTION_ONLY: ${{ inputs.inspection_only || false }}
+          DIAGNOSE_CONNECTION: ${{ inputs.diagnose_connection || false }}
         run: |
+          if [ "$DIAGNOSE_CONNECTION" = true ]; then
+            python -m scripts.postgres_backup_diagnose --target '${{ matrix.target }}' --output-dir "$RUNNER_TEMP/robo-backup"
+            exit $?
+          fi
           args=()
           if [ "$INSPECTION_ONLY" = true ]; then args+=(--inspection-only); fi
           python scripts/postgres_backup.py backup --target '${{ matrix.target }}' --output-dir "$RUNNER_TEMP/robo-backup" "${args[@]}"
@@ -68,5 +77,6 @@ jobs:
           path: |
             ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}.dump
             ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}.json
+            ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}_connection.json
           if-no-files-found: ignore
           retention-days: 90

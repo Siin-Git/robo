@@ -29,6 +29,36 @@ REQUIRED = {
 class BackupError(Exception):
     """Only constant error codes are safe for logs."""
 
+def connection_error(stderr):
+    """Classify in memory; never return captured text or matched values."""
+    text = stderr.lower()
+    reasons = (
+        ('invalid channel_binding value', 'CONNECT_CHANNEL_BINDING_INVALID'),
+        ('invalid sslmode value', 'CONNECT_TLS_MODE_INVALID'),
+        ('invalid target_session_attrs value', 'CONNECT_TARGET_SESSION_INVALID'),
+        ('invalid percent-encoded token', 'CONNECT_URI_ENCODING_INVALID'),
+        ('invalid uri query parameter', 'CONNECT_URI_PARAMETER_INVALID'),
+        ('channel binding', 'CONNECT_CHANNEL_BINDING_FAILED'),
+        ('password authentication failed', 'CONNECT_AUTH_FAILED'),
+        ('no password supplied', 'CONNECT_PASSWORD_MISSING'),
+        ('certificate verify failed', 'CONNECT_TLS_FAILED'),
+        ('server does not support ssl', 'CONNECT_TLS_UNAVAILABLE'),
+        ('ssl connection is required', 'CONNECT_TLS_REQUIRED'),
+        ('session is read-only', 'CONNECT_TARGET_SESSION_MISMATCH'),
+        ('session is not read-only', 'CONNECT_TARGET_SESSION_MISMATCH'),
+        ('could not translate host name', 'CONNECT_DNS_FAILED'),
+        ('connection refused', 'CONNECT_REFUSED'),
+        ('timeout expired', 'CONNECT_TIMEOUT'),
+        ('connection timed out', 'CONNECT_TIMEOUT'),
+        ('endpoint is disabled', 'CONNECT_ENDPOINT_DISABLED'),
+    )
+    for phrase, code in reasons:
+        if phrase in text:
+            return code
+    if re.search(r'database [^\n]* does not exist', text):
+        return 'CONNECT_DATABASE_MISSING'
+    return 'CONNECT_FAILED'
+
 def tool(command, env=None, code='TOOL_FAILED'):
     try:
         result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=1800)
@@ -36,16 +66,7 @@ def tool(command, env=None, code='TOOL_FAILED'):
         raise BackupError(code) from None
     if result.returncode:
         if code == 'CONNECT_FAILED':
-            # Never propagate stderr: classify only fixed, nonsecret phrases.
-            reasons = {'channel binding':'CONNECT_CHANNEL_BINDING_FAILED',
-                'password authentication failed':'CONNECT_AUTH_FAILED',
-                'certificate verify failed':'CONNECT_TLS_FAILED',
-                'session is read-only':'CONNECT_TARGET_SESSION_MISMATCH',
-                'could not translate host name':'CONNECT_DNS_FAILED',
-                'timeout expired':'CONNECT_TIMEOUT'}
-            for phrase, reason in reasons.items():
-                if phrase in result.stderr.lower():
-                    raise BackupError(reason) from None
+            raise BackupError(connection_error(result.stderr)) from None
         raise BackupError(code) from None
     return result.stdout
 

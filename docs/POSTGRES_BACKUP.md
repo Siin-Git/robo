@@ -88,6 +88,33 @@ UNIQUE·인덱스·시퀀스 값과 다음 ID·함수/트리거를 비교·실�
 컬럼 누락, 접속 실패, 동일 대상, 기대 대상 불일치, 손상 덤프, 실제 SQL 권한 부족
 복원 실패와 전체 rollback, 비어 있지 않은 목적지 보존도 검사한다.
 
+## 연결 실패의 읽기 전용 비교
+
+`backup.yml`을 PR #12 head ref에서 `diagnose_connection=true`로 수동 실행하면
+같은 runner·설치 클라이언트·동일 secret으로 다음 두 방식을 비교한다. 이 입력은
+`inspection_only`나 일반 백업보다 우선하며 덤프·운영 쓰기를 수행하지 않는다.
+
+- 해당 `psql`이 사용하는 공유 libpq로 원래 URI를 직접 파싱·연결한다
+  (`PQconninfoParse`, `PQconnectdbParams`의 expanded dbname).
+- 현재 `Connection`의 URI→환경변수 변환을 거쳐 같은 `psql`로 연결한다.
+- 양쪽에서 `BEGIN READ ONLY` 후 연결 식별/SSL/읽기 전용 상태만 SELECT하고
+  연결을 닫아 rollback한다. URI/자격값은 argv·로그·artifact에 넣지 않는다.
+  원문 오류·notice는 메모리에서 분류하거나 폐기한다. 출력은 파라미터 이름별
+  일치 여부, 고정 오류 코드, 비밀 없는 버전/상태와 DB 식별 fingerprint뿐이다.
+- `BACKUP_*` 승인 변수는 **이 연결 진단에 적용하지 않는다**. 연결 성공이나
+  두 방식의 일치는 실제 앱의 인증/운용 역할과 일치한다는 증거가 아니다.
+  승인값은 앱의 실제 연결을 별도로 확인한 뒤에만 지정한다.
+
+로컬에서도 secret은 환경에만 설정하고 아래처럼 실행할 수 있다.
+
+```sh
+python -m scripts.postgres_backup_diagnose --target design --output-dir /restricted/new-diagnostic
+```
+
+보안/대상 옵션을 제거해 연결을 시도하지 않는다. 고정 오류 코드는 URI 인코딩,
+TLS 모드, channel binding 값/요구, 대상 session 값/불일치, 인증, DNS, 거부,
+timeout, 존재하지 않는 DB 등을 구분하며 미분류는 `CONNECT_FAILED`로 남는다.
+
 ## 실제 운영 덤프의 격리 복원 절차
 
 1. 성공한 auth/design artifact와 **같은 실행의** JSON manifest를 제한된 장소에
