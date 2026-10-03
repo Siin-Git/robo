@@ -24,6 +24,20 @@ ENV_KEYS = {'host':'PGHOST','port':'PGPORT','dbname':'PGDATABASE','user':'PGUSER
  'sslcrl':'PGSSLCRL','channel_binding':'PGCHANNELBINDING','options':'PGOPTIONS',
  'connect_timeout':'PGCONNECT_TIMEOUT','target_session_attrs':'PGTARGETSESSIONATTRS',
  'application_name':'PGAPPNAME'}
+OPTION_ENUMS = {'sslmode':{'disable','allow','prefer','require','verify-ca','verify-full'},
+ 'channel_binding':{'disable','prefer','require'},
+ 'target_session_attrs':{'any','read-write','read-only','primary','standby','prefer-standby'}}
+
+def option_shape(env):
+    # Enum values are public configuration; invalid values may contain secrets.
+    result={}
+    for key,allowed in OPTION_ENUMS.items():
+        value=env.get(ENV_KEYS[key])
+        if value is not None:
+            result[key]={'recognized':value in allowed,'value':value if value in allowed else 'INVALID_NOT_PRINTED',
+                'has_whitespace':any(c.isspace() for c in value),
+                'has_quote':any(c in value for c in "\"'"), 'has_assignment_separator':'=' in value}
+    return result
 
 class ConninfoOption(C.Structure):
     _fields_ = [(name,C.c_char_p) for name in ('keyword','envvar','compiled','val','label','dispchar')] + [('dispsize',C.c_int)]
@@ -48,6 +62,7 @@ class Libpq:
             'PQfreemem':([C.c_void_p],None),
             'PQconnectdbParams':([C.POINTER(C.c_char_p),C.POINTER(C.c_char_p),C.c_int],C.c_void_p),
             'PQstatus':([C.c_void_p],C.c_int), 'PQerrorMessage':([C.c_void_p],C.c_char_p),
+            'PQsslInUse':([C.c_void_p],C.c_int),
             'PQexec':([C.c_void_p,C.c_char_p],C.c_void_p),
             'PQresultStatus':([C.c_void_p],C.c_int),
             'PQgetvalue':([C.c_void_p,C.c_int,C.c_int],C.c_char_p),
@@ -90,7 +105,9 @@ class Libpq:
             if not result:raise BackupError('READ_ONLY_QUERY_FAILED')
             try:
                 if self.lib.PQresultStatus(result)!=2:raise BackupError('READ_ONLY_QUERY_FAILED')
-                return json.loads(self.lib.PQgetvalue(result,0,0))
+                identity=json.loads(self.lib.PQgetvalue(result,0,0))
+                identity['client_ssl']=bool(self.lib.PQsslInUse(connection))
+                return identity
             finally:self.lib.PQclear(result)
         finally:self.lib.PQfinish(connection)  # Rolls back the read-only transaction.
 
@@ -99,7 +116,8 @@ def public_identity(identity):
     return {'status':'CONNECTED_READ_ONLY','identity_fingerprint':hashlib.sha256(
         json.dumps(address,sort_keys=True).encode()).hexdigest(),
         'server_major':int(identity['server_version_num'])//10000,
-        'read_only':identity['read_only']=='on','ssl':identity['ssl']}
+        'read_only':identity['read_only']=='on','backend_ssl':identity['ssl'],
+        'client_ssl':identity.get('client_ssl')}
 
 def probe(url,mode):
     try:
@@ -114,11 +132,19 @@ def compare(url):
     library=Libpq()
     report={'libpq_version':library.version,'clients':versions(),
         'expected_target_check':'NOT_APPLIED_CONNECTION_DIAGNOSIS_ONLY'}
+    report['uri_shape']={'standard_scheme_prefix':url.startswith(('postgresql://','postgres://','postgresql+psycopg://')),
+        'leading_whitespace':url!=url.lstrip(),'trailing_whitespace':url!=url.rstrip(),
+        'has_control_characters':any(ord(c)<32 or ord(c)==127 for c in url)}
+    try:
+        converted=Connection(url).env
+        report['option_validation']=option_shape(converted)
+    except BackupError as error:
+        converted=None;report['converted_parse_error']=str(error)
     try:
         native=library.parse(url)
-        converted=Connection(url).env
-        report['parameter_equivalence']={key:converted.get(ENV_KEYS.get(key,''))==value
-            for key,value in native.items()}
+        if converted is not None:
+            report['parameter_equivalence']={key:converted.get(ENV_KEYS.get(key,''))==value
+                for key,value in native.items()}
     except BackupError as error:report['parameter_parse_error']=str(error)
     # Both children share the same runner, PATH, libpq and original secret.
     # No URL, username or password in argv, output, artifact or exception text.
