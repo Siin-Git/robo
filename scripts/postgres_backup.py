@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
-from urllib.parse import parse_qsl, unquote, urlsplit
+from urllib.parse import unquote, urlsplit
 
 SUPPORTED_MAJORS = range(14, 19)
 TARGETS = {'auth': 'DATABASE_URL', 'design': 'CAPSTONE_DESIGN_DATABASE_URL'}
@@ -88,6 +88,9 @@ class Connection:
     def __init__(self, url):
         if not url:
             raise BackupError('CONFIG_MISSING')
+        # urlsplit silently strips raw LF/CR/TAB. Never join secret lines.
+        if any(ord(c)<32 or ord(c)==127 for c in url):
+            raise BackupError('CONFIG_URI_CONTROL_CHARACTERS')
         try:
             parsed = urlsplit(url)
             if parsed.scheme not in ('postgres', 'postgresql', 'postgresql+psycopg'):
@@ -105,7 +108,15 @@ class Connection:
                 'sslkey':'PGSSLKEY','sslcrl':'PGSSLCRL','channel_binding':'PGCHANNELBINDING',
                 'options':'PGOPTIONS','connect_timeout':'PGCONNECT_TIMEOUT',
                 'target_session_attrs':'PGTARGETSESSIONATTRS','application_name':'PGAPPNAME'}
-            params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+            # libpq URIs use percent encoding, not HTML form '+' decoding.
+            params = {}
+            for field in parsed.query.split('&') if parsed.query else []:
+                if field.count('=') != 1:
+                    raise BackupError('CONFIG_URI_QUERY_SEPARATOR_INVALID')
+                key, value = field.split('=', 1)
+                if re.search(r'%(?![0-9a-fA-F]{2})', field) or '%00' in field.lower():
+                    raise BackupError('CONFIG_URI_ENCODING_INVALID')
+                params[unquote(key)] = unquote(value)
             if set(params) - set(libpq_keys):
                 raise ValueError()
             self.env.update({libpq_keys[k]:v for k,v in params.items()})

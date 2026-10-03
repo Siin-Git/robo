@@ -115,6 +115,42 @@ python -m scripts.postgres_backup_diagnose --target design --output-dir /restric
 TLS 모드, channel binding 값/요구, 대상 session 값/불일치, 인증, DNS, 거부,
 timeout, 존재하지 않는 DB 등을 구분하며 미분류는 `CONNECT_FAILED`로 남는다.
 
+### 같은 secret 비교 결과 (2026-10-03)
+
+[상세 비교 실행](https://github.com/Siin-Git/robo/actions/runs/37119843115)의 양쪽 job은
+동일 secret, `psql/pg_dump/pg_restore` 18, 실제 공유 libpq 180006을 사용했다.
+secret 갱신 시각은 이전 성공·실패 실행과 동일하다. 인증은 원래 URI/현재 변환의
+모든 지정 파라미터가 일치하고 같은 DB로 읽기 전용 연결에 성공했다.
+`sslmode=require`, `channel_binding=require`가 유효하며 native client TLS도 확인했다.
+`pg_stat_ssl`의 backend SSL은 proxy 이후 구간이므로 client TLS와 혼동하지 않는다.
+
+운용은 원래 URI의 **query에 여분 `=`**가 있어 native 파싱/연결이
+`CONNECT_URI_EXTRA_EQUALS`로 실패했다. URI에는 제어 문자도 있다. 기존 변환은
+`urlsplit`이 일부 제어 문자를 제거하고 HTML form 방식 query 파서를 사용해
+malformed URI를 통과시켰으며, 변환된 `channel_binding`은 인정되는 값이 아니고
+여분 assignment separator를 포함해 `CONNECT_CHANNEL_BINDING_INVALID`였다.
+값 자체나 원문 오류를 공개하지 않았으므로 붙은 내용의 출처는 단정하지 않는다.
+
+성공 커밋 `5f9e102`은 `PGCHANNEL_BINDING`이라는 잘못된 이름을 사용해 옵션을
+무시했다. `623bb4d`가 공식 이름 `PGCHANNELBINDING`으로 바꾼 뒤 실패한 것은
+유효하지 않은 원래 값이 실제 적용됐기 때문이다. 인증 비밀번호/TLS/network 문제로
+단정할 근거가 없으며, 보안 옵션을 다시 무시해 성공시키지 않는다.
+
+최소 코드 수정은 raw 제어 문자와 잘못된 query separator/percent encoding을
+고정 설정 오류로 거부하고 URI의 literal `+`를 공백으로 바꾸지 않는 것이다.
+encoded `+`, `%`, 공백, `options`의 `=`는 한 번만 percent-decode한다.
+secret은 변경하지 않았다. `BACKUP_*` 승인 변수도 설정하지 않았다.
+
+소유자는 Actions의 **`CAPSTONE_DESIGN_DATABASE_URL`만** 실제 앱의 운용 연결과
+비공개 대조하여 **한 개의 PostgreSQL URI**가 저장됐는지 확인한다. raw 제어 문자,
+URI 외에 붙은 내용과 query의 여분 `=`를 제거해야 하며 원래 host/DB/user/password와
+보안 정책은 유지한다. `channel_binding=require`라면 값은 정확히 `require`여야
+하며 `sslmode=require`도 유지한다. option 값 안의 필요한 예약 문자는 URI 규칙대로
+percent-encode한다. secret 값이나 잘못 붙은 내용을 채팅/공개 로그로 보내지 않는다.
+수정 후 `diagnose_connection=true`를 다시 실행해 양쪽 연결/파라미터 일치를 확인한다.
+그 다음에만 별도 앱 연결 확인을 통해 `BACKUP_*` 승인값을 지정한다.
+main 병합·첫 운영 백업·운영 복원은 계속 보류한다.
+
 ## 실제 운영 덤프의 격리 복원 절차
 
 1. 성공한 auth/design artifact와 **같은 실행의** JSON manifest를 제한된 장소에
