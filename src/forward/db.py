@@ -178,7 +178,20 @@ def connect(db_path):
     except Exception:
         backend = os.environ.get("DATABASE_BACKEND", "sqlite").strip().lower()
     if backend == "postgres":
-        url = os.environ.get("DATABASE_URL", "").strip()
+        # 캡스톤 모드에서 엔진이 기록을 남길 곳은 인증 DB 가 아니라 설계 DB 다.
+        # SQLite 경로는 get_database_path() 가 그 구분을 해 주지만, postgres
+        # 경로는 예전에 DATABASE_URL 하나만 봤다. 그대로 두면 운용 기록이
+        # 인증·시연 DB 에 섞인다(조용히 일어난다).
+        # 캡스톤 모드가 아니면 None 이 돌아와 예전 동작 그대로다.
+        url = ""
+        try:
+            from ..db.config import get_design_database_url
+        except ImportError:  # 경량 실행 환경 - DATABASE_URL 로 간다
+            pass
+        else:
+            url = get_design_database_url(backend) or ""
+        if not url:
+            url = os.environ.get("DATABASE_URL", "").strip()
         if not url:
             raise ValueError("DATABASE_URL is not set (required for postgres backend)")
         from .pg_adapter import connect_postgres

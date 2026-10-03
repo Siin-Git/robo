@@ -63,15 +63,89 @@ def main(argv=None) -> int:
 
 
 def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
-    n_core = con.execute("SELECT COUNT(*) c FROM accounts WHERE account_type IN ('core','shadow')"
-                         " AND status='active'").fetchone()["c"]
-    n_pers = con.execute("SELECT COUNT(*) c FROM accounts WHERE account_type='personal'"
-                         " AND status='active'").fetchone()["c"]
+    """실제와 같은 계산을 하되 아무것도 쓰지 않는다.
+
+    예전에는 계좌 수만 세서 효력일·주기·밴드를 미리 볼 수 없었다. 리밸런싱은
+    한 달에 한 번뿐이라 실행 후에 문제를 알면 늦다. 주문 판단은
+    ``execution.plan_orders`` 를 그대로 쓰므로 실제 실행과 결론이 같다.
+    """
+    from src.forward.frozen import load_frozen_benchmark as _lf
+    from src.forward.config import resolve as _rs
+    from src.forward.execution import current_weights as _cw, plan_orders
+    from src.forward.rebalance_schedule import effective_date as _eff
+    from src.forward.rebalance_schedule import is_rebalance_period, skip_reason
+
+    ft = cfg["forward_test"]
+    frozen_w, _ = _lf(_rs(cfg["frozen_dir"]))
+    effective = _eff(asof)
+    frequency = (ft.get("core_rebalance") or {}).get("frequency", "monthly")
+    band = (ft.get("core_rebalance") or {}).get("band") or None
     npx = con.execute("SELECT COUNT(*) c FROM prices_daily WHERE date <= ?",
                       (asof,)).fetchone()["c"]
-    print(f"DRY RUN monthly for {y}-{m} (asof {asof}, risk_only={risk_only}): "
-          f"{npx} price rows available, {n_core} core/shadow + {n_pers} personal accounts "
-          f"would refresh risk{'' if risk_only else ' and rebalance'}.")
+    maxpx = con.execute("SELECT MAX(date) m FROM prices_daily WHERE date <= ?",
+                        (asof,)).fetchone()["m"]
+
+    print(f"DRY RUN monthly {y}-{m}  (zero writes)")
+    print(f"  decision date (asof): {asof}   latest close on/before: {maxpx}")
+    print(f"  order effective date: {effective}   <- must be after the decision date")
+    print(f"  frequency: {frequency}   band: {band}")
+    print(f"  price rows <= asof: {npx}")
+
+    if risk_only:
+        print("  risk_only: would refresh the risk model and place no orders.")
+        return 0
+    if not is_rebalance_period(int(y), int(m), frequency):
+        print(f"  no rebalance: {skip_reason(int(y), int(m), frequency)}")
+        return 0
+
+    accounts = [dict(r) for r in con.execute(
+        "SELECT * FROM accounts WHERE status='active' ORDER BY account_type, account_id"
+    ).fetchall()]
+    if not accounts:
+        print("  no active accounts.")
+        return 0
+
+    cov = None
+    totals = {"order": 0, "band": 0, "unchanged": 0}
+    banded = {}
+    print(f"\n  {'account':24s} {'type':9s} {'order':>5s} {'band':>5s} {'same':>5s}")
+    print("  " + "-" * 54)
+    for a in accounts:
+        if a["account_type"] == "personal":
+            if cov is None:
+                cov, _info = rebuild_cov(con, cfg, asof)   # 읽기 전용(캐시 저장 안 함)
+            pid = a["participant_id"]
+            tids = sorted({theme_asset_id(v["theme_id"])
+                           for v in batch_views(con, pid, "9999-99-99", effective)})
+            base_w = _base_for_participant(con, pid, frozen_w)
+            weights = build_personalized(base_w, tids, cfg, cov)["weights"]
+            baseline = _cw(con, a["account_id"], asof)
+        else:
+            # core 와 shadow 는 비중이 다르다. 실행과 같은 헬퍼를 쓴다.
+            from src.forward.accounts import static_weights
+            weights = static_weights(a["account_type"], a.get("shadow_name"),
+                                     cfg, frozen_w)
+            baseline = _cw(con, a["account_id"], asof)
+        rows = plan_orders(weights, baseline, band)
+        counts = {k: 0 for k in totals}
+        for r in rows:
+            counts[r["action"]] += 1
+            if r["action"] == "band":
+                banded.setdefault(r["asset"], []).append(abs(r["drift"]))
+        for k in totals:
+            totals[k] += counts[k]
+        print(f"  {a['account_id']:24s} {a['account_type']:9s} "
+              f"{counts['order']:5d} {counts['band']:5d} {counts['unchanged']:5d}")
+
+    print("  " + "-" * 54)
+    print(f"  {'TOTAL':24s} {'':9s} {totals['order']:5d} {totals['band']:5d} "
+          f"{totals['unchanged']:5d}")
+    print(f"\n  would create {totals['order']} orders effective {effective}.")
+    if banded:
+        print(f"  band suppressed {totals['band']} (target +-10% relative):")
+        for asset, drifts in sorted(banded.items()):
+            print(f"    {asset:24s} n={len(drifts):3d}  max drift={max(drifts):+.4f}")
+    print("\n  * nothing was written.")
     return 0
 
 
@@ -129,19 +203,8 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     from src.forward.execution import current_weights as _cw
     for r in con.execute("SELECT * FROM accounts WHERE account_type IN ('core','shadow')"
                          " AND status='active'").fetchall():
-        if r["account_type"] == "core":
-            w = dict(frozen_w)
-        elif r["shadow_name"] == "core_v03":
-            w = dict(frozen_w)
-        elif r["shadow_name"] == "neutral_60_40":
-            import pandas as pd
-            w = pd.read_csv(resolve(cfg["phase16_outputs"]) / "neutral_60_40_weights.csv",
-                            index_col=0)["weight"].to_dict()
-            w = {k: float(v) for k, v in w.items()}
-        else:  # equal_weight
-            from src.forward.prices import CORE_IDS
-            w = {a: 1 / 9 for a in CORE_IDS}
-            w["cash"] = 0.0
+        from src.forward.accounts import static_weights
+        w = static_weights(r["account_type"], r["shadow_name"], cfg, frozen_w)
         record_target(con, r["account_id"], w, effective, "core", versions,
                       ft["benchmark_version"], r["participant_id"])
         n += len(place_target_orders(con, r["account_id"], w, f"{asof}T23:59:59+00:00",

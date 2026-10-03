@@ -8,7 +8,7 @@ from ...db.models.view import View
 from ...forward.metrics import perf_metrics, tracking_ir
 from copy import deepcopy
 from datetime import timedelta
-from ...local.capstone import EMAILS, enabled
+from ...local.capstone import COHORT_SIZE, EMAILS, enabled
 from ..errors import ApiError
 from .performance_service import _accounts, _frame
 from .portfolio_service import _legs, _tickers
@@ -142,7 +142,7 @@ def rankings(session, basis="return"):
     items = reports(session)
     ranked = sorted_reports(items, basis)
     group = active(session)
-    return {"data_source": "MARKET_PRICE_REPLAY" if market_comparison.enabled() else items[0]["data_source"] if items else None, "basis": basis, "total": len(ranked), "registered": len(items), "capacity": 13,
+    return {"data_source": "MARKET_PRICE_REPLAY" if market_comparison.enabled() else items[0]["data_source"] if items else None, "basis": basis, "total": len(ranked), "registered": len(items), "capacity": COHORT_SIZE,
         "cohort_id": group.cohort_id if group else "legacy", "reserved": sum(s.confirmed_at is None for s in slots(session, group)) if group else 0,
         "start": "2026-04-01" if ranked else None, "end": "2026-09-11" if ranked else None,
         "pending": [{k: r[k] for k in ("participant_id", "display_name", "themes")} for r in items if not r.get("metrics")],

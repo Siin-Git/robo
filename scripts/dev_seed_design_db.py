@@ -12,7 +12,7 @@ TestClient 로 직접 호출해서, 실제 서비스와 똑같은 경로로 설�
 이미 가격이 있으면 덮어쓰지 않는다. 계정·NAV·보유·거래는 복사하지 않는다.
 
 사용:
-  python scripts/dev_seed_design_db.py                 # 13명 전원
+  python scripts/dev_seed_design_db.py                 # 시연 계정 전원
   python scripts/dev_seed_design_db.py --users 1       # 1명만
   python scripts/dev_seed_design_db.py --skip-seed     # capstone_demo.db 시드 생략
 """
@@ -58,7 +58,8 @@ def _report(db_path: Path, label: str) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="dev_seed_design_db")
-    ap.add_argument("--users", type=int, default=13, help="로그인시킬 사용자 수 (1~13)")
+    ap.add_argument("--users", type=int, default=None,
+                    help="로그인시킬 사용자 수 (기본: 시연 계정 전원)")
     ap.add_argument("--skip-seed", action="store_true",
                     help="capstone_demo.db 시드(src.local.seed_capstone) 생략")
     ap.add_argument("--price-source", default=None,
@@ -80,7 +81,7 @@ def main(argv=None) -> int:
     print(f"DESIGN_PRICE_SOURCE: {os.environ.get('DESIGN_PRICE_SOURCE', '(없음)')}")
     print("=====================================")
 
-    # --- 1. 13명 시연 계정 (capstone_demo.db) ------------------------------
+    # --- 1. 시연 계정 (capstone_demo.db) -----------------------------------
     if not args.skip_seed:
         print("\n[1] capstone_demo.db 시드")
         from src.local import seed_capstone
@@ -103,7 +104,8 @@ def main(argv=None) -> int:
 
     n_ok = 0
     with TestClient(app) as client:
-        for email in EMAILS[:max(1, min(args.users, len(EMAILS)))]:
+        wanted = len(EMAILS) if args.users is None else args.users
+        for email in EMAILS[:max(1, min(wanted, len(EMAILS)))]:
             res = client.post("/api/v1/auth/login",
                               json={"email": email, "password": PASSWORD})
             if res.status_code != 200:

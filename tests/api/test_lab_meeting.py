@@ -1,8 +1,9 @@
-"""All 13 participants select for themselves; only saved choices rank."""
+"""All cohort participants select for themselves; only saved choices rank."""
 import pytest
 from sqlalchemy import func, select
 
 from src.local.capstone import EMAILS
+from src.local.capstone import COHORT_SIZE
 from src.local.lab_meeting import prepare
 from src.api.services import enrollment_service, market_comparison
 from src.db.models.demo_cohort import DemoSlot
@@ -45,7 +46,7 @@ def test_thirteen_independent_logins_choices_rankings_and_reconfiguration(lab):
         assert c.get("/api/v1/me/onboarding/draft").json()["theme_ids"] == []
         assert c.get("/api/v1/me/comparison").status_code == 409
         ranking = c.get("/api/v1/comparison/rankings").json()
-        assert (ranking["total"], ranking["reserved"], ranking["capacity"]) == (i, 13-i, 13)
+        assert (ranking["total"], ranking["reserved"], ranking["capacity"]) == (i, COHORT_SIZE-i, COHORT_SIZE)
         assert ranking["data_source"] == "MARKET_PRICE_REPLAY"
         frontier = c.get("/api/v1/me/frontier").json()
         choice = {"frontier_id": frontier["benchmark_frontier_id"], "theme_ids": [themes[i % len(themes)]], "current_step": "themes"}
@@ -60,9 +61,9 @@ def test_thirteen_independent_logins_choices_rankings_and_reconfiguration(lab):
         assert report["themes"] == choice["theme_ids"]
         assert report["data_source"] == "MARKET_PRICE_REPLAY"
         reports[identity["participant_id"]] = report
-    assert len(identities) == 13
+    assert len(identities) == COHORT_SIZE
     ranking = c.get("/api/v1/comparison/rankings").json()
-    assert ranking["total"] == ranking["registered"] == 13 and ranking["reserved"] == 0
+    assert ranking["total"] == ranking["registered"] == COHORT_SIZE and ranking["reserved"] == 0
     assert {r["participant_id"] for r in ranking["items"]} == identities
     assert "email" not in str(ranking) and "password" not in str(ranking)
     before = c.get("/api/v1/comparison/analytics").json()["reports"]

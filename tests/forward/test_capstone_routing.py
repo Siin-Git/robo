@@ -1,7 +1,7 @@
 """캡스톤 모드 DB 라우팅: forward 엔진과 대시보드가 같은 DB 를 본다.
 
 합의(2번안): CAPSTONE_DEMO 모드를 유지하면서 forward 운용 기록을 설계 DB
-(portfolio_design.db)에 남긴다. 13명 비교 시연 데이터가 있는 capstone_demo.db 는
+(portfolio_design.db)에 남긴다. 비교 시연 데이터가 있는 capstone_demo.db 는
 건드리지 않아 서로 덮어쓰지 않는다.
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ def test_대시보드가_읽는_경로와_같다(tmp_path):
     from src.forward.runtime import get_database_path
     with envs(**CAPSTONE, CAPSTONE_DATA_DIR=str(tmp_path)):
         auth = Path(get_database_url().replace("sqlite:///", ""))
-        assert auth.name == "capstone_demo.db"          # 13명 시연 데이터는 여기
+        assert auth.name == "capstone_demo.db"          # 시연 데이터는 여기
         assert auth.with_name("portfolio_design.db") == get_database_path()
 
 

@@ -36,6 +36,7 @@ def _frame(session, account_id: str | None) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame([{"date": C.as_date(r.date), "nav": C.fnum(r.nav),
+                        "nav_base100": C.fnum(r.nav_base100),
                         "daily_return": C.fnum(r.daily_return)} for r in rows])
     return df.set_index(pd.to_datetime(df.pop("date"))).sort_index()
 
@@ -63,6 +64,17 @@ def summary(session, participant_id: str, start=None, end=None) -> dict:
 
 
 def nav_history(session, participant_id: str) -> dict:
+    """차트가 그리는 NAV 이력. 값은 **기준 100** 환산이다.
+
+    ``nav_daily`` 에는 값이 둘 있다. ``nav`` 은 원화 평가액(초기자본 1억)이고
+    ``nav_base100`` 은 운용 시작을 100 으로 놓은 지수다. 화면은 이 값을
+    100 기준으로 읽어 수익률을 만든다.
+
+    예전에는 ``nav`` 을 돌려줬다. 시연 DB 는 두 값이 같아서(가상 NAV 를
+    base100 으로 넣는다) 우연히 맞았지만, 운용 기록을 같은 DB 에서 읽게 된
+    뒤로 원화 금액이 그대로 들어가 화면에 99,642,385% 가 찍혔다.
+    이름이 약속하는 대로 기준 100 값을 돌려준다.
+    """
     personal, core = _accounts(session, participant_id)
     pn, cn = _frame(session, personal.account_id if personal else None), \
         _frame(session, core.account_id if core else None)
@@ -70,8 +82,8 @@ def nav_history(session, participant_id: str) -> dict:
     items = []
     for d in idx:
         items.append({"date": d.date().isoformat(),
-                      "personalized_nav": C.fnum(pn.loc[d, "nav"]) if d in pn.index else None,
-                      "core_nav": C.fnum(cn.loc[d, "nav"]) if d in cn.index else None})
+                      "personalized_nav": C.fnum(pn.loc[d, "nav_base100"]) if d in pn.index else None,
+                      "core_nav": C.fnum(cn.loc[d, "nav_base100"]) if d in cn.index else None})
     return {"items": items}
 
 
