@@ -216,13 +216,12 @@ def _ensure_design_schema(db_path: Path) -> None:
     design = capstone_design_db()
     if design is None or Path(design).resolve() != db_path.resolve():
         return
-    if db_path.exists() and db_path.stat().st_size > 0:
-        return
     try:
         from src.db.base import Base
         import src.db.models  # noqa: F401  (모든 모델 등록)
         from src.db.session import create_app_engine
-        Base.metadata.create_all(create_app_engine(f"sqlite:///{db_path}"))
+        from src.db.design_schema import ensure_design_schema
+        ensure_design_schema(create_app_engine(f"sqlite:///{db_path}"))
     except Exception as exc:  # noqa: BLE001 - 조용히 빈 DB 를 만드는 편이 더 나쁘다
         raise RuntimeError(
             f"설계 DB 스키마를 만들 수 없다({db_path}). API 를 한 번 실행해 "
@@ -239,10 +238,8 @@ def now_iso() -> str:
 
 
 def next_id(con: sqlite3.Connection, prefix: str, width: int = 3) -> str:
-    cur = con.execute("SELECT value FROM counters WHERE name = ?", (prefix,))
-    row = cur.fetchone()
-    n = (row["value"] + 1) if row else 1
-    con.execute("INSERT OR REPLACE INTO counters (name, value) VALUES (?, ?)", (prefix, n))
+    n = con.execute("INSERT INTO counters (name,value) VALUES (?,1) "
+                    "ON CONFLICT (name) DO UPDATE SET value=counters.value+1 RETURNING value", (prefix,)).fetchone()["value"]
     return f"{prefix}{n:0{width}d}"
 
 

@@ -189,14 +189,6 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
     tids = []
     for exec_date in sorted(plan):
         nav_pre, qty_now, _ = nav_before_trades(con, account_id, exec_date, capital)
-        # target weights snapshot per order (target at order creation)
-        tgts = {}
-        for o in plan[exec_date]:
-            tw = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                             " AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
-                             (account_id, o["effective_at"])).fetchone()
-            import json
-            tgts[o["order_id"]] = json.loads(tw["weights_json"]) if tw else {}
         # size sequentially in asset order; scale buys if cash would go negative
         pxmap = {}
         for o in plan[exec_date]:
@@ -205,7 +197,7 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
         # two-pass: compute raw deltas, then scale buys to fit cash
         raw = []
         for o in plan[exec_date]:
-            tw = tgts[o["order_id"]].get(o["asset_id"], 0.0)
+            tw = float(o["target_weight"])
             target_qty = tw * nav_pre / pxmap[o["order_id"]]
             raw.append((o, target_qty - qty_now.get(o["asset_id"], 0.0)))
         cash_now = nav_before_trades(con, account_id, exec_date, capital)[2]

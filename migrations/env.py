@@ -22,7 +22,7 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    url = os.environ.get("DATABASE_URL", "").strip()
+    url = config.attributes.get("database_url") or os.environ.get("DATABASE_URL", "").strip()
     if url:
         # SQLAlchemy 는 'postgresql://' 를 psycopg2 로 읽는다. 이 프로젝트는
         # psycopg3 만 설치하므로 드라이버를 명시한다(src/db/config.py 와 같은 규칙).

@@ -103,7 +103,8 @@ def main(argv=None) -> int:
     cfg = load_forward_config()
     db_path = _dbp()
     con = connect(db_path)
-    today = date.today().isoformat()
+    from src.forward.runtime import kst_today
+    today = kst_today().isoformat()
     ctx = job_context(args, today)
     job_id, decision = enter_job(db_path, "daily", ctx)
     if decision == "dry":
@@ -188,7 +189,9 @@ def _execute_daily(con, cfg, today):
     if price_report["stale_assets"]:
         print(f"WARNING: stale prices ({stale_days}d+): {price_report['stale_assets']}")
 
+    from src.forward.decision_policy import awaiting_confirmation, latest_decision, weights as decision_weights
     accounts = [dict(r) for r in con.execute("SELECT * FROM accounts WHERE status='active'").fetchall()]
+    accounts = [a for a in accounts if not awaiting_confirmation(con, a)]
     # Initial orders for accounts that hold targets but never traded: submitted
     # now, effective today -> first execution at then-available prices (never retroactive).
     # Blocked entirely while live pre-launch (inception NULL).
@@ -200,6 +203,24 @@ def _execute_daily(con, cfg, today):
         print(f"order creation blocked: {blocked_reason}")
     else:
         for a in accounts:
+            con.execute("UPDATE accounts SET status=status WHERE account_id=?", (a["account_id"],))
+            decision = latest_decision(con, a["account_id"])
+            if decision:
+                if str(decision["effective_date"])[:10] > asof:
+                    con.commit()
+                    continue
+                tag = "DECISION_ORDER:" + decision["decision_id"]
+                if con.execute("SELECT event_id FROM events WHERE event_type=? AND account_id=?", (tag, a["account_id"])).fetchone():
+                    con.commit()
+                    continue
+                from src.forward.execution import create_orders, current_weights
+                has_trades = con.execute("SELECT trade_id FROM trades WHERE account_id=? LIMIT 1", (a["account_id"],)).fetchone()
+                baseline = current_weights(con, a["account_id"], asof) if has_trades else {}
+                create_orders(con, a["account_id"], decision_weights(decision), decision["confirmed_at"], str(decision["effective_date"])[:10],
+                              ft["benchmark_version"], a["participant_id"], kind="DECISION", baseline=baseline)
+                log_event(con, tag, ft["benchmark_version"], a["participant_id"], a["account_id"], {"decision_id":decision["decision_id"]})
+                con.commit()
+                continue
             n_orders = con.execute("SELECT COUNT(*) c FROM orders WHERE account_id = ?",
                                    (a["account_id"],)).fetchone()["c"]
             if n_orders:
@@ -209,7 +230,13 @@ def _execute_daily(con, cfg, today):
             if not t:
                 continue
             from src.forward.execution import create_orders as _co
-            _co(con, a["account_id"], _json.loads(t["weights_json"]), now_iso(), today,
+            floor = today
+            if a["participant_id"]:
+                pa = con.execute("SELECT account_id FROM accounts WHERE participant_id=? AND account_type='personal'", (a["participant_id"],)).fetchone()
+                pd = latest_decision(con, pa["account_id"]) if pa else None
+                if pd:
+                    floor = max(today, str(pd["effective_date"])[:10])
+            _co(con, a["account_id"], _json.loads(t["weights_json"]), now_iso(), floor,
                 ft["benchmark_version"], a["participant_id"], kind="INITIAL_BENCHMARK_ORDER")
             log_event(con, "INITIAL_BENCHMARK_ORDER_CREATED", ft["benchmark_version"],
                       a["participant_id"], a["account_id"], {"effective": today})

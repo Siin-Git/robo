@@ -146,6 +146,10 @@ def personalized(session, participant_id: str, user_id: str | None = None) -> di
     if tgt is None:
         raise ApiError("PORTFOLIO_NOT_READY", "No personalized target yet.", 409)
     weights = dict(tgt.weights_json)
+    from .decision_service import latest as latest_decision
+    decision = latest_decision(session, acc.account_id)
+    if decision:
+        weights = dict(decision.weights_json)
     # If user has selected a base, the theme tilt should have been funded from that base.
     # For display, we still show the actual personalized weights, but also expose mode.
     base_w, mode = _base_weights_for(session, participant_id, user_id)
@@ -285,9 +289,9 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         base_er_calc = None
     base_info = {
         "frontier_id": getattr(base_sel, "frontier_id", None),
-        "expected_return": (float(getattr(base_sel, "expected_return", 0)) if base_sel
+        "expected_return": (C.fnum(base_sel.expected_return) if base_sel
                             else base_er_calc),
-        "volatility": float(getattr(base_sel, "volatility", 0)) if base_sel else None,
+        "volatility": C.fnum(base_sel.volatility) if base_sel else None,
         "weights": _legs(base_w, tickers),
         "groups": base_groups,
         "expected_return_basis": EXPECTED_RETURN_BASIS,
@@ -320,6 +324,7 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         ),
         "personalized": describe_position(
             volatility=pers_vol,
+            expected_return=pers_er,
             label="personalized",
         ),
     }

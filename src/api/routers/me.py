@@ -86,7 +86,11 @@ def me_nav(db=Depends(get_design_db), user=Depends(get_current_user)):
 @router.get("/performance/dashboard", summary="Period-aligned performance and asset contribution")
 def me_performance_dashboard(period: str = Query(default="ALL"),
                              db=Depends(get_design_db), user=Depends(get_current_user)):
-    return reports.dashboard(db, _pid(user), period)
+    report = reports.dashboard(db, _pid(user), period)
+    from ..services.reference_service import comparisons
+    report["comparators"] = comparisons(db, _pid(user), report)
+    report["units"] = {"returns": "fraction", "volatility": "fraction_per_year", "nav": "KRW"}
+    return report
 
 
 @router.get("/performance/contributions", summary="Own cumulative asset return contributions")

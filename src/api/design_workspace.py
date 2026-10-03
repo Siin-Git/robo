@@ -71,7 +71,8 @@ def _factory(url: str):
             f"_factory 는 DB URL 을 받는다(경로가 아니다): {url!r}. "
             f"파일이면 'sqlite:///<경로>' 형태로 넘길 것.")
     engine = create_app_engine(url)
-    Base.metadata.create_all(engine)
+    from ..db.design_schema import ensure_design_schema
+    ensure_design_schema(engine)
     return session_factory(engine)
 
 

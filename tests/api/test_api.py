@@ -229,7 +229,7 @@ def test_dashboard_reads_recorded_nav_and_holdings(env, client, owner):
     ledger = client.get(ledger_url, cookies=owner["cookies"])
     assert ledger.status_code == 200
     recorded = ledger.json()
-    assert recorded["contract_version"] == "ledger-read-v1"
+    assert recorded["contract_version"] == "ledger-read-v2"
     assert recorded["as_of"] == "2026-09-09"
     assert recorded["snapshots"][-1]["cash_balance"] == 0
     assert recorded["snapshots"][-1]["cumulative_return"] == pytest.approx(.21)

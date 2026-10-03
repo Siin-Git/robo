@@ -79,7 +79,7 @@ def test_signup_save_freeze_compare_restart_and_seed(env, monkeypatch):
     assert c.get("/api/v1/me/comparison").json()==report
     with env.factory() as s:
         assert s.scalar(select(func.count()).select_from(NavDaily).where(NavDaily.account_id.like(f"A-{pid}-%")))==0
-        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==2
+        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==1
         before=s.get(DemoSlot,"rehearsal:1").report_json
         seed(s);s.commit()
     # Dispose engine to prove fresh database connection, not in-memory state.
@@ -137,4 +137,4 @@ def test_concurrent_reservation_and_confirmation(env, monkeypatch):
     with env.factory() as s:
         assert s.scalar(select(func.count()).select_from(User))==COHORT_SIZE+1
         pid=s.get(User,uid).participant_id
-        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==2
+        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==1

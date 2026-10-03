@@ -145,8 +145,8 @@ def evaluate(weights):
     levels = prices.loc[meta["comparison_start"]:meta["comparison_end"], list(active)]
     if len(levels) < 31 or str(levels.index[0].date()) != meta["comparison_start"] or str(levels.index[-1].date()) != meta["comparison_end"]:
         raise ApiError("MARKET_DATA_INSUFFICIENT", "공통 비교 기간의 가격 데이터가 부족합니다.", 422)
-    nav = ((levels / levels.iloc[0]).mul(pd.Series(active)).sum(axis=1) + weights.get("cash", 0)) * 100
-    return pd.DataFrame({"nav": nav, "daily_return": nav.pct_change(fill_method=None).fillna(0)})
+    from ...forward.reference_portfolio import evaluate_levels
+    return evaluate_levels(weights, prices, meta["comparison_start"], meta["comparison_end"], minimum=31)
 
 
 def report(session, user, slot=None):

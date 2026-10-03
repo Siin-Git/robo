@@ -166,3 +166,18 @@ def print_banner(profile: str | None = None) -> str:
     print(safety_banner(profile), flush=True)
     assert_backend_consistent(profile)
     return profile
+
+
+def kst_today():
+    """Canonical scheduling day across Windows/KST and UTC Actions runners."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("Asia/Seoul")).date()
+
+
+def configured_executor():
+    """Operator-selected scheduler; unattended wrappers require explicit opt-in."""
+    value = os.environ.get("FORWARD_EXECUTOR", "disabled").strip().lower()
+    if value not in ("disabled", "notebook", "actions"):
+        raise ValueError("FORWARD_EXECUTOR must be disabled, notebook or actions")
+    return value

@@ -41,7 +41,8 @@ def main(argv=None) -> int:
     if args.month:
         y, m = args.month.split("-")
     else:
-        t = date.today()
+        from src.forward.runtime import kst_today
+        t = kst_today()
         y, m = (t.year, t.month - 1) if t.month > 1 else (t.year - 1, 12)
         y, m = str(y), f"{m:02d}"
     asof = f"{y}-{m}-{monthrange(int(y), int(m))[1]:02d}"
@@ -110,7 +111,10 @@ def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
     banded = {}
     print(f"\n  {'account':24s} {'type':9s} {'order':>5s} {'band':>5s} {'same':>5s}")
     print("  " + "-" * 54)
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights
     for a in accounts:
+        if awaiting_confirmation(con, a):
+            continue
         if a["account_type"] == "personal":
             if cov is None:
                 cov, _info = rebuild_cov(con, cfg, asof)   # 읽기 전용(캐시 저장 안 함)
@@ -118,7 +122,8 @@ def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
             tids = sorted({theme_asset_id(v["theme_id"])
                            for v in batch_views(con, pid, "9999-99-99", effective)})
             base_w = _base_for_participant(con, pid, frozen_w)
-            weights = build_personalized(base_w, tids, cfg, cov)["weights"]
+            d = latest_decision(con, a["account_id"], asof)
+            weights = decision_weights(d) if d else build_personalized(base_w, tids, cfg, cov)["weights"]
             baseline = _cw(con, a["account_id"], asof)
         else:
             # core 와 shadow 는 비중이 다르다. 실행과 같은 헬퍼를 쓴다.
@@ -201,8 +206,11 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
         print(f"rebalance band: {band}")
     # core + shadow static legs (drift-correcting vs current holdings)
     from src.forward.execution import current_weights as _cw
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights
     for r in con.execute("SELECT * FROM accounts WHERE account_type IN ('core','shadow')"
                          " AND status='active'").fetchall():
+        if awaiting_confirmation(con, dict(r)):
+            continue
         from src.forward.accounts import static_weights
         w = static_weights(r["account_type"], r["shadow_name"], cfg, frozen_w)
         record_target(con, r["account_id"], w, effective, "core", versions,
@@ -219,9 +227,16 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
                           " AND account_type='personal'", (pid,)).fetchone()
         if acc is None:
             continue
+        if awaiting_confirmation(con, {"participant_id": pid}):
+            continue
+        con.execute("UPDATE accounts SET status=status WHERE account_id=?", (acc["account_id"],))
+        d = latest_decision(con, acc["account_id"])
+        if d and str(d["effective_date"])[:10] > asof:
+            con.commit()
+            continue
         tids = sorted({theme_asset_id(v["theme_id"])
                        for v in batch_views(con, pid, "9999-99-99", effective)})
-        res = build_personalized(_base_for_participant(con, pid, frozen_w), tids, cfg, cov)
+        res = {"weights": decision_weights(d)} if d else build_personalized(_base_for_participant(con, pid, frozen_w), tids, cfg, cov)
         record_target(con, acc["account_id"], res["weights"], effective, "personal",
                       versions, ft["benchmark_version"], pid)
         # 월간 리밸런싱은 실제 보유 비중 기준으로 교정한다(core/shadow 와 동일).

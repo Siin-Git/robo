@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from src.api.services import portfolio_service as svc
-from src.api.services import frontier_service
+from src.api.services import frontier_service, decision_service
 
 
 @pytest.mark.parametrize("has_prices", [True, False])
@@ -15,6 +15,7 @@ def test_personalized_exposes_comparable_base_risk(monkeypatch, has_prices):
     final = {"us_treasury": .4, "theme:ai": .6}
     session = SimpleNamespace(scalars=lambda _: SimpleNamespace(first=lambda: SimpleNamespace(account_id="test")))
     monkeypatch.setattr(svc, "TargetRepository", lambda _: SimpleNamespace(latest=lambda _: SimpleNamespace(weights_json=final, effective_date=date(2026,9,11))))
+    monkeypatch.setattr(decision_service, "latest", lambda *args: None)
     monkeypatch.setattr(svc, "_base_weights_for", lambda *args: (base, "user_selected"))
     monkeypatch.setattr(svc, "_tickers", lambda _: {"ai":"AIQ"})
     monkeypatch.setattr(svc, "_cfg", lambda: {"benchmark_version":"test"})

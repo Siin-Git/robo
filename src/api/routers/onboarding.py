@@ -23,6 +23,8 @@ class PreviewBody(BaseModel):
     theme_ids: list[str] = []
 
 class CompleteBody(BaseModel):
+    adjustment_choice_id: str | None = None
+    expected_decision_id: str | None = None
     frontier_id: str
     theme_ids: list[str] = []
     reason: str | None = None
@@ -78,5 +80,7 @@ def complete(body: CompleteBody, db=Depends(get_design_db), user=Depends(require
     if slot and not slot.confirmed_at:
         if not market_comparison.enabled():
             raise ApiError("SETUP_REQUIRED", "먼저 첫 설정을 완료해 주세요.", 409)
-        return enrollment_service.complete(auth_db, user, {**body.model_dump(), "reason": body.reason or "", "core_id": "CORE_V0.3"})
-    return svc.complete(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason)
+        result = enrollment_service.complete(auth_db, user, {**body.model_dump(), "reason": body.reason or "", "core_id": "CORE_V0.3"})
+        result.update(svc.complete(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason, body.adjustment_choice_id, expected_decision_id=body.expected_decision_id))
+        return result
+    return svc.complete(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason, body.adjustment_choice_id, expected_decision_id=body.expected_decision_id)

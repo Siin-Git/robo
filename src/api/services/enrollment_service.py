@@ -242,11 +242,13 @@ def complete(session, user, data):
     from ...db.models.account import Account
     acc = session.scalar(select(Account).where(Account.participant_id == user.participant_id, Account.account_type == "personal"))
     ft = C.load_forward_cfg()["forward_test"]
-    session.add(PortfolioTarget(target_id=C.new_id(session, "G"), account_id=acc.account_id,
-        effective_date=slot.confirmed_at.date(), kind="personal",
-        weights_json={(("theme:" + w["asset_id"]) if w["asset_type"] == "theme" else w["asset_id"]): w["weight"] for w in config["allocation"]},
-        core_version=ft["benchmark_version"], theme_universe_version=ft["theme_universe_version"],
-        risk_model_version=ft["risk_model_version"], created_at=slot.confirmed_at))
+    from ..design_workspace import enabled as design_enabled
+    if not design_enabled():
+        session.add(PortfolioTarget(target_id=C.new_id(session, "G"), account_id=acc.account_id,
+            effective_date=slot.confirmed_at.date(), kind="personal",
+            weights_json={(("theme:" + w["asset_id"]) if w["asset_type"] == "theme" else w["asset_id"]): w["weight"] for w in config["allocation"]},
+            core_version=ft["benchmark_version"], theme_universe_version=ft["theme_universe_version"],
+            risk_model_version=ft["risk_model_version"], created_at=slot.confirmed_at))
     C.log_event(session, "DEMO_CONFIGURATION_CONFIRMED", ft["benchmark_version"], participant_id=user.participant_id,
         payload={"cohort_id": slot.cohort_id, "scenario_id": config["scenario_id"], "theme_ids": config["theme_ids"]})
     session.flush()
