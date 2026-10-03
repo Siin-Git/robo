@@ -1,122 +1,72 @@
 name: backup
-
-# Capstone mode keeps the data in TWO databases, so one dump is not a backup:
-#
-#   DATABASE_URL                   -> robo_auth   : logins, demo comparison data
-#   CAPSTONE_DESIGN_DATABASE_URL   -> robo_design : the forward-test LEDGER
-#
-# The ledger is the irreplaceable one. Prices can be refetched and logins can be
-# recreated, but orders, trades, holdings and NAV are a record of what happened
-# on a given day and cannot be rebuilt afterwards.
-#
-# Both secrets must be set in Settings -> Secrets and variables -> Actions.
-# A missing or wrong URL fails the job loudly instead of uploading an empty file:
-# a backup that silently dumps the wrong database is worse than no backup,
-# because nobody looks at it until the day they need it.
+run-name: ${{ inputs.inspection_only && 'Inspect PostgreSQL targets (no dumps)' || 'Back up authentication and ledger DBs' }}
 
 on:
   schedule:
-    # Daily at 01:00 UTC = 10:00 KST. This used to be weekly, which meant up to
-    # seven days of the ledger could be lost. Once people are really using the
-    # site that is too much, and a dump of this size is cheap.
+    # Default-branch workflow: daily 01:00 UTC = 10:00 KST.
     - cron: "0 1 * * *"
   workflow_dispatch:
+    inputs:
+      inspection_only:
+        description: Read identities/schema/version only; do not create dumps
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgres-backup-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  auth:
-    name: dump auth database
+  backup:
+    name: ${{ inputs.inspection_only && 'inspect' || 'dump' }} ${{ matrix.target }} database
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      # One failure cannot cancel the other backup/upload.
+      fail-fast: false
+      matrix:
+        target: [auth, design]
+    env:
+      PG_BACKUP_CLIENT_MAJOR: ${{ vars.PG_BACKUP_CLIENT_MAJOR || '17' }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install a pg_dump new enough for the server
-        run: |
-          # The Ubuntu repository client is often older than the Neon server, and
-          # pg_dump refuses to dump a server with a newer major version. Use the
-          # official PostgreSQL apt repository so the client is never behind.
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          . /etc/os-release
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
-            | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
-          pg_dump --version
-
-      - name: Dump and verify
-        env:
-          TARGET_URL: ${{ secrets.DATABASE_URL }}
-          REQUIRE_TABLE: users
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install explicitly selected PostgreSQL client
         run: |
           set -euo pipefail
-          if [ -z "${TARGET_URL}" ]; then
-            echo "::error::DATABASE_URL secret is not set"; exit 1
-          fi
-          # Never print the password.
-          echo "target: $(echo "$TARGET_URL" | sed -E 's#://[^@]*@#://***@#')"
-          rows=$(psql "$TARGET_URL" -At -c "SELECT count(*) FROM ${REQUIRE_TABLE}")
-          echo "${REQUIRE_TABLE}: ${rows} rows"
-          if [ "$rows" -eq 0 ]; then
-            echo "::error::${REQUIRE_TABLE} is empty - this is probably the wrong database"
-            exit 1
-          fi
-          pg_dump "$TARGET_URL" --format=custom --file=/tmp/robo_auth.dump
-          pg_restore --list /tmp/robo_auth.dump | grep -q "TABLE DATA public ${REQUIRE_TABLE}"
-          ls -la /tmp/robo_auth.dump
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: robo-auth-${{ github.run_id }}
-          path: /tmp/robo_auth.dump
-          retention-days: 90
-
-  design:
-    name: dump ledger database
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install a pg_dump new enough for the server
-        run: |
+          case "$PG_BACKUP_CLIENT_MAJOR" in 14|15|16|17|18) ;; *) echo 'Unsupported PG_BACKUP_CLIENT_MAJOR'; exit 1 ;; esac
           sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           . /etc/os-release
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
-            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
-          pg_dump --version
-
-      - name: Dump and verify
+          sudo apt-get install -y -qq "postgresql-client-$PG_BACKUP_CLIENT_MAJOR"
+          echo "/usr/lib/postgresql/$PG_BACKUP_CLIENT_MAJOR/bin" >> "$GITHUB_PATH"
+      - name: Inspect and back up one database
         env:
-          TARGET_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          BACKUP_AUTH_HOST: ${{ vars.BACKUP_AUTH_HOST }}
+          BACKUP_AUTH_DATABASE: ${{ vars.BACKUP_AUTH_DATABASE }}
+          BACKUP_DESIGN_HOST: ${{ vars.BACKUP_DESIGN_HOST }}
+          BACKUP_DESIGN_DATABASE: ${{ vars.BACKUP_DESIGN_DATABASE }}
+          INSPECTION_ONLY: ${{ inputs.inspection_only || false }}
         run: |
-          set -euo pipefail
-          if [ -z "${TARGET_URL}" ]; then
-            echo "::error::CAPSTONE_DESIGN_DATABASE_URL secret is not set - the ledger is NOT backed up"
-            exit 1
-          fi
-          echo "target: $(echo "$TARGET_URL" | sed -E 's#://[^@]*@#://***@#')"
-          # The ledger chain must actually be here. An empty orders table means
-          # the secret points at the auth database or at a fresh, wrong one.
-          for t in accounts orders trades holdings_daily nav_daily; do
-            rows=$(psql "$TARGET_URL" -At -c "SELECT count(*) FROM ${t}")
-            echo "${t}: ${rows} rows"
-            if [ "$rows" -eq 0 ]; then
-              echo "::error::${t} is empty - this is not the ledger database"
-              exit 1
-            fi
-          done
-          pg_dump "$TARGET_URL" --format=custom --file=/tmp/robo_design.dump
-          for t in orders trades holdings_daily nav_daily; do
-            pg_restore --list /tmp/robo_design.dump | grep -q "TABLE DATA public ${t}"
-          done
-          ls -la /tmp/robo_design.dump
-
-      - uses: actions/upload-artifact@v4
+          args=()
+          if [ "$INSPECTION_ONLY" = true ]; then args+=(--inspection-only); fi
+          python scripts/postgres_backup.py backup --target '${{ matrix.target }}' --output-dir "$RUNNER_TEMP/robo-backup" "${args[@]}"
+      - name: Preserve successful dump and diagnostic manifest
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: robo-design-${{ github.run_id }}
-          path: /tmp/robo_design.dump
+          name: robo-${{ matrix.target }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}.dump
+            ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}.json
+          if-no-files-found: ignore
           retention-days: 90

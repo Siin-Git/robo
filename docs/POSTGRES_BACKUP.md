@@ -1,0 +1,137 @@
+# PostgreSQL 두 DB 백업과 격리 복원
+
+## 범위와 완료 기준
+
+PR #12의 인증(`DATABASE_URL`)·운용(`CAPSTONE_DESIGN_DATABASE_URL`) DB별
+custom-format 덤프 구조를 유지한다. 매일 01:00 UTC(10:00 KST), artifact 보관
+90일이다. DB 전환, 앱/Render 재설계, 그래프, 기존 생성 파일 정리는 하지 않는다.
+**이 PostgreSQL 백업은 현재 맥의 로컬 SQLite 운용 데이터를 백업하지 않는다.**
+
+완료 기준은 정상 데이터와 정상 빈 테이블의 실제 덤프·격리 복원,
+잘못된 설정/스키마/연결과 복원 오류의 명확한 실패, 다른 DB의 성공 덤프 보존이다.
+코드/폐기 DB 테스트 완료와 운영 덤프/운영 복구 확인은 별도 상태다.
+
+## 검증 방식과 한계
+
+- `users` / `accounts, orders, trades, holdings_daily, nav_daily`의 기대 컬럼과
+  기본키를 검사한다. 행 수는 진단 정보이며 **0행은 정상**이다.
+- `CONFIG_MISSING`, `CONFIG_INVALID`, `CONNECT_FAILED`, `REQUIRED_TABLE_MISSING`,
+  `REQUIRED_COLUMNS_MISSING`, `REQUIRED_PRIMARY_KEY_MISSING`, `DUMP_FAILED`를 구분한다.
+- 비밀을 제외한 입력 호스트/포트, 서버 주소/포트, 실제 DB 이름/OID, 서버 버전,
+  허용되는 경우 cluster system identifier를 manifest에 남긴다.
+- 동일 host/port/database, Neon direct/pooler 별칭, 조회된 backend 또는 cluster+DB
+  식별자가 같으면 두 대상이 같은 DB인 것으로 거부한다. DNS/proxy/클론에 따라
+  중복을 놓치거나 클론을 같은 대상으로 판정할 수 있다. system identifier 조회
+  권한이 없어도 백업 자체를 거부하지 않는다.
+- 양쪽 DB가 공통 스키마를 가질 수 있으므로 스키마나 DB 이름·행 수만으로
+  인증/운용 역할이나 실제 앱 연결을 확정할 수 없다. 소유자가 아래 기대 식별값을
+  현재 앱 설정과 대조해야 한다. 설정되지 않았으면 `expected_target_configured=false`다.
+- 각 DB의 덤프는 PostgreSQL의 일관된 snapshot이다. 두 DB 사이의 동시에 고정된
+  전역 snapshot은 아니다. manifest의 사전 조회 건수와 덤프 건수가 동시 쓰기로
+  다를 수 있으므로 운영 복원에서 건수만을 완전성 증거로 쓰지 않는다.
+- `pg_restore --list`는 형식과 필수 테이블 목차만 검사한다.
+  `archive_check=TOC_ONLY_NOT_A_RESTORE`, `restore_verified=false`를 기록하며
+  실제 복원 성공으로 표시하지 않는다. 실패/부분 `.partial` 파일은 업로드하지 않는다.
+- auth/design matrix는 `fail-fast: false`이며 각각 업로드한다. 한쪽 실패는
+  workflow 전체 실패로 남고, 다른 정상 덤프와 각 진단 manifest는 보존한다.
+  수동 로컬 실행도 부분 성공이면 종료 코드 1이다. 출력 디렉터리 재사용은 거부한다.
+- URL·비밀번호는 CLI 인수가 아니라 libpq 환경값으로만 전달한다. 원시 stderr와
+  예외 메시지는 출력하지 않는다. 덤프는 민감한 실제 데이터이므로 artifact 접근
+  권한을 제한하고 Git/채팅/공개 로그에 첨부하지 않는다.
+
+## 설정과 버전 지원
+
+Settings → Secrets and variables → Actions:
+
+| 종류 | 이름 | 확인 방법 |
+| --- | --- | --- |
+| Secret | `DATABASE_URL` | 현재 앱 인증 연결과 일치하는 전체 PostgreSQL URL을 소유자가 설정 |
+| Secret | `CAPSTONE_DESIGN_DATABASE_URL` | 현재 앱 운용 연결과 일치하는 별도 DB URL을 소유자가 설정 |
+| Variable | `PG_BACKUP_CLIENT_MAJOR` | 14–18 중 선택, 미설정 기본 17; 가능한 서버와 같은 major 사용 |
+| Variable | `BACKUP_AUTH_HOST`, `BACKUP_AUTH_DATABASE` | 승인한 인증 endpoint 호스트(포트/자격정보 제외)와 DB 이름 |
+| Variable | `BACKUP_DESIGN_HOST`, `BACKUP_DESIGN_DATABASE` | 승인한 운용 endpoint 호스트와 DB 이름 |
+
+기대 식별값은 선택 설정이며 설정하면 불일치 시 실패한다. 처음 main 활성화 전에는
+소유자가 대상 역할을 확인하고 이 값들을 지정하는 것을 권장한다. URL 전체나 secret
+값을 보고서에 복사하지 않는다. 지원하지 않는 URL 옵션은 조용히 무시하지 않고 거부한다.
+
+지원 정책: PostgreSQL 서버/도구 major 14–18. `psql`, `pg_dump`, `pg_restore`는
+같은 major여야 한다. 덤프 도구는 원본 서버 이상, 복원 서버는 덤프 도구 이상이어야
+한다. 복원 도구는 manifest에 기록된 덤프 도구 major와 맞춘다. 클라이언트 17은
+서버 18을 덤프할 수 없으며, 17로 만든 덤프를 14 서버에 복원한다고 보장하지 않는다.
+CI는 일치하는 14/17/18 조합을 실제 시험한다. 15/16 또는 교차 major 조합은 버전
+규칙을 통과해도 별도 환경에서 extension/객체 호환성을 확인해야 한다.
+[PostgreSQL pg_dump 버전 규칙](https://www.postgresql.org/docs/17/app-pgdump.html).
+
+역할·tablespace 같은 cluster 전역 객체는 `pg_dump`에 포함되지 않는다.
+격리 복원은 `--no-owner --no-acl`로 수행해 새 복원 소유자를 사용한다. 실제 복구에는
+원래 역할/권한, extension 설치·버전, 보안 설정을 소유자가 별도로 준비·재검증해야 한다.
+
+## 폐기 환경에서 재현
+
+기존 서버 대신 **새 loopback 전용 PostgreSQL cluster**, `backup_test` 관리자와
+`postgres` 관리 DB를 사용한다. URL은 로그에 출력하지 않고 환경에만 설정한다.
+
+```sh
+# BACKUP_TEST_ADMIN_URL: 새 폐기 cluster의 관리 연결, 포트 필수
+# 원격 호스트나 다른 관리자/DB는 테스트가 거부한다.
+BACKUP_REQUIRE_RESTORE_TESTS=1 python -m pytest tests/backup -q
+```
+
+운영 secret 없는 `backup-tests.yml`이 서비스 컨테이너로 같은 시험을 수행한다.
+고유한 폐기 DB를 생성해 실제 production 백업 스크립트로 덤프하고, 별도의
+`robo_restore_*` DB로 실제 `pg_restore`한다. 정상/빈 데이터, 컬럼·기본키·FK·CHECK·
+UNIQUE·인덱스·시퀀스 값과 다음 ID·함수/트리거를 비교·실행한다. 설정/필수 테이블·
+컬럼 누락, 접속 실패, 동일 대상, 기대 대상 불일치, 손상 덤프, 실제 SQL 권한 부족
+복원 실패와 전체 rollback, 비어 있지 않은 목적지 보존도 검사한다.
+
+## 실제 운영 덤프의 격리 복원 절차
+
+1. 성공한 auth/design artifact와 **같은 실행의** JSON manifest를 제한된 장소에
+   내려받는다. checksum, `BACKED_UP`, 서버/클라이언트 major, 필수 목차를 확인한다.
+2. 운영 DB와 분리된 폐기 환경에 비어 있는 `robo_restore_*` DB 두 개를 소유자가
+   만든다. 이름은 안전성 증명이 아니다. endpoint/프로젝트와 접근 범위를 확인하고
+   복원 계정에는 **운영 DB 쓰기 권한을 부여하지 않는다**. 필요한 extension을 준비한다.
+3. `BACKUP_RESTORE_DATABASE_URL`을 해당 폐기 DB로 설정한다(전체 URL 출력 금지).
+   백업용 두 URL이 접근 가능하다면 환경에 유지해 목적지 중복 검사도 수행한다.
+
+```sh
+python scripts/postgres_backup.py restore \
+  --dump /restricted/download/robo_auth.dump \
+  --manifest /restricted/download/robo_auth.json --acknowledge-isolated
+# design 파일 쌍과 별도 폐기 목적지로 반복
+```
+
+스크립트는 checksum/버전/원본과 동일 DB 여부/기존 테이블 등을 확인한다.
+`--clean`, `--create`로 덮어쓰지 않는다. 실제 복원은 `--exit-on-error
+--single-transaction --no-owner --no-acl`이며 SQL 오류는 실패·rollback이다.
+[PostgreSQL pg_restore 설명](https://www.postgresql.org/docs/17/app-pgrestore.html).
+4. `RESTORED`와 스키마 확인만으로 앱 복구를 선언하지 않는다. 주요 사용자/원장,
+   FK·고유 제약·불변 트리거·시퀀스, 현금+보유평가액=NAV, 사용자 격리, 승인한
+   snapshot 시점과 참조 버전/연결을 확인하고 결과를 기록한다.
+5. 운영 DB에 복원하지 않는다. 폐기 환경 정리는 소유자 정책에 따른다.
+   매일 운영 백업에 이 전체 복원 시험을 강제로 추가하지 않는다.
+
+## 반영 순서
+
+PR #12 head에는 수정만 추가한다. develop 전체를 main 대상 PR에 합치지 않는다.
+동일 수정 커밋을 최신 develop의 별도 브랜치에 적용하고 기존 CI와 복원 CI가
+통과한 커밋을 develop PR로 병합한다. 예약은 **기본 브랜치 main** workflow에서
+실행하므로 develop 병합만으로 운영 백업이 고쳐졌다고 보고하지 않는다.
+
+main 반영은 CI 통과, 실제 Actions 두 대상/권한 확인, main 앱 배포 영향 확인 후
+백업 관련 변경만 수행한다. 연결 식별 조회는 `backup.yml`을 수정 브랜치 ref에서
+`inspection_only=true`로 수동 실행할 수 있고 덤프를 생성하지 않는다. main 활성화
+후 `inspection_only=false`로 첫 백업을 실행해 양쪽 artifact와 workflow 결과를
+확인한다. 운영 덤프의 실제 격리 복원은 별도 접근이 확보된 경우에만 완료로 기록한다.
+
+## 로컬 검증 기록 (2026-10-03)
+
+- PostgreSQL 14.19의 새 `/private/tmp/robo-backup-test.*` cluster에서 복원 회귀
+  **12 passed**. 정상 데이터와 정상 빈 테이블 각각 auth/design 실제 복원 4회,
+  checksum 손상 감지와 실제 손상 archive/권한 오류 복원 실패를 확인했다.
+- PR #12 기존 CI와 같은 백엔드 명령: **87 passed + 37 passed**
+  (기존 선택 조건에 따른 deselected 5+2). 운영 DB는 사용하지 않았다.
+- PR #12 프론트 **50 passed(9 files)**, 별도 출력 디렉터리의 프로덕션 빌드 통과.
+- 원격 CI, 실제 Actions 대상 inspection 및 반영 결과는 후속 검증 기록으로
+  구분한다. 폐기 DB 성공은 운영 덤프 복원 증거가 아니다.
