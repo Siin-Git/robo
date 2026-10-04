@@ -1,10 +1,12 @@
 # 2026-10-03 integration
 
-## 2026-10-04 공개 운영 연결
+## 2026-10-04 최신 운영 인수 범위
 
-사용자가 코드 수정·검증·커밋·푸시·PR/CI/develop·main 릴리스·확인된 서비스 배포·데이터 보존 이전·배치·백업을 명시적으로 승인했다. 원본 체크아웃과 미커밋 작업은 보존했다. PR #19 성과·랭킹 통합 및 계산/PostgreSQL CI는 develop `46db48b`, PR #20 영속 배포 준비·실제 복구 인수 기록은 `250f315`로 병합됐다. 두 PR의 전체 CI가 통과했다. 실제 3073/8073은 같은 인증·운용 SQLite를 사용하며 판단 3·주문 8·가격 42,010·체결/평가 0을 보존했다. 새 원장 성과는 실제 관측이 없어 대기한다.
+PR #19/#20의 기능 통합·영속 DB 배포 준비는 develop `250f315`에 병합됐으며 develop/릴리스 후보 `857d2d1`/개인 fork 릴리스 CI가 모두 성공했다. Draft PR #21은 main에 병합하지 않았다. 사용자가 개인 Render 계정의 MinchoLover/robo 비공개 fork 배포를 결정했고 두 브랜치가 같은 커밋으로 복사된 것을 읽기 전용 확인했다. 개인 main은 `b06a6bf`로 보존됐다.
 
-실제 SQLite의 일관된 백업→폐기 PG 이전→PR #12의 두 덤프→다른 빈 폐기 PG 복원 및 데이터·제약·트리거·인덱스·head 검증을 완료했다. 이는 기존 Neon 운영 덤프의 증거가 아니다. Render 현재 계정의 연결 저장소는 Siin-Git/robo와 다르고, Vercel도 이전 MinchoLover 저장소다. 필요한 Render 로그인/권한, 외부 실행자 상태 및 자동 승인 검토가 요구한 정확한 Actions/Vercel 작업 승인을 질문했다. 응답 전 main 릴리스·운영 이전·공개 배포·실행자 전환을 완료했다고 보고하지 않는다. 실제 결과·주소·커밋·백업 위치·복구는 [PUBLIC_OPERATION_RELEASE.md](PUBLIC_OPERATION_RELEASE.md)에 기록했다.
+사용자가 새 운영 원본을 3073의 현재 두 SQLite로 확정했다. 인증 15명, 판단 3·주문 8·가격 42,010·체결/평가 0, head 0008과 백업 대비 핵심 기록 보존을 최종 읽기 전용 검증했다. 기존 07:30 daily와 3073은 유지한다. 이번 남은 작업은 CI·문서·로컬 검증이며 main 병합·Render/Vercel·운영 DB·예약 변경은 별도 대화에 인계한다. 팀원 Neon을 덮어쓰지 않는다.
+
+실제 SQLite 백업→폐기 PG 이전→PR #12의 두 덤프→다른 빈 폐기 PG 복원은 완료했고 원격 운영 이전과 구분한다. Python 511+35, Vitest 67, production 빌드, Chrome 격리 흐름 6개 통과. 상세 CI 링크·데이터·예약·백업·후속 운영 검증은 [PUBLIC_OPERATION_RELEASE.md](PUBLIC_OPERATION_RELEASE.md)에 기록했다. 아래 과거 scope 및 PR #12 open 표기는 당시 기록이다.
 
 ## Scope and evidence
 

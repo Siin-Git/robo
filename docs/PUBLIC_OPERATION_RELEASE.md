@@ -1,48 +1,45 @@
 # 공개 운영 연결 인수 기록 — 2026-10-04
 
-목표는 완성 기능을 Siin-Git/robo의 공개 운영으로 연결하는 것이다. 기존 체크아웃·미커밋 작업·실제 데이터는 보존한다. 새로운 전략·비교 기준을 추가하지 않는다.
+## 확정된 배포 대상과 작업 분담
 
-## 코드 및 현지 검증
+사용자가 개인 Render 계정에서 **MinchoLover/robo 비공개 fork**로 배포하기로 확정했다. 새 운영 원본은 **3073의 현재 인증·운용 SQLite 두 개**다. 팀원 Neon 기록은 덮어쓰지 않는다. 이 결정은 이전의 Siin-Git/robo 직접 배포 권한 연결 요청과 원본 선택 보류를 대체한다.
 
-develop `cb5c778`에 성과·랭킹 `09e92ad`를 별도 `integration/public-release` worktree에서 통합했다. main `643ea82`와 PR #12는 보존한다.
+이번 세션은 남은 CI·인수 문서·로컬 검증을 완료한다. main 병합, Render/Vercel 설정·배포, 운영 DB 연결·이전, 예약 변경은 별도 대화에서 담당한다. 3073과 기존 local daily는 유지한다. 아래 PostgreSQL 이전·복원은 이미 완료한 **로컬 복사본 검증**이며 원격 운영 이전이 아니다.
 
-통합 커밋 `2b83b8a`는 PR #19로 제출됐다. push CI 37192393042, PR CI 37192493320의 백엔드·프론트 모두 통과한 뒤 develop에 `46db48b`로 병합했다. main은 아직 변경하지 않았다. 실제 배포 저장소 권한 확인 전에 릴리스 병합을 하지 않는다.
+| 저장소 / 브랜치 | 확인한 커밋 | 상태 |
+| --- | --- | --- |
+| Siin-Git/robo develop | `250f315aaa1cf75e77bdaa3729993e4be8874f65` | PR #19/#20 병합, CI 통과 |
+| Siin-Git/robo release/public-operation | `857d2d1fa57768d386f9c20c09148d94b67ab866` | Draft PR #21, CI 통과, main 미병합 |
+| MinchoLover/robo develop | `250f315aaa1cf75e77bdaa3729993e4be8874f65` | 같은 이름·커밋으로 복사 확인 |
+| MinchoLover/robo release/public-operation | `857d2d1fa57768d386f9c20c09148d94b67ab866` | 같은 이름·커밋으로 복사, fork CI 통과 |
+| Siin-Git/robo main | `643ea822613ac0ae581eb260c3394ffe221b58ba` | PR #12 병합 이력 보존 |
+| MinchoLover/robo main | `b06a6bfebef10eb72ac877f0a97621109b508159` | 기존 개인 main 보존 |
 
-배포 준비 `a39fc79`는 PR #20의 push/PR CI 37193149357·37193194229 모두 통과 후 develop `250f315`로 병합됐다. main 이력 `643ea82`를 함께 보존한 release/public-operation 후보를 준비한다. PR #12의 backup.yml·백업 도구는 main과 후보가 동일하다. 원래 main-target PR을 다시 병합하지 않는다.
+인수 문서는 별도 `docs/public-operation-handoff` 브랜치에서 갱신한다. 배포 담당자가 사용하는 develop/release 커밋은 변경하지 않는다. 새로운 전략이나 비교 기준을 추가하지 않았다.
 
-CI는 Python 3.11과 폐기 PostgreSQL 18의 일반·인증·운용 DB를 사용해 tests 전체를 실행한다. backup은 PR #12의 독립 CI를 유지한다. optimizer/frontier/covariance/returns 등 루트 계산 검사를 포함하며 운영 secrets를 테스트에 주입하지 않는다.
+## 완료한 코드 통합과 CI
 
-현지 Python 3.11 + 폐기 PostgreSQL 14에서 비백업 511개 통과. 백업 검사 12개는 전용 역할명이 달라 환경 오류가 발생했다. 폐기 클러스터에 backup_test 역할을 만든 후 백업 검사 35개 모두 통과했다. 제품 코드나 검사를 우회하지 않았다. Vitest 67개 및 Next production 빌드 통과.
+기존 체크아웃·미커밋 작업을 보존하고 `integration/public-release` worktree에서 develop `cb5c778`과 성과·랭킹 `09e92ad`를 통합했다. PR #19는 `46db48b`, PR #20은 `250f315`로 develop에 병합됐다. 릴리스 후보는 main `643ea82`의 PR #12 이력도 포함한다. PR #12를 다시 병합하거나 이전 코드로 되돌리지 않았다. 백업 workflow와 도구는 해당 main과 동일하다.
 
-Chrome 격리 기존 원장 흐름 2개·MDD/null 공백 흐름 2개 통과. 새 격리 주기 선택/테마/확정/재로그인 모바일 1개 및 데스크톱 1개 통과. 첫 데스크톱 검사에서는 Next 초기 컴파일 중 기본 5초 이동 제한을 넘겼다. 아직 미확정인 같은 계정으로 재실행해 통과했고 주기 검사의 expect 제한을 다른 원장 검사와 같은 20초로 명시했다. 합성 날짜와 기록은 /private/tmp fixture에서만 사용한다.
+| CI 대상 | Actions run | 결과 |
+| --- | --- | --- |
+| PR #19 push / PR | [37192393042](https://github.com/Siin-Git/robo/actions/runs/37192393042) / [37192493320](https://github.com/Siin-Git/robo/actions/runs/37192493320) | backend/frontend 성공 |
+| PR #20 push / PR | [37193149357](https://github.com/Siin-Git/robo/actions/runs/37193149357) / [37193194229](https://github.com/Siin-Git/robo/actions/runs/37193194229) | backend/frontend 성공 |
+| develop `250f315` | [37193488140](https://github.com/Siin-Git/robo/actions/runs/37193488140) | 성공 |
+| release `857d2d1` push / PR #21 | [37193667347](https://github.com/Siin-Git/robo/actions/runs/37193667347) / [37193734477](https://github.com/Siin-Git/robo/actions/runs/37193734477) | backend/frontend 성공 |
+| 개인 fork release `857d2d1` | [37193810605](https://github.com/MinchoLover/robo/actions/runs/37193810605) / [37193810635](https://github.com/MinchoLover/robo/actions/runs/37193810635) | 성공 |
 
-수동 daily dry-run은 읽기 전용 두 DB 목록을 기록한다. 계정·판단·원장 ID는 지문만 보존하고 비밀번호·URL·토큰·이메일을 출력하지 않는다. 실제 SQLite 복사본을 이전한 폐기 DB에서 검증했다.
+개인 fork develop은 조회 시 Actions run이 없었다. 같은 커밋의 Siin develop CI와 fork release CI는 위 결과로 구분한다.
 
-## 배포 대상
+CI는 Python 3.11과 폐기 PostgreSQL 18의 일반·인증·운용 DB를 사용한다. `python -m pytest tests --ignore=tests/backup -q`로 optimizer/frontier/covariance/returns 등 루트 계산 검사도 포함한다. backup 검사는 PR #12의 독립 CI를 유지한다. 운영 secrets를 테스트에 주입하지 않는다.
 
-Render 현재 계정은 kyu6716, My Workspace/Hobby (`tea-dan1h86gekts73fbl230`) 하나다. a·robo-web 프로젝트는 비어 있고 My project에는 무료 중단 서비스 두 개가 있다. No active services는 서비스 부재를 의미하지 않는다.
+현지 검증은 비백업 Python 511개 + 폐기 DB 백업 검사 35개, Vitest 67개, Next production 빌드가 통과했다. 처음 백업 검사 환경의 전용 역할명이 달라 발생한 오류는 폐기 클러스터에 `backup_test` 역할을 준비해 해결했다. 제품 검사를 우회하지 않았다.
 
-| 서비스 | 저장소·브랜치 | 마지막 성공 커밋 | 상태 |
-| --- | --- | --- | --- |
-| robo_ex (`srv-dan1llrtqb8s73a8p3fg`) | gue02/robo_ex main | eddb036e7bb6baefe3bb4ff0fa1082452cdbfba4 | 사용자 중단 |
-| robo_ex-1 (`srv-dan4uougekts73fnk050`) | gue02/robo_ex main | 같은 커밋 | 사용자 중단 |
+Chrome 격리 fixture의 원장·동일 기간 참여자 비교 2개, MDD 중간 하락·null 공백 2개, 초기 매월/매분기→테마→확정→재로그인 흐름 2개(데스크톱/모바일)가 통과했다. 주기 검사의 Next 초기 컴파일 대기를 위해 expect timeout을 20초로 명시했다. 합성 기록·날짜는 `/private/tmp` fixture에만 있으며 실제 운영으로 복사하지 않았다.
 
-Python 시작 명령은 seed_capstone 실행이다. 원본을 이어가는 운영 배포 명령으로 적합하지 않다. 대상 확인 전 기존 서비스를 변경하지 않는다. 신규 Render 저장소 목록에는 MinchoLover/robo와 gue02/robo_ex만 있다. Siin-Git/robo ID=1372614355, MinchoLover/robo ID=1376858865로 서로 다른 저장소다. Siin 저장소 배포 권한 연결 또는 기존 API 소유 계정 로그인이 필요하다.
+## 3073의 확정 원본과 최종 로컬 검증
 
-Vercel mincholover / mincholovers-projects:
-
-| 프로젝트 | 저장소 | 생산 브랜치 | 루트 | 최신 배포 |
-| --- | --- | --- | --- | --- |
-| robo | MinchoLover/robo | main | 미설정 | b06a6bf, ERROR |
-| robo-q3o3 | MinchoLover/robo | feat/capstone-demo-mvp | web | 최신 Git 배포 b06a6bf, READY |
-
-실제 production target은 수동 업로드 `dpl_2R8D4gYz9fvBoaZcQjyfy7PKQ8PU`다. 메타데이터에는 actor=codex만 있고 Git commit SHA가 없어 b06a6bf를 실제 production 커밋으로 단정하지 않는다. 공개 도메인은 https://robo-q3o3.vercel.app. 이 주소의 /login·/api/v1/version은 200, 미인증 /api/v1/auth/me는 401이다. 팀 별칭은 Vercel 로그인 보호 화면으로 이동할 수 있다. 이번 통합 코드의 공개 배포는 아직 없다. Render 직접 API는 두 번 ReadTimeout이었지만 공개 프록시의 version은 응답했다. 이 응답을 올바른 DB·새 배포의 증거로 사용하지 않는다.
-
-robo-q3o3의 FASTAPI_INTERNAL_URL=https://robo-capstone-api.onrender.com. 현재 Render 계정에는 해당 API가 없다. 저장소·브랜치·API 대상이 맞지 않으므로 아직 공개 릴리스로 간주하지 않는다. Vercel 전체 비밀값 해독·임시 저장은 자동 승인 검토에서 거절되어 수행하지 않았다. 단일 DATABASE_URL 읽기 전용 조회는 승인되었지만 Vercel이 값을 반환하지 않아 대상은 미확정이다.
-
-## 원본 보존·이전 검증
-
-실제 원본은 루트 `.local/real-forward`의 SQLite 두 개이며 모두 Alembic 0008이다.
+원본 경로는 저장소 루트 `.local/real-forward`다. `capstone_demo.db`가 인증, `portfolio_design.db`가 운용이다. 둘 모두 Alembic head `0008`, integrity `ok`, 외래키 오류 0건이다.
 
 | 데이터 | 인증 | 운용 |
 | --- | ---: | ---: |
@@ -51,28 +48,47 @@ robo-q3o3의 FASTAPI_INTERNAL_URL=https://robo-capstone-api.onrender.com. 현재
 | 주문 / 체결 / 평가 | 0 / 0 / 0 | 8 / 0 / 0 |
 | 가격 / 배치 기록 | 0 / 0 | 42,010 / 4 |
 
-18:21 KST daily.lock 및 두 DB의 BEGIN IMMEDIATE 잠금으로 쓰기를 막은 동안 SQLite backup API로 일관된 복사본을 확보했다. `.local/real-forward/backups/public-release-20261004-182128`의 두 파일 integrity=ok, FK 오류 0, revision=0008. 디렉터리 700/파일 600.
+판단 v1/v2/v3와 계정 연결·판단 ID·원장은 보존됐다. 효력일은 모두 2026-10-05, 최신 가격일은 2026-10-02다. 실제 체결·평가 관측이 없어 `AWAITING_INITIAL_EFFECTIVE_DATE`, `INSUFFICIENT_HISTORY`, 비교 `UNAVAILABLE`/0명을 유지한다. 성과를 만들기 위한 날짜 변경·강제 월간 실행은 하지 않았다.
 
-복사본을 폐기 PostgreSQL 14/127.0.0.1:55497의 robo_local_auth_copy·robo_local_design_copy에 각각 이전했다. Alembic head 적용 후 원본 해시 보존과 verify_db_parity 전 테이블 PK·필드·FK·회계 항등식 PASS를 확인했다. 계정 연결·판단 ID·버전·효력일·원장을 보존했다. 기존 Neon에 쓰지 않았다.
+3073/8073은 앞선 통합 작업에서 `.work/public-release`의 검증 코드 `a39fc79`로 전환했고 같은 DB·계정·포트를 유지한다. 제품 코드는 develop `250f315`와 같다. 시작/중지/상태 바로가기는 해당 worktree를 가리킨다. 기존 `local-forward-operation` worktree의 미커밋 파일과 daily 예약 명령은 보존했다.
 
-위 이전 복사본을 PR #12 도구로 실제 두 덤프에 담아 `.local/real-forward/backups/postgres-copy-validation-20261004`에 보호했다. 빈 robo_restore_real_auth_copy·robo_restore_real_design_copy에만 복원했고 SQLite 백업과 전체 PK·필드·FK·금융 합계를 다시 대조해 PASS다. 두 DB 모두 0008, 제약 72개·불변 트리거 2개·인덱스 59개 보존. 시퀀스는 0개이며 기존 counters 데이터는 필드 대조로 보존했다. 복원 시 CHECK의 ARRAY 형변환 표현이 동등한 형태로 바뀌어 원시 문자열 비교가 실패했지만 값/컬럼/제약 속성이 일치하고 잘못된 enum·FK·판단 변경을 모두 거절하는 것을 폐기 DB 롤백 검사로 검증했다. 이 검증은 기존 Neon의 덤프·복구가 아니다.
+이전 검증에서 실제 기존 계정의 로그인·me·판단·History 원장·성과·기여도·참여자 비교 API, dashboard/performance/ranking/portfolio 페이지가 모두 200이었다. 재시작 후 실제 기록을 SQLite 백업과 대조해 보존을 확인했다. 로그인 시각과 세션은 정상 갱신됐다.
 
-3073/8073은 통합 코드로 전환했다. 같은 실제 DB/포트/계정/예약을 사용하며 start/stop/status 바로가기는 public-release worktree로 갱신했다. 기존 local-forward-operation worktree의 미커밋 파일과 daily 예약 명령은 보존했다. 실제 기존 계정 로그인, me/decisions/성과/기여도/비교/History 원장 API 및 dashboard/performance/ranking/portfolio 페이지가 모두 200이다. 재시작 후 판단 v1/v2/v3(효력일 모두 2026-10-05), 주문 8건·가격 42,010건·체결/평가 0건과 배치 기록이 백업과 동일하다. 로그인 시각만 정상 갱신됐다. 현재 AWAITING_INITIAL_EFFECTIVE_DATE, observations=0, 순위 UNAVAILABLE/0으로 표시하며 실제 성과를 만들지 않았다.
+최신 사용자 지시 후에는 재시작·로그인·배치 실행 없이 읽기 전용으로 다시 검증했다. `/login`·`/api/v1/version` 200, 미인증 `/api/v1/auth/me` 401이며 위 표의 모든 핵심 테이블은 일관된 백업과 동일하다(사용자의 로그인/수정 시각 제외). 결과는 `.local/real-forward/final-handoff-verification.json`, 앞선 사용자 흐름 결과는 `release-local-verification.json`에 있다. 원본·자격증명·덤프는 Git에 넣지 않는다.
 
-Actions 37191062722의 Neon: 인증 robo_auth, 운용 robo_design. 당시 사용자 15, 운용 계좌 33·주문 292·체결 266·평가 124. 로컬과 다른 기록을 덮어쓰지 않는다. 이 보고서만으로 앱의 연결을 증명하지 않는다. 최신 ID 지문·실제/합성 출처 대조 후 원본과 이전 대상을 결정해야 한다.
+## 원본 백업·폐기 환경 이전·복구 결과
 
-## 실행자·백업·복구
+2026-10-04 18:21 KST에 daily.lock 및 두 DB의 BEGIN IMMEDIATE 잠금으로 쓰기를 조정하고 SQLite backup API로 일관된 복사본을 확보했다.
 
-실제 SQLite 실행자는 이 맥의 daily LaunchAgent, 매일 07:30 KST. 월간 예약은 없다. Actions daily/monthly/weekly는 active이고 forward-jobs concurrency를 공유한다. develop 후보는 FORWARD_EXECUTOR=actions인 경우만 정상 예약을 실행하지만, 현재 기본 main은 아직 이전 버전으로 그 가드가 없다. main 일간 엔진은 SQLite만 연결해 DATABASE_URL을 사용하지 않는다. 기존 Actions 37168877811은 sqlite3.OperationalError/no such table로 실패했다. 따라서 현재 Actions 예약을 운영 Neon 적립으로 보고하지 않는다. main 릴리스·동일 DB 확인·실행자 전환이 먼저 필요하다. 외부 실행자 상태를 사용자에게 질문했으며 새 환경이 준비되기 전 기존 실행자를 중단하지 않는다.
+- SQLite 원본 백업: `.local/real-forward/backups/public-release-20261004-182128`.
+- 두 파일 모두 integrity `ok`, FK 오류 0, revision `0008`. 디렉터리 700/DB·manifest 파일 600.
+- 복사본을 폐기 PostgreSQL 14, `127.0.0.1:55497`의 `robo_local_auth_copy` / `robo_local_design_copy`에 이전했다.
+- 원본 파일 해시 불변, 전체 테이블 PK·필드·FK·금융 합계 대조 PASS. 계정 연결·판단 ID·버전·효력일·원장을 보존했다.
+- PR #12 도구로 두 덤프를 만들었다: `.local/real-forward/backups/postgres-copy-validation-20261004/robo_auth.dump` 및 `robo_design.dump`(600).
+- 별도의 빈 `robo_restore_real_auth_copy` / `robo_restore_real_design_copy`에 복원 후 원본 SQLite 백업과 다시 전체 대조 PASS.
+- 두 DB 모두 head `0008`, 제약 72개·불변 트리거 2개·인덱스 59개 보존. 시퀀스 0개, counters는 필드 대조로 보존.
+- CHECK 표현의 ARRAY 형변환 문자열은 복원 시 동등한 형태로 바뀐다. 값/컬럼/제약 속성과 잘못된 enum·FK·판단 변경 거절을 폐기 DB 롤백 검사로 확인했다.
 
-마지막 실제 성공: 2026-10-04 07:30:00–07:30:10 KST, daily/success, exit=0. 다음 로컬 예정: 2026-10-05 07:30 KST(맥 실행 필요). Actions 전환 후 준비할 월간 기본 예약은 2026-11-01 09:30 KST이며 사용자별 monthly/quarterly 주기 판정은 기존 엔진을 사용한다. 아직 원격 예약이 활성화됐거나 월간 실제 실행에 성공했다고 주장하지 않는다.
+이 결과는 **3073 데이터 복사본의 이전·덤프·복원 검증**이다. 새 원격 운영 DB 이전이나 기존 팀원 Neon 백업의 성공 증거가 아니다. PostgreSQL 백업은 현재 원본 SQLite 파일을 보호하지 않으므로 위 SQLite 백업을 별도로 보존한다. 원격 이전 직전에는 기존 daily 쓰기를 조정하고 새 일관된 백업을 만들어야 한다.
 
-PR #12 backup.yml은 변경하지 않는다. PG_BACKUP_CLIENT_MAJOR=18, 두 DB secrets 존재. BACKUP_AUTH_HOST/DATABASE·BACKUP_DESIGN_HOST/DATABASE는 미설정이다. 앱과 독립적인 대상 대조 후 설정해야 한다. 아직 실제 운영 덤프·복원 성공으로 보고하지 않는다. 폐기 DB 검사와 SQLite 원본 백업은 별도 증거이며 PostgreSQL 백업이 SQLite를 보호하지 않는다.
+## 유지한 실행자와 별도 배포 담당자의 후속 작업
 
-자동 승인 검토가 (1) Neon ID 지문/행 수를 비공개 Siin-Git/robo Actions artifact에 7일 저장하는 읽기 전용 점검, (2) robo-q3o3를 Siin-Git/robo로 연결하고 API 준비 전 자동 빌드를 임시 보류하는 설정 변경을 거절했다. 정확한 대상·전송 범위·복구안을 사용자에게 질문했으며 응답 전 두 작업은 수행하지 않는다. 첫 Vercel 전체 secret 해독/저장 거절도 우회하지 않는다.
+현재 실제 실행자는 맥의 `com.roboadvisor.local-forward.daily` LaunchAgent다. 기존 명령은 `.work/local-forward-operation/scripts/local_operation.py daily`이며 매일 07:30 KST, 같은 `.local/real-forward` 운용 DB를 사용한다. 최신 읽기 전용 점검에서도 loaded 상태와 07:30 설정을 확인했다. 로컬 월간 예약은 없다.
 
-`render.paper.yaml`은 새 무료 PostgreSQL paper API용 준비 설정이다. 기존 setup_postgres --apply로 두 DB를 head까지 올리고 단일 worker를 시작하며 seed/reset/계정 생성은 하지 않는다. 실제 SQLite 이전 복사본의 두 DB에 반복 적용해 0008과 모든 테이블을 확인했다. 실제 서비스 생성·배포·DB 변경은 아직 하지 않았다. 인증/운용 URL은 보호된 환경 설정에서 분리하며 프론트는 동일 출처 프록시로 쿠키·CSRF를 전달한다.
+마지막 실제 daily는 2026-10-04 07:30:00–07:30:10 KST, exit 0/COMPLETED다. 최근 가격 관측이 추가되지 않아 내부 통계는 PARTIAL, pending 8, new_points 0이다. 다음 예정은 2026-10-05 07:30 KST이며 맥이 실행 중이어야 한다. 원격 예약 성공·월간 실제 실행으로 보고하지 않는다.
 
-다음: CI/develop PR 병합, 배포 저장소 확인 후 main 릴리스 PR/CI/병합. 확인된 API/DB를 먼저 배포하고 그 다음 Vercel 프론트. 충돌 기록은 선택지를 제시하고 보존한다. 새 실행자 준비 후 기존 daily 중단·Actions 전환. 실패 시 Actions 비활성화 후 기존 원본/예약 복구; 분기 기록은 자동 덮어쓰지 않는다. 두 실제 덤프는 빈 폐기 PostgreSQL 18에만 복원한다.
+현재 Siin 기본 main의 legacy Actions daily/monthly/weekly에는 새 `FORWARD_EXECUTOR` 가드가 없고 일간 DB 연결도 SQLite다. 기존 Actions 37168877811은 `sqlite3.OperationalError/no such table`로 실패했다. develop/release 후보는 실행자 가드, 인증/운용 PostgreSQL 분리 및 공유 concurrency를 포함하지만 기본 브랜치에 아직 반영하지 않았다. 개인 fork의 기존 예약과 팀원 노트북 실행 여부는 배포 담당자가 확인해야 한다. 같은 새 운영 DB에 쓰는 실행자는 하나만 선택하고, 새 환경이 준비된 뒤 기존 로컬 daily에서 전환한다.
 
-공개 사용자 흐름은 아직 미검증이다. 실제 체결·평가가 없으면 대기를 유지한다. 0/1/MDD/null·이전 판단 브라우저 검사는 별도 합성 fixture에서 수행하며 운영 데이터로 복사하지 않는다.
+팀원 Neon의 PR #12 사전 확인 run 37191062722에는 인증 사용자 15, 운용 계좌 33·주문 292·체결 266·평가 124가 있었다. **새 운영 원본으로 합치거나 덮어쓰지 않는다.** 그 기록은 별도 대상에 남는다. 아직 3073 기록은 공개 서비스에 이전되지 않았으며 로컬이 원본이다.
+
+`render.paper.yaml`은 무료 PostgreSQL paper API용 준비 파일이다. `setup_postgres.py --apply`로 두 DB를 head까지 올린 뒤 단일 worker로 시작하며 seed/reset/시연 계정 생성은 하지 않는다. 실제 복사본에 반복 적용해 검증했다. 보호된 설정에서 인증/운용 URL을 분리하고 프론트는 같은 출처 프록시로 로그인 쿠키·CSRF를 전달해야 한다.
+
+후속 담당자는 개인 fork 기준으로 API·DB→프론트 순서로 배포하고 실제 커밋·DB 대상·재시작 후 계정/판단/원장 보존·공개 사용자 흐름을 확인한다. PR #12의 두 DB 백업에 앱과 독립적으로 대조한 BACKUP_AUTH_HOST/DATABASE 및 BACKUP_DESIGN_HOST/DATABASE를 설정하고 첫 운영 덤프를 별도의 빈 폐기 PostgreSQL에 복원해야 한다. 운영 DB에 시험 복원하지 않는다. 실패 복구는 새 실행자의 쓰기를 멈추고 보존한 원본과 기존 daily로 돌아가는 순서이며 원본 초기화로 해결하지 않는다.
+
+## 공개 운영 검증과 남은 입력
+
+기존 공개 주소는 https://robo-q3o3.vercel.app 이다. 앞선 읽기 점검의 로그인·version 응답은 정상이나 이번 통합 코드의 배포 결과가 아니다. 당시 production target은 수동 업로드 `dpl_2R8D4gYz9fvBoaZcQjyfy7PKQ8PU`이며 Git SHA가 없어 실제 배포 커밋은 미확정이었다. 기존 Vercel 저장소는 MinchoLover/robo, web 루트, 생산 브랜치는 feat/capstone-demo-mvp였다. API 주소와 Render 서비스·운영 DB 연결은 별도 대화에서 다시 확정한다.
+
+이번 세션에서 main·Render/Vercel·운영 DB·예약은 변경하지 않았다. 공개 로그인→Frontier 주기→테마→확정→재로그인→현재/대기 판단→History→성과·기여도·참여자 비교와 공개 재시작 보존은 후속 운영 검증이다. 코드·로컬 검증 완료와 공개 운영 완료를 구분한다.
+
+이 세션의 필수 입력은 없다. DB 호스팅/보호된 인증·운용 연결값, 실제 서비스 대상, 배치 실행자 전환과 운영 백업 대상 확정은 별도 배포 대화의 남은 작업이다. 이전 Siin 직접 연결 및 원본 선택 승인 질문을 다시 요청하지 않는다.
