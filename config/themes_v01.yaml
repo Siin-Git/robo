@@ -3,6 +3,26 @@ valid_from: '2026-09-11'
 note: Single-ETF proxies only. No single stocks. Inactive entries are documented, never traded.
 
 themes:
+  - theme_id: leader_stock
+    display_name: 주도주 모델 · 자료 검토 중
+    theme_type: theme
+    ticker: null
+    market: KR
+    currency: KRW
+    active: false
+    valid_from: '2026-10-01'
+    universe_version: THEME_UNIVERSE_V0.1
+    inactive_reason: Multiple model variants and signal/execution definitions need agreement; model index is not an ETF price.
+  - theme_id: export_stock
+    display_name: 수출 모델 · 자료 검토 중
+    theme_type: theme
+    ticker: null
+    market: KR
+    currency: KRW
+    active: false
+    valid_from: '2026-10-01'
+    universe_version: THEME_UNIVERSE_V0.1
+    inactive_reason: Historical model only; live export inputs, rulebook code and stock execution path are unavailable.
   - theme_id: semiconductor
     display_name: Semiconductors
     theme_type: sector
