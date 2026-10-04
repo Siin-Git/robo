@@ -2,6 +2,8 @@
 
 기준일: 2026-09-16
 
+2026-10-04 최신 운영 인수 결과는 [PUBLIC_OPERATION_RELEASE.md](PUBLIC_OPERATION_RELEASE.md)를 우선 읽는다. develop `250f315`와 릴리스 후보 `857d2d1`의 CI가 통과했고 개인 MinchoLover/robo fork에도 같은 브랜치·커밋이 복사됐다. 사용자가 개인 Render/fork 배포와 3073의 인증·운용 SQLite를 새 운영 원본으로 확정했다. 팀원 Neon은 보존한다. 3073과 기존 daily는 유지하고 main·서비스 설정·운영 DB·예약 변경은 별도 배포 대화에서 진행한다. 아래 9월 문서는 최신 공개 배포의 증거가 아니다.
+
 ## 1. 기술 구성
 
 | 영역 | 기술 | 위치 |
