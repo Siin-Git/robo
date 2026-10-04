@@ -6,7 +6,8 @@ export interface LedgerPeer {
   metrics:Report["metrics"];observations:number;observed_start:string|null;observed_end:string|null;
   start:string|null;end:string|null;
   quality?:Report["quality"];
-  series:{date:string;personal_index100:number;core_index100:number|null}[];
+  metric_quality?:Report["metric_quality"];
+  series:{date:string;personal_index100:number|null;core_index100:number|null}[];
 }
 export interface LedgerComparison {
   data_source:"ACCOUNT_LEDGER";data_kind:string;period:Period;basis:LedgerBasis;
@@ -19,6 +20,8 @@ export const ledgerReason=(reason:string|null)=>({
   INSUFFICIENT_PARTICIPANTS:"평가 기록이 두 날짜 이상인 참여자가 2명 미만입니다.",
   NO_COMMON_PERIOD:"공통 평가일이 두 날짜 미만입니다.",
   CORE_SAME_PERIOD_MISSING:"같은 기간의 CORE 기록 부족",RISK_HISTORY_INSUFFICIENT:"연율 위험 지표 산출 기록 부족",
+  MDD_HISTORY_INSUFFICIENT:"MDD 산출에 필요한 유효 평가 2건 미만",
+  OBSERVATION_GAPS:"평가 기록 공백 · 위험 순위 보류",STALE_VALUATIONS:"오래된 가격 평가 포함 · 위험 순위 보류",
   INSUFFICIENT_COMPARABLE_METRIC:"이 지표로 비교 가능한 참여자가 2명 미만입니다.",
   NOT_COMPARABLE_COHORT:"현재 참여자 비교 대상에 포함되지 않습니다."
 }[reason??""]??reason??"");

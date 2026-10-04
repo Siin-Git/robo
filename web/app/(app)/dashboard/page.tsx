@@ -56,7 +56,7 @@ function LegacyDashboardPage() {
     <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시 · 가상 데이터":"Forward 운용 기록"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
     {example&&<div className={s.exampleBanner} role="status"><Info size={19}/><div><strong>DEMO / EXAMPLE · 가상 데이터</strong><span>확정한 포트폴리오의 성과가 아닙니다. 시연용 가상 데이터이며 랭킹에 반영되지 않습니다.</span></div><button onClick={()=>{setExample(false);setSelected(null);}}>내 모의운용 기록으로 돌아가기</button></div>}
     {!example && report?.decision_context && <DashboardDecisionContext context={report.decision_context} observations={report.observations} start={report.start} end={report.end}/>}
-    {!example&&common&&<p className="ui-note" role="status">참여자 비교와 같은 공통 관측 기간 · {report?.comparison_window?.start??"기록 부족"} — {report?.comparison_window?.end??"기록 부족"} · {report?.comparison_window?.status==="UNAVAILABLE"?ledgerReason(report.comparison_window.reason):"같은 날짜와 계산 기준을 사용합니다."} <Link href="/dashboard">내 전체 운용 기간 보기</Link></p>}
+    {!example&&common&&<p className="ui-note" role="status">참여자 비교와 같은 공통 관측 기간 · {report?.comparison_window?.start??"기록 부족"} — {report?.comparison_window?.end??"기록 부족"} · {report?.comparison_window?.status==="UNAVAILABLE"?ledgerReason(report.comparison_window.reason):"같은 시작·종료일과 계산 기준을 사용하며 내부 실제 평가를 보존합니다."} <Link href="/dashboard">내 전체 운용 기간 보기</Link></p>}
     {!example&&report?.valuation&&<section className={s.operations} aria-label="기록된 평가액"><h2>기록된 평가액 · 원화</h2><p>마지막 평가일 {fmtDate(report.valuation.date)} · 총 평가액 {report.valuation.nav_krw.toLocaleString("ko-KR")}원 · 현금 {report.valuation.cash_krw?.toLocaleString("ko-KR")??"—"}원</p><p>실제 관측 {fmtDate(report.start)} — {fmtDate(report.end)} · 평가일 {report.observations}개 · 기준 100 지수 {report.valuation.index100.toFixed(2)} (원화 금액과 별도)</p>{report.observations===1&&<p role="status">첫 평가 기록 1건 · 기준점 100만 확인됩니다. 두 번째 평가일 전에는 수익률·변동성·기여도를 계산하지 않습니다.</p>}</section>}
     {!example && <ForwardOperations latestValuationDate={query.data?.end ?? null} observations={query.data?.observations ?? null}/>}
     {!example && report?.data_kind === "TEST_FIXTURE" && <p className={`${s.exampleBanner} ${s.fixtureBanner}`} role="status">검증용 합성 데이터 · 실제 운용 기록이 아닙니다. 장기 성과나 발표 실적의 근거로 사용하지 않습니다.</p>}
@@ -68,7 +68,7 @@ function LegacyDashboardPage() {
         <Metric label="내 누적수익률" value={fmtReturn(m?.cumulative_return)} hint={ready?`${fmtDate(report?.start)} — ${fmtDate(report?.end)}`:"첫 평가액 이후의 변화"} primary/>
         <Metric label="비교 기준 수익률" value={fmtReturn(m?.benchmark_return)} hint="시스템 기준 CORE · 같은 기간"/>
         <Metric label="기준 대비 차이" value={fmtActivePp(m?.difference_pp)} hint="내 수익률 − CORE 수익률"/>
-        <Metric label="최대 낙폭" value={fmtPct(m?.mdd)} hint="선택 기간 고점 대비 최대 하락"/>
+        <Metric label="최대 낙폭" value={fmtPct(m?.mdd)} hint="기록된 평가의 고점 대비 최대 하락"/>
       </div>}
       {!ready?<section className={s.empty} aria-label="운용 준비 상태"><div className={s.emptyIcon}><ChartNoAxesCombined size={32}/></div>
         <h2>{needsSetup ? "나의 기본 포트폴리오부터 설계해 보세요" : hasPortfolio ? "포트폴리오는 저장되어 있어요" : "포트폴리오 상태를 확인하고 있어요"}</h2>
@@ -79,7 +79,8 @@ function LegacyDashboardPage() {
         <button className="btn-secondary" onClick={()=>setExample(true)}>예시 데이터로 화면 살펴보기<ArrowRight size={17}/></button>
       </section>:<>
         <PerformancePanels styles={s} report={report!} mode={mode} selected={selected} onSelect={setSelected} onMode={value=>{setMode(value);setSelected(null);}} riskPanel={<section className={s.riskSection}><div className={s.sectionHeading}><div><span className={s.eyebrow}>RISK & RETURN</span><h2>수익과 위험 함께 보기</h2><p>{example ? "현재 지표는 시연용 가상 데이터로 계산한 예시입니다." : "선택한 기간의 모의운용 기록으로 계산한 위험 지표입니다."}</p></div></div>
-          <div className={s.riskMetrics}><div><span>실현 변동성 · 연율</span><strong>{fmtPct(m?.volatility)}</strong><p>수익률이 얼마나 흔들렸는지</p></div><div><span>최대 낙폭</span><strong>{fmtPct(m?.mdd)}</strong><p>기간 중 가장 크게 하락한 폭</p></div><div><span>기록된 평가일</span><strong>{report!.observations}<small>일</small></strong><p>{fmtDate(report!.start)} — {fmtDate(report!.end)}</p></div></div>
+          <div className={s.riskMetrics}><div><span>실현 변동성 · 연율</span><strong>{fmtPct(m?.volatility)}</strong><p>수익률이 얼마나 흔들렸는지</p></div><div><span>최대 낙폭</span><strong>{fmtPct(m?.mdd)}</strong><p>유효 평가 2건 이상에서 관측된 최대 하락</p></div><div><span>기록된 평가일</span><strong>{report!.observations}<small>일</small></strong><p>{fmtDate(report!.start)} — {fmtDate(report!.end)}</p></div></div>
+          <p className={s.infoNote}>MDD는 관측 기록 기준입니다. 평가 공백에서 발생한 낙폭은 확인할 수 없으며, 연율 변동성과 산출 조건이 다릅니다.</p>{report?.metric_quality?.mdd.reason&&<p className={s.infoNote}>MDD 비교: {ledgerReason(report.metric_quality.mdd.reason)}</p>}
           {m?.volatility==null&&<p className={s.infoNote}>연율 위험 지표는 유효한 수익률 30개 이상이 필요합니다. 누락되거나 오래된 가격이 있는 기간에는 표시하지 않습니다.</p>}
           <details className={s.innerDetails}><summary>평가 지표 더 보기</summary><div className={s.riskMetrics}><div><span>추적오차 · 연율</span><strong>{fmtPct(m?.tracking_error)}</strong><p>CORE와 수익률 차이가 흔들리는 정도</p></div><div><span>정보비율</span><strong>{m?.information_ratio==null?"—":m.information_ratio.toFixed(2)}</strong><p>CORE 대비 초과 성과를 추적오차로 나눈 값</p></div></div><p className={s.infoNote}>샤프 비율은 무위험수익률의 기준을 연결한 뒤 제공합니다.</p></details>
         </section>}/>

@@ -33,6 +33,7 @@ export function PerformanceChart({
   animate = true,
   curve = "monotone",
   connectNulls = true,
+  showPoints = false,
 }: {
   data: Record<string, number | string | null>[];
   series: Series[];
@@ -41,6 +42,7 @@ export function PerformanceChart({
   animate?: boolean;
   curve?: "monotone" | "linear";
   connectNulls?: boolean;
+  showPoints?: boolean;
 }) {
   return (
     <div className="border border-border bg-white p-[20px]">
@@ -73,7 +75,7 @@ export function PerformanceChart({
                 name={s.label}
                 stroke={s.color}
                 strokeWidth={s.width}
-                dot={false}
+                dot={showPoints ? {r:3} : false}
                 activeDot={{ r: 3 }}
                 connectNulls={connectNulls}
                 isAnimationActive={animate}
