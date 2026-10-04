@@ -32,6 +32,7 @@ export function PerformanceChart({
   yFormat = (v: number) => v.toFixed(1),
   animate = true,
   curve = "monotone",
+  connectNulls = true,
 }: {
   data: Record<string, number | string | null>[];
   series: Series[];
@@ -39,6 +40,7 @@ export function PerformanceChart({
   yFormat?: (v: number) => string;
   animate?: boolean;
   curve?: "monotone" | "linear";
+  connectNulls?: boolean;
 }) {
   return (
     <div className="border border-border bg-white p-[20px]">
@@ -73,7 +75,7 @@ export function PerformanceChart({
                 strokeWidth={s.width}
                 dot={false}
                 activeDot={{ r: 3 }}
-                connectNulls
+                connectNulls={connectNulls}
                 isAnimationActive={animate}
               />
             ))}

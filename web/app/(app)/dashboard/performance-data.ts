@@ -12,6 +12,10 @@ export interface DecisionContext {
   report_decision_id:string|null;window_start:string|null;window_end_exclusive:string|null;
 }
 export interface Report {
+  valuation?:{date:string;nav_krw:number;cash_krw:number|null;index100:number}|null;
+  anchor?:{date:string;nav_krw:number;index100:number}|null;
+  latest_recorded_date?:string|null;latest_recorded_status?:string|null;
+  comparison_window?:{start:string|null;end:string|null;dates:string[];status:string;reason:string|null};
   decision_context?:DecisionContext;
   data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION";
   status:string;period:string;start:string|null;end:string|null;since:string|null;observations:number;benchmark_name:string;

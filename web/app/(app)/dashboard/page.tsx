@@ -17,14 +17,15 @@ import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 import { LedgerHistory } from "@/components/dashboard/LedgerHistory";
 import { DashboardDecisionContext } from "@/components/dashboard/DashboardDecisionContext";
 import { ForwardOperations } from "@/components/dashboard/ForwardOperations";
+import { ledgerReason } from "@/lib/api/ledger-comparison";
 
 export default function DashboardPage() {
-  return DEMO_MODE ? <Suspense fallback={<LoadingSkeleton rows={6}/>}><DashboardRoute/></Suspense> : <LegacyDashboardPage/>;
+  return <Suspense fallback={<LoadingSkeleton rows={6}/>}><DashboardRoute/></Suspense>;
 }
 
 function DashboardRoute() {
   const params = useSearchParams();
-  return params.get("source") === "demo" ? <DemoDashboardPage/> : <LegacyDashboardPage/>;
+  return DEMO_MODE && params.get("source") === "demo" ? <DemoDashboardPage/> : <LegacyDashboardPage/>;
 }
 
 function DemoDashboardPage() {
@@ -35,11 +36,14 @@ function DemoDashboardPage() {
 }
 
 function LegacyDashboardPage() {
-  const [period,setPeriod]=useState<Period>("ALL");
+  const params=useSearchParams();
+  const initialPeriod=params.get("period");
+  const [period,setPeriod]=useState<Period>(PERIODS.some(p=>p.key===initialPeriod)?initialPeriod as Period:"ALL");
+  const common=params.get("comparison")==="common";
   const [example,setExample]=useState(false);
   const [mode,setMode]=useState<"groups"|"assets">("groups");
   const [selected,setSelected]=useState<string|null>(null);
-  const query=useQuery({queryKey:["dashboard-performance",period],queryFn:()=>get<Report>(`/api/v1/me/performance/dashboard?period=${period}`),enabled:!example});
+  const query=useQuery({queryKey:["dashboard-performance",period,common],queryFn:()=>get<Report>(`/api/v1/me/performance/dashboard?period=${period}&comparison=${common?"common":"individual"}`),enabled:!example,refetchInterval:15_000});
   const base = useQuery({queryKey:["base-portfolio"],queryFn:()=>get<{status:string}>("/api/v1/me/base-portfolio")});
   const needsSetup = base.data?.status === "not_selected";
   const hasPortfolio = base.data?.status === "selected";
@@ -52,9 +56,12 @@ function LegacyDashboardPage() {
     <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시 · 가상 데이터":"Forward 운용 기록"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
     {example&&<div className={s.exampleBanner} role="status"><Info size={19}/><div><strong>DEMO / EXAMPLE · 가상 데이터</strong><span>확정한 포트폴리오의 성과가 아닙니다. 시연용 가상 데이터이며 랭킹에 반영되지 않습니다.</span></div><button onClick={()=>{setExample(false);setSelected(null);}}>내 모의운용 기록으로 돌아가기</button></div>}
     {!example && report?.decision_context && <DashboardDecisionContext context={report.decision_context} observations={report.observations} start={report.start} end={report.end}/>}
+    {!example&&common&&<p className="ui-note" role="status">참여자 비교와 같은 공통 관측 기간 · {report?.comparison_window?.start??"기록 부족"} — {report?.comparison_window?.end??"기록 부족"} · {report?.comparison_window?.status==="UNAVAILABLE"?ledgerReason(report.comparison_window.reason):"같은 날짜와 계산 기준을 사용합니다."} <Link href="/dashboard">내 전체 운용 기간 보기</Link></p>}
+    {!example&&report?.valuation&&<section className={s.operations} aria-label="기록된 평가액"><h2>기록된 평가액 · 원화</h2><p>마지막 평가일 {fmtDate(report.valuation.date)} · 총 평가액 {report.valuation.nav_krw.toLocaleString("ko-KR")}원 · 현금 {report.valuation.cash_krw?.toLocaleString("ko-KR")??"—"}원</p><p>실제 관측 {fmtDate(report.start)} — {fmtDate(report.end)} · 평가일 {report.observations}개 · 기준 100 지수 {report.valuation.index100.toFixed(2)} (원화 금액과 별도)</p>{report.observations===1&&<p role="status">첫 평가 기록 1건 · 기준점 100만 확인됩니다. 두 번째 평가일 전에는 수익률·변동성·기여도를 계산하지 않습니다.</p>}</section>}
     {!example && <ForwardOperations latestValuationDate={query.data?.end ?? null} observations={query.data?.observations ?? null}/>}
     {!example && report?.data_kind === "TEST_FIXTURE" && <p className={`${s.exampleBanner} ${s.fixtureBanner}`} role="status">검증용 합성 데이터 · 실제 운용 기록이 아닙니다. 장기 성과나 발표 실적의 근거로 사용하지 않습니다.</p>}
     {!example && <LedgerHistory/>}
+    {!example&&report?.latest_recorded_date&&report.latest_recorded_date!==report.end&&<p className="ui-note" role="status">마지막 원장 평가일 {fmtDate(report.latest_recorded_date)} · 상태 {report.latest_recorded_status}. 불완전한 평가액은 수익률 관측 구간에서 제외합니다.</p>}
     {!example && report?.comparators && <section className={s.operations} aria-label="같은 기간 비교"><h2>같은 관측 기간의 비교 기준</h2><p>{report.start ?? "기록 대기"} — {report.end ?? "기록 대기"}</p><ul>{report.comparators.map(c=><li key={c.key}>{c.label}: {c.status === "AVAILABLE" ? fmtReturn(c.return) : c.reason === "BENCHMARK_DEFINITION_NOT_CONFIGURED" ? "비교 불가 · 기준 포트폴리오 정의 미정" : "비교 불가 · 같은 기간 데이터 부족"}{c.source === "REFERENCE_PRICE_REPLAY_GROSS" && " · 실제 계좌 운용 아님 / 거래비용 제외"}</li>)}</ul></section>}
     {!example&&query.isLoading?<LoadingSkeleton rows={6}/>:!example&&query.isError?<ErrorState message="성과 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/>:<>
       {ready && <div className={s.kpis}>

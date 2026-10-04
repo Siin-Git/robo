@@ -43,7 +43,7 @@ export function ParticipantPerformance({ participantId, portfolioOnly = false }:
   const myRank = analytics.data?.rankings.return.find(row => row.participant_id === r?.participant_id)?.rank;
   return <AppShell headerTitle={title} softBackground hideDesignNotice={compactPortfolio || compactPerformance}><div className={s.page}>
     {!detail && <p className="ui-note"><strong>시연 비교 데이터</strong> · 실제 forward 운용 기록과 별도입니다. <Link href={portfolioOnly ? "/portfolio" : "/dashboard"}>실제 운용 {portfolioOnly ? "포트폴리오" : "성과"} 보기 →</Link></p>}
-    {detail && <Link className={s.back} href="/ranking"><ArrowLeft size={15}/>참여자 비교로 돌아가기</Link>}
+    {detail && <Link className={s.back} href="/ranking?source=demo"><ArrowLeft size={15}/>참여자 비교로 돌아가기</Link>}
     {query.isLoading ? <LoadingSkeleton rows={8}/> : query.isError ? <ErrorState
       message={query.error instanceof ApiError && query.error.status === 404 ? "비교할 참여자를 찾을 수 없습니다." : "성과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."}
       onRetry={() => query.refetch()}/> : r && <>
@@ -51,15 +51,15 @@ export function ParticipantPerformance({ participantId, portfolioOnly = false }:
         <div><h1 className="page-title">내 포트폴리오</h1><p className={s.portfolioSubtitle}>선택한 위험 수준과 테마를 반영한 투자 구성이에요.</p>
           <div className={s.portfolioThemes}>{r.themes.length ? r.themes.map(t => <span key={t}>{themeLabel(t)}</span>) : <span>기본 자산배분</span>}</div>
         </div>
-        <div className={s.portfolioActions}><Link className="btn-primary" href="/setup/portfolio?step=risk"><SlidersHorizontal size={16}/>구성 변경</Link><Link className="btn-secondary" href="/ranking">성과 비교<ArrowRight size={16}/></Link></div>
+        <div className={s.portfolioActions}><Link className="btn-primary" href="/setup/portfolio?step=risk"><SlidersHorizontal size={16}/>구성 변경</Link><Link className="btn-secondary" href="/ranking?source=demo">성과 비교<ArrowRight size={16}/></Link></div>
       </header> : compactPerformance ? <header className={s.portfolioHeader}>
         <div><h1 className="page-title">{detail ? `${r.display_name}의 투자 성과` : "내 투자 성과"}</h1><p className={s.portfolioSubtitle}>{detail ? `${r.themes.map(themeLabel).join(" · ") || "기본 자산배분"} · 기준 포트폴리오와 성과 비교` : "내 포트폴리오와 기준 포트폴리오의 성과를 비교해보세요."}</p></div>
-        <div className={s.portfolioActions}>{!detail && <Link className="btn-secondary" href="/portfolio?source=demo">투자 구성 보기</Link>}<Link className="btn-primary" href="/ranking">참여자와 비교<ArrowRight size={16}/></Link></div>
+        <div className={s.portfolioActions}>{!detail && <Link className="btn-secondary" href="/portfolio?source=demo">투자 구성 보기</Link>}<Link className="btn-primary" href="/ranking?source=demo">참여자와 비교<ArrowRight size={16}/></Link></div>
       </header> : <header className={s.header}><div><p className="ui-eyebrow">{detail ? "PARTICIPANT DETAIL" : "PERSONAL DASHBOARD"}</p>
         <h1 className="page-title">{r.display_name}<span className={s.titleSuffix}>{portfolioOnly ? "의 투자 구성" : "의 포트폴리오"}</span></h1>
         <p className="page-desc">{market ? "저장한 포트폴리오를 같은 기간의 시장 가격으로 공통 CORE와 비교합니다." : detail ? "선택 View와 해당 가상 시나리오의 성과를 함께 확인합니다." : "같은 CORE, 나만의 View. 내 성과를 기준 포트폴리오와 비교합니다."}</p>
         <ThemeChips themes={r.themes}/></div>
-        {!detail && <Link className="btn-primary" href="/ranking">참여자 성과 비교<ArrowRight size={16}/></Link>}
+        {!detail && <Link className="btn-primary" href="/ranking?source=demo">참여자 성과 비교<ArrowRight size={16}/></Link>}
       </header>}
       {!compactPortfolio && !compactPerformance && <>
       {r.status!=="awaiting_performance"&&<DemoNote market={market}/>}
@@ -132,7 +132,7 @@ export function ParticipantPerformance({ participantId, portfolioOnly = false }:
           const mine = r.allocation.find(w => w.asset_id === id)?.weight ?? 0;
           return {asset_id:id,core,mine,active:mine-core};
         })}/></details>
-      </section> : <Link className={s.detailLink} href={compactPerformance ? "/portfolio?source=demo" : `/participants/${r.participant_id}`}>내 투자 구성 자세히 보기<ArrowRight size={16}/></Link>}
+      </section> : <Link className={s.detailLink} href={compactPerformance ? "/portfolio?source=demo" : `/participants/${r.participant_id}?source=demo`}>내 투자 구성 자세히 보기<ArrowRight size={16}/></Link>}
       {(compactPortfolio || compactPerformance) && <footer className={s.portfolioFooter}>
         <details className={s.calculationDetails}><summary>계산 기준</summary><div>
           <p>현재 목표 비중을 {fmtDate(r.start)}부터 {fmtDate(r.end)}까지 같은 시장 가격으로 비교합니다. {r.observations}개 평가일 · NAV 시작값 100 · 공통 기준 CORE V0.3.</p>
