@@ -36,8 +36,9 @@ def comparisons(session, participant_id, report):
     elif decision:
         selected['reason']='INSUFFICIENT_ACTUAL_HISTORY'
     rows.append(selected)
+    from .benchmark_definition_service import reference
     for key,label in [('market','시장 비교'),('safe_asset','안전자산 비교')]:
-        rows.append({'key':key,'label':label,'status':'UNAVAILABLE','return':None,'reason':'BENCHMARK_DEFINITION_NOT_CONFIGURED','start':start,'end':end})
+        rows.append(reference(key, label, report))
     for row in rows:
         row['decision_id'] = decision_id
     return rows

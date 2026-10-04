@@ -28,7 +28,7 @@ export interface Report {
   series:{date:string;personal:number;benchmark:number|null;drawdown:number}[];
   attribution:{date:string;values:Record<string,number>;total:number}[];
   assets:Asset[];
-  comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string;decision_id?:string|null;start?:string|null;end?:string|null}[];
+  comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string;decision_id?:string|null;start?:string|null;end?:string|null;difference?:number|null;difference_reason?:string|null;definition_version?:string;definition?:{currency:string;dividends:string;costs:string}}[];
   quality:{unresolved_intervals:number;stale_observations:number;missing_nav_dates:number;benchmark_complete:boolean;missing_comparison_dates?:string[]};
 }
 // Chart alignment only: retain every recorded value and put explicit nulls on
