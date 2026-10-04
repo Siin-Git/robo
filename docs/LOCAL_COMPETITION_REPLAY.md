@@ -24,11 +24,14 @@ CORE 계좌에 기존 주문→모의체결→보유·현금→NAV 엔진 기록
 - 모든 DB·원본 가격·계정 파일·로그·캡처는 저장소 밖의 private 임시 디렉터리에 있다.
   기존 root/nested 체크아웃, 다른 worktree, 운영 데이터, 3073/8073 프로세스는 유지한다.
 
-리뷰 브랜치 푸시가 배포를 유발하지 않도록 `web/vercel.json`의
+리뷰 브랜치 푸시가 배포를 유발하지 않도록 루트와 `web/vercel.json`의
 `git.deploymentEnabled`에서 **feat/competition-replay만 false**로 지정했다.
 다른 브랜치의 기본 동작/production 설정을 바꾸지 않는다.
 [Vercel 공식 Git configuration](https://vercel.com/docs/project-configuration/git-configuration)의
 브랜치별 설정을 사용하며 provider 계정 설정/실제 배포 명령은 실행하지 않는다.
+최초 push에는 별도 루트 프로젝트 `Vercel – robo`가 자동 Preview를 시도해 실패했다.
+웹 프로젝트만 설정한 것으로는 다른 Root Directory 프로젝트를 차단하지 못했으므로
+루트에도 같은 브랜치 규칙을 추가했다. Production `robo-paper-web`의 `b6add63`은 유지된다.
 
 ## 설계 판단과 데이터 출처
 
@@ -113,8 +116,10 @@ PREPARED/RUNNING/INCOMPLETE/COMPLETE와 30계좌 날짜 coverage/회계 검증�
 기존 Actions `daily-forward`를 **dry_run=true**로 실행했다. 실행 `37208198285`의
 읽기 전용 인벤토리: 인증 사용자/참가자 15, 설계 사용자 1·개인/CORE 2계좌·판단 3버전
 (확정 사용자 1명), pending 포함 주문 8, 체결/holdings/NAV 0. 로컬 15/15와 별개이다.
-슬롯 확인/계좌 소유권까지 포함한 최신 READY는 이 인벤토리만으로 단정하지 않는다.
-추가 읽기 전용 검사 결과는 아래 인수 기록에 갱신한다. 실제 Render DB와 Actions DB가
+추가 Actions **37211864102**(이번 브랜치, dry_run=true)에서 기존 공동 gate로 슬롯 확인/
+계좌 소유권/불변 판단 연결까지 조회해 **READY 1/15, NOT_READY, PARTICIPANTS_NOT_READY,
+T0 null**을 확인했다. 나머지 14명을 임의 확정하지 않았다.
+주문/체결/평가/job/T0를 쓰지 않는 dry-run이다. 실제 Render DB와 Actions DB가
 같은지 및 Render 커밋은 해당 운영 workspace 접근이 필요하다. secret 값을 요청하지 않는다.
 
 ## 검증과 명령
