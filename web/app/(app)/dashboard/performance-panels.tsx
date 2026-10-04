@@ -18,6 +18,8 @@ export function PerformancePanels({report,mode,selected,onSelect,onMode,styles:s
   const max=Math.max(...view.ranking.map(r=>Math.abs(r.value)),.0001);
   const labels=Object.fromEntries(view.series.map(item=>[item.id,item.name]));
   const switchSelected=(id:string)=>onSelect(selected===id?null:id);
+  const exclusions=report.replay_context?.excluded_dates.filter(d=>d.date>=(report.start??"")&&d.date<=(report.end??""))??[];
+  const gapNote=exclusions.length?<p className={s.infoNote}>빈 구간: {exclusions.map(d=>`${fmtDate(d.date)} ${d.reason==="MARKET_CLOSED"?"정상 휴장":"수집 자료 누락(원인 미확인)"}`).join(" · ")}. 해당 날짜는 평가하지 않았으며 선을 연결하지 않습니다.</p>:null;
   return <>
     <section className={s.panel} aria-labelledby="performance-chart-heading"><div className={s.sectionHeading}><div><span className={s.eyebrow}>GROWTH OVER TIME</span><h2 id="performance-chart-heading">내 포트폴리오는 어떻게 움직였을까요?</h2></div><span className={s.unit}>누적수익률 %</span></div>
       <div className={s.lineLegend}><span><i style={{background:"#3268df"}}/>내 포트폴리오<strong>{fmtReturn(report.metrics.cumulative_return)}</strong></span><span><i style={{background:"#8896ab"}}/>시스템 기준 CORE<strong>{fmtReturn(report.metrics.benchmark_return)}</strong></span></div>
@@ -28,9 +30,11 @@ export function PerformancePanels({report,mode,selected,onSelect,onMode,styles:s
         </LineChart></ResponsiveContainer>
       </div>
       {!report.quality.benchmark_complete&&<p className={s.infoNote}>CORE 기록이 없는 날짜는 선을 연결하지 않습니다. 비교 수익률은 동일한 시작·종료일이 있을 때만 계산합니다.</p>}
+      {gapNote}
     </section>
     {riskPanel}
     <section className={s.panel} aria-labelledby="contribution-heading"><div className={s.sectionHeading}><div><span className={s.eyebrow}>RETURN CONTRIBUTION</span><h2 id="contribution-heading">내 수익은 어디에서 나왔을까요?</h2><p>위쪽은 수익에 더한 부분, 아래쪽은 수익에서 뺀 부분입니다.</p></div><div className={s.segmented} role="group" aria-label="기여도 표시 단위"><button aria-pressed={mode==="groups"} onClick={()=>onMode("groups")}>자산군</button><button aria-pressed={mode==="assets"} onClick={()=>onMode("assets")}>개별 자산</button></div></div>
+      {gapNote}
       {report.quality.unresolved_intervals>0&&<p className={s.warning}>보유 내역이 부족한 {report.quality.unresolved_intervals}개 구간의 손익은 ‘미설명 차이’로 표시합니다.</p>}
       <div className={s.contributionGrid}><div className={s.contributionPlot}><div className={s.plotTitle}><span>누적 수익 기여도 · %p</span>{selected&&<button onClick={()=>onSelect(null)}>전체 강조로 돌아가기</button>}</div>
         <div className={s.areaChart} role="img" aria-label={`누적 기여도: ${view.series.map(r=>r.name+" "+fmtActivePp(r.value)).join(", ")}`}>

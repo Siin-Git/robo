@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from scripts.competition_replay import environment, prepare
+from scripts.competition_replay import environment, prepare, observation_window, excluded_observations, clone_configuration
 from src.api.dependencies import reset_session_factory
 from src.api.design_workspace import _factory
 from src.api.main import app
@@ -68,6 +68,50 @@ def lab(tmp_path, monkeypatch):
 def counts(con):
     return tuple(con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
                  for t in ("orders","trades","holdings_daily","nav_daily","portfolio_targets"))
+
+
+def test_fixed_period_preserves_interior_records_and_differs_from_latest_ten(monkeypatch):
+    class AuditDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026,10,5)
+    monkeypatch.setattr("scripts.competition_replay.date", AuditDate)
+    days = list(pd.bdate_range("2026-09-16", "2026-10-02").strftime("%Y-%m-%d"))
+    prices = {a:{d:100 for d in days} for a in ("korea_equity","korea_treasury","__FX__")}
+    for a in ("korea_equity","korea_treasury"):
+        for d in ("2026-09-24","2026-09-25"):
+            del prices[a][d]
+    assets = set(prices)
+    fixed, selection = observation_window(prices, assets, "2026-09-16", "2026-10-02")
+    latest, latest_selection = observation_window(prices, assets)
+    assert selection == "FIXED_WINDOW" and len(fixed) == 11
+    assert latest_selection == "RECENT_COMMON_OBSERVATIONS" and len(latest) == 10
+    assert fixed[0] == "2026-09-16" and latest[0] == "2026-09-17"
+    assert "2026-09-18" in fixed
+    exclusions = excluded_observations(prices, assets, fixed)
+    assert [d["date"] for d in exclusions] == ["2026-09-24","2026-09-25"]
+    assert all(d["reason"] == "MARKET_CLOSED" for d in exclusions)
+    del prices["__FX__"]["2026-09-18"]
+    observed, _ = observation_window(prices, assets, "2026-09-16", "2026-10-02")
+    gap = next(d for d in excluded_observations(prices, assets, observed) if d["date"] == "2026-09-18")
+    assert gap["reason"] == "SOURCE_OBSERVATION_MISSING" and gap["calendar_source"] == []
+    del prices["__FX__"]["2026-09-16"]
+    with pytest.raises(ValueError, match="boundaries"):
+        observation_window(prices, assets, "2026-09-16", "2026-10-02")
+
+
+def test_configuration_fork_copies_immutable_design_but_no_replayed_history(lab):
+    replay.execute(lab.directory)
+    old = counts(lab.con)
+    destination = lab.directory.parent / "new-session-audit"
+    clone_configuration(lab.directory, destination)
+    assert not (destination / "replay_ledger.db").exists()
+    with sqlite3.connect(destination / "portfolio_design.db") as con, sqlite3.connect(lab.directory / "portfolio_design.db") as source:
+        assert counts(con)[:4] == (0,0,0,0)
+        assert con.execute("SELECT decision_id,confirmed_at,effective_date,weights_json FROM portfolio_decisions ORDER BY decision_id").fetchall() == source.execute("SELECT decision_id,confirmed_at,effective_date,weights_json FROM portfolio_decisions ORDER BY decision_id").fetchall()
+    assert counts(lab.con) == old
+    with pytest.raises(ValueError, match="NEW"):
+        clone_configuration(lab.directory, destination)
 
 
 def test_full_15_engine_accounting_api_consistency_and_no_actual_history(lab):

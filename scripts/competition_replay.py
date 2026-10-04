@@ -16,7 +16,8 @@ sys.path.insert(0, str(ROOT))
 def initialize(directory, web_port=3097, api_port=8097):
     """Create new private local stores; refuse existing directories."""
     import tempfile
-    if not directory.is_relative_to(Path(tempfile.gettempdir()).resolve()) or directory.exists():
+    if directory.exists() or not any(directory.is_relative_to(root) for root in
+            (Path('/private/tmp'), Path(tempfile.gettempdir()).resolve())):
         raise ValueError("Initialize requires a NEW disposable temporary directory")
     directory.mkdir(mode=0o700)
     (directory / "local-replay.json").write_text(json.dumps({"kind":"LOCAL_COMPETITION_REPLAY",
@@ -41,7 +42,39 @@ def initialize(directory, web_port=3097, api_port=8097):
         '--out',str(directory/'accounts.json')],cwd=ROOT,env=os.environ.copy(),check=True)
 
 
-def fetch_prices(directory):
+def clone_configuration(source, directory, web_port=3099, api_port=8099):
+    """Copy only a marked local demo's auth/configuration; never its replay ledger."""
+    import shutil
+    import tempfile
+    from src.forward.replay import local_directory
+    source = local_directory(source)
+    if directory.exists() or not any(directory.is_relative_to(root) for root in
+            (Path('/private/tmp'), Path(tempfile.gettempdir()).resolve())):
+        raise ValueError("Fork requires a NEW disposable local directory")
+    with sqlite3.connect(source / "portfolio_design.db") as con:
+        if any(con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+               for t in ("orders", "trades", "holdings_daily", "nav_daily")):
+            raise ValueError("Only the original demo configuration store may be cloned")
+    directory.mkdir(mode=0o700)
+    (directory / "local-replay.json").write_text(json.dumps({"kind":"LOCAL_COMPETITION_REPLAY",
+        "source":str(ROOT), "web_port":web_port, "api_port":api_port,
+        "configuration_origin":str(source)}))
+    env = json.loads((source / "environment.json").read_text())
+    env.update(CAPSTONE_DATA_DIR=str(directory), DATABASE_URL="", CAPSTONE_DESIGN_DATABASE_URL="",
+               COMPETITION_REPLAY_DIR=str(directory), FASTAPI_INTERNAL_URL=f"http://127.0.0.1:{api_port}")
+    (directory / "environment.json").write_text(json.dumps(env))
+    for name in ("capstone_demo.db", "portfolio_design.db"):
+        with sqlite3.connect(source / name) as original, sqlite3.connect(directory / name) as copied:
+            original.backup(copied)
+        (directory / name).chmod(0o600)
+    for name in ("accounts.json", "accounts.md"):
+        if (source / name).exists():
+            shutil.copyfile(source / name, directory / name)
+            (directory / name).chmod(0o600)
+    return {"configuration_copied":True, "history_copied":False}
+
+
+def fetch_prices(directory, start=None, end=None):
     """Capture raw provider observations. No fallback, fill, or sealed-run refresh."""
     from src.data.provider import get_default_provider
     from src.forward.config import load_forward_config,resolve
@@ -54,12 +87,15 @@ def fetch_prices(directory):
     chosen={t for s in prepare_participants(directory) for t in s['theme_ids']}
     themes=yaml.safe_load((ROOT/'config/themes_v01.yaml').read_text())['themes']
     tickers.update({'theme:'+t['theme_id']:t['ticker'] for t in themes if t['theme_id'] in chosen})
-    provider=get_default_provider();end=date.today()-timedelta(days=1);start=end-timedelta(days=60)
-    prices={};failures=[]
+    provider=get_default_provider();end=end or date.today()-timedelta(days=1);start=start or end-timedelta(days=60)
+    if start > end or end >= date.today():
+        raise ValueError("Fetch requires a completed, ordered date range")
+    prices={};failures=[];sessions={}
     for asset,ticker in tickers.items():
         try:
             series=provider.get_price_history(ticker,start,end)
             prices[asset]={stamp.date().isoformat():float(value) for stamp,value in series.items()}
+            sessions[asset] = dict(series.attrs)
         except Exception:
             failures.append({'asset':asset,'ticker':ticker,'reason':'PROVIDER_FETCH_FAILED'})
     if failures:
@@ -67,7 +103,7 @@ def fetch_prices(directory):
         raise RuntimeError("Real source fetch failed: "+', '.join(f["asset"] for f in failures))
     data={'kind':'REAL_MARKET_PRICES','provider':type(provider).__name__,
           'retrieved_at':datetime.now(timezone.utc).isoformat(),'request_start':str(start),'request_end':str(end),
-          'prices':prices,'tickers':tickers}
+          'prices':prices,'tickers':tickers,'sessions':sessions}
     (directory/'market-prices.json').write_text(json.dumps(data,indent=2))
     return {'assets':len(prices),'provider':data['provider'],'request_start':str(start),'request_end':str(end)}
 
@@ -160,7 +196,43 @@ def prepare_participants(directory):
     return selections
 
 
-def prepare(directory):
+def observation_window(prices, assets, start=None, end=None, observations=10):
+    """Fixed-period audits and latest-N selection are intentionally separate."""
+    if (start is None) != (end is None) or observations < 2:
+        raise ValueError("Require both window boundaries and at least two observations")
+    common = sorted(set.intersection(*[set(prices[asset]) for asset in assets]))
+    common = [d for d in common if d < date.today().isoformat() and date.fromisoformat(d).weekday() < 5]
+    if start is not None:
+        if start > end:
+            raise ValueError("Window start must not follow its end")
+        selected = [d for d in common if start <= d <= end]
+        if len(selected) < 2 or selected[0] != start or selected[-1] != end:
+            raise ValueError("Fixed comparison boundaries need complete source prices")
+        return selected, "FIXED_WINDOW"
+    if len(common) < observations:
+        raise RuntimeError("Fewer complete common observations than requested")
+    return common[-observations:], "RECENT_COMMON_OBSERVATIONS"
+
+
+def excluded_observations(prices, assets, dates):
+    """A narrowly sourced calendar distinguishes known closures from unknown gaps."""
+    calendar = json.loads((ROOT / "config/replay_sessions_20260916_20261002.json").read_text())
+    union = set.union(*[set(prices[a]) for a in assets])
+    excluded = []
+    for d in sorted(union):
+        if not (dates[0] <= d <= dates[-1]) or d in dates or date.fromisoformat(d).weekday() >= 5:
+            continue
+        missing = [a for a in sorted(assets) if d not in prices[a]]
+        closed = set(calendar["closed_assets"].get(d, []))
+        is_closure = bool(missing) and set(missing) <= closed
+        excluded.append({"date":d, "missing_assets":missing,
+            "reason":"MARKET_CLOSED" if is_closure else "SOURCE_OBSERVATION_MISSING",
+            "calendar_source":calendar["sources"] if is_closure else [],
+            "asset_reasons":{a:"MARKET_CLOSED" if a in closed else "SOURCE_OBSERVATION_MISSING" for a in missing}})
+    return excluded
+
+
+def prepare(directory, start=None, end=None, observations=10):
     from src.forward import competition as gate
     from src.forward.replay import manifest, local_directory, save_state, exclusive
     from src.forward.config import load_forward_config, resolve
@@ -169,7 +241,10 @@ def prepare(directory):
     import pandas as pd
     directory = local_directory(directory)
     if (directory / "run.json").exists():
-        return manifest(directory)
+        existing = manifest(directory)
+        if start is not None and (existing["start"], existing["end"]) != (start, end):
+            raise ValueError("Sealed run window is preserved; fork a new run")
+        return existing
     with exclusive(directory):
         selections = prepare_participants(directory)
         raw = json.loads((directory / "market-prices.json").read_text())
@@ -208,15 +283,8 @@ def prepare(directory):
             missing = sorted(assets - raw["prices"].keys())
             if missing:
                 raise RuntimeError("Missing provider assets: " + ", ".join(missing))
-            common = sorted(set.intersection(*[set(raw["prices"][asset]) for asset in assets]))
-            common = [d for d in common if d < date.today().isoformat() and date.fromisoformat(d).weekday() < 5]
-            if len(common) < 10:
-                raise RuntimeError("Fewer than 10 complete common trading observations")
-            dates = common[-10:]
-            union = set.union(*[set(raw["prices"][asset]) for asset in assets])
-            excluded = [{"date":d, "missing_assets":[a for a in sorted(assets) if d not in raw["prices"][a]],
-                         "reason":"SOURCE_OBSERVATION_MISSING; not filled or interpolated"}
-                        for d in sorted(union) if dates[0] <= d <= dates[-1] and d not in dates and date.fromisoformat(d).weekday() < 5]
+            dates, selection = observation_window(raw["prices"], assets, start, end, observations)
+            excluded = excluded_observations(raw["prices"], assets, dates)
             index = pd.to_datetime(dates)
             panels = {a:pd.Series(raw["prices"][a], dtype=float).rename_axis("date") for a in assets}
             panels = {a:pd.Series([float(s[d]) for d in dates], index=index) for a,s in panels.items()}
@@ -225,7 +293,7 @@ def prepare(directory):
             # its forward-fill therefore does not replace a missing observation.
             panel = align_daily_krw(panels, fx, HEDGED)
             panel["__FX__"] = fx
-            if len(panel) != 10 or not all(float(v) > 0 for v in panel.to_numpy().ravel()):
+            if len(panel) != len(dates) or not all(float(v) > 0 for v in panel.to_numpy().ravel()):
                 raise RuntimeError("Invalid real price/FX coverage")
             upsert_prices(con, panel, "HISTORICAL_REPLAY_REAL_PRICES")
             latest_effective = max(date.fromisoformat(m["effective_date"]) for m in members)
@@ -236,13 +304,15 @@ def prepare(directory):
             run = {"kind":"HISTORICAL_REPLAY", "run_id":str(uuid4()), "required":15,
                    "created_at":datetime.now(timezone.utc).isoformat(),
                    "configuration_kind":"LOCAL_DEMO", "members":members, "weights":weights,
+                   "window_selection":selection,
                    "start":dates[0], "end":dates[-1], "dates":dates,
                    "forward_start":forward_start.isoformat(), "excluded_dates":excluded,
                    "initial_capital_krw":float(ft["initial_capital_krw"]),
                    "price_basis":{"provider":raw["provider"], "retrieved_at":raw["retrieved_at"],
                        "raw_sha256":sha256((directory / "market-prices.json").read_bytes()).hexdigest(),
                        "tickers":{a:raw["tickers"][a] for a in sorted(assets)},
-                       "calendar":"last 10 complete common source sessions; exclusions explicit",
+                       "calendar":selection + "; complete common source sessions; exclusions explicit",
+                       "sessions":raw.get("sessions", {}),
                        "prices":"existing provider adjusted close when available, otherwise close",
                        "currency_rule":"existing align_daily_krw: unhedged USD multiplied by FX; KR/native and HEDGED levels unchanged",
                        "hedged_assets":sorted(HEDGED), "cost_bps":ft["costs"]["trading_cost_bps"],
@@ -261,21 +331,30 @@ def prepare(directory):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["init", "fetch", "prepare", "run", "status", "serve", "stop"])
+    parser.add_argument("action", choices=["init", "fork", "fetch", "prepare", "run", "status", "serve", "stop"])
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--port",type=int,default=3097)
     parser.add_argument("--api-port",type=int,default=8097)
+    parser.add_argument("--from-directory",type=Path)
+    parser.add_argument("--start",type=date.fromisoformat)
+    parser.add_argument("--end",type=date.fromisoformat)
+    parser.add_argument("--observations",type=int,default=10)
     args = parser.parse_args(); directory = args.directory.resolve()
     if args.action=="init":
         initialize(directory,args.port,args.api_port)
+        return 0
+    if args.action == "fork":
+        if not args.from_directory:
+            parser.error("fork requires --from-directory")
+        print(json.dumps(clone_configuration(args.from_directory, directory, args.port, args.api_port)))
         return 0
     environment(directory)
     if args.action in ("serve","stop"):
         print(json.dumps(servers(directory,args.action)))
     elif args.action=="fetch":
-        print(json.dumps(fetch_prices(directory)))
+        print(json.dumps(fetch_prices(directory,args.start,args.end)))
     elif args.action == "prepare":
-        value = prepare(directory)
+        value = prepare(directory, str(args.start) if args.start else None, str(args.end) if args.end else None, args.observations)
         print(json.dumps({k:value[k] for k in ("run_id", "kind", "required", "start", "end", "forward_start", "excluded_dates")}, ensure_ascii=False))
     elif args.action == "run":
         from src.forward.replay import execute

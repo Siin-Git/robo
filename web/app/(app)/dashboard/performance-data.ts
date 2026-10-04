@@ -36,7 +36,7 @@ export interface ReplayContext {
   run_id:string;kind:"HISTORICAL_REPLAY";label:string;status:string;
   ready:number;required:number;completed:number;start:string;end:string;dates:string[];
   forward_start:string;forward_started:boolean;initial_capital_krw:number;
-  excluded_dates:{date:string;missing_assets:string[];reason:string}[];
+  excluded_dates:{date:string;missing_assets:string[];reason:string;asset_reasons?:Record<string,string>}[];
 }
 // Chart alignment only: retain every recorded value and put explicit nulls on
 // comparison dates without an owner valuation. Financial calculations stay server-side.

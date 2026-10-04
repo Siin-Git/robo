@@ -15,7 +15,7 @@ import sqlite3
 import tempfile
 
 KIND = "HISTORICAL_REPLAY"
-LABEL = "현재 확정 구성을 과거 10거래일에 적용한 모의실험"
+LABEL = "현재 확정 구성을 과거 시장 가격에 적용한 모의실험"
 _scope = ContextVar("isolated_replay", default=None)
 
 

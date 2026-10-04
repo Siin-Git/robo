@@ -21,3 +21,14 @@ it('does not describe the legacy backtest page as the competition run',()=>{
  expect(screen.getByRole('status')).toHaveTextContent('경쟁 재생 원장과 별도');
  expect(screen.queryByText(/READY/)).toBeNull();
 });
+it('distinguishes verified market closures from source gaps without inventing prices',()=>{
+ response.data={enabled:true,replay_context:{ready:15,required:15,completed:15,status:'COMPLETE',dates:Array(11),start:'2026-09-16',end:'2026-10-02',initial_capital_krw:1e8,excluded_dates:[
+  {date:'2026-09-24',missing_assets:['korea_equity'],reason:'MARKET_CLOSED'},
+  {date:'2026-09-18',missing_assets:['__FX__'],reason:'SOURCE_OBSERVATION_MISSING'}]}};
+ render(<ReplayNotice/>);
+ const notice=screen.getByLabelText('로컬 과거 재생 시연');
+ expect(notice).toHaveTextContent('공통 관측일 11개');
+ expect(notice).toHaveTextContent('2026-09-24 · 정상 휴장');
+ expect(notice).toHaveTextContent('2026-09-18 · 수집 자료 누락 · 원인 미확인');
+ expect(screen.getByText('시연 정보').closest('details')).not.toHaveAttribute('open');
+});
