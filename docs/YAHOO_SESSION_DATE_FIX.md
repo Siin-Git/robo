@@ -151,7 +151,7 @@ invented transcript. Existing ledger 09e92ad and research 66df9cc are in this br
 
 | Requirement | Status | Evidence / limit |
 |---|---|---|
-| Original judgment / selected Frontier point | Implemented and connected | onboarding_service.complete → decision_service.capture; PortfolioDecision/BasePortfolioSelection store immutable weights/expectations/units/horizon/Frontier ID+version+hashes; /me/decisions/{id}/review → /review |
+| Original judgment / selected Frontier point | Implemented and connected | onboarding_service.complete → decision_service.capture; PortfolioDecision/BasePortfolioSelection store immutable weights/expectations/units/horizon/Frontier ID/version and model/data hashes; /me/decisions/{id}/review → /review |
 | Whole historical Frontier curve reproduction | Definition pending | Selected point/expectations are stored; /portfolio currently renders the current model curve and summary. Use /review for the recorded initial expectation |
 | Portfolio's selected ETF/assets daily tracking | Implemented and connected (local replay); real forward data pending | prices_daily/trades/holdings_daily/nav_daily → ledger_read_service/performance_report → dashboard/ledger/contributions |
 | User revision review/history | Implemented and connected | PortfolioChoice; decision_service.review/choose; /me/portfolio/choices; /review. KEEP/ADJUST is a configuration decision, not order approval |
