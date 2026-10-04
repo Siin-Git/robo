@@ -89,3 +89,16 @@ def test_stale_prices_and_gaps_suppress_annual_risk():
 def test_invalid_period():
     with pytest.raises(ValueError):
         calculate_report([],[],[],[],"NOPE")
+
+
+def test_single_anchor_excludes_incomplete_latest_record_without_fake_performance():
+    nav=[{'date':'2026-10-05','nav':123456,'cash':456,'status':'OK'},
+         {'date':'2026-10-06','nav':0,'cash':456,'status':'NAV_INCOMPLETE'}]
+    report=calculate_report(nav,[],[],[])
+    assert report['observations']==1
+    assert report['valuation']=={'date':'2026-10-05','nav_krw':123456,'cash_krw':456,'index100':100}
+    assert report['end']=='2026-10-05'
+    assert report['latest_recorded_date']=='2026-10-06'
+    assert report['latest_recorded_status']=='NAV_INCOMPLETE'
+    assert report['series']==[]
+    assert all(v is None for v in report['metrics'].values())
