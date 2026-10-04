@@ -24,6 +24,12 @@ CORE 계좌에 기존 주문→모의체결→보유·현금→NAV 엔진 기록
 - 모든 DB·원본 가격·계정 파일·로그·캡처는 저장소 밖의 private 임시 디렉터리에 있다.
   기존 root/nested 체크아웃, 다른 worktree, 운영 데이터, 3073/8073 프로세스는 유지한다.
 
+리뷰 브랜치 푸시가 배포를 유발하지 않도록 `web/vercel.json`의
+`git.deploymentEnabled`에서 **feat/competition-replay만 false**로 지정했다.
+다른 브랜치의 기본 동작/production 설정을 바꾸지 않는다.
+[Vercel 공식 Git configuration](https://vercel.com/docs/project-configuration/git-configuration)의
+브랜치별 설정을 사용하며 provider 계정 설정/실제 배포 명령은 실행하지 않는다.
+
 ## 설계 판단과 데이터 출처
 
 `capstone_demo.db`는 시연 계정/DemoCohort/DemoSlot, `portfolio_design.db`는 실제 현재
