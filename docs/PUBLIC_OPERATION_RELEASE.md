@@ -8,6 +8,8 @@ develop `cb5c778`에 성과·랭킹 `09e92ad`를 별도 `integration/public-rele
 
 통합 커밋 `2b83b8a`는 PR #19로 제출됐다. push CI 37192393042, PR CI 37192493320의 백엔드·프론트 모두 통과한 뒤 develop에 `46db48b`로 병합했다. main은 아직 변경하지 않았다. 실제 배포 저장소 권한 확인 전에 릴리스 병합을 하지 않는다.
 
+배포 준비 `a39fc79`는 PR #20의 push/PR CI 37193149357·37193194229 모두 통과 후 develop `250f315`로 병합됐다. main 이력 `643ea82`를 함께 보존한 release/public-operation 후보를 준비한다. PR #12의 backup.yml·백업 도구는 main과 후보가 동일하다. 원래 main-target PR을 다시 병합하지 않는다.
+
 CI는 Python 3.11과 폐기 PostgreSQL 18의 일반·인증·운용 DB를 사용해 tests 전체를 실행한다. backup은 PR #12의 독립 CI를 유지한다. optimizer/frontier/covariance/returns 등 루트 계산 검사를 포함하며 운영 secrets를 테스트에 주입하지 않는다.
 
 현지 Python 3.11 + 폐기 PostgreSQL 14에서 비백업 511개 통과. 백업 검사 12개는 전용 역할명이 달라 환경 오류가 발생했다. 폐기 클러스터에 backup_test 역할을 만든 후 백업 검사 35개 모두 통과했다. 제품 코드나 검사를 우회하지 않았다. Vitest 67개 및 Next production 빌드 통과.
@@ -32,7 +34,9 @@ Vercel mincholover / mincholovers-projects:
 | 프로젝트 | 저장소 | 생산 브랜치 | 루트 | 최신 배포 |
 | --- | --- | --- | --- | --- |
 | robo | MinchoLover/robo | main | 미설정 | b06a6bf, ERROR |
-| robo-q3o3 | MinchoLover/robo | feat/capstone-demo-mvp | web | b06a6bf, READY |
+| robo-q3o3 | MinchoLover/robo | feat/capstone-demo-mvp | web | 최신 Git 배포 b06a6bf, READY |
+
+실제 production target은 수동 업로드 `dpl_2R8D4gYz9fvBoaZcQjyfy7PKQ8PU`다. 메타데이터에는 actor=codex만 있고 Git commit SHA가 없어 b06a6bf를 실제 production 커밋으로 단정하지 않는다. 공개 도메인은 https://robo-q3o3.vercel.app. 이 주소의 /login·/api/v1/version은 200, 미인증 /api/v1/auth/me는 401이다. 팀 별칭은 Vercel 로그인 보호 화면으로 이동할 수 있다. 이번 통합 코드의 공개 배포는 아직 없다. Render 직접 API는 두 번 ReadTimeout이었지만 공개 프록시의 version은 응답했다. 이 응답을 올바른 DB·새 배포의 증거로 사용하지 않는다.
 
 robo-q3o3의 FASTAPI_INTERNAL_URL=https://robo-capstone-api.onrender.com. 현재 Render 계정에는 해당 API가 없다. 저장소·브랜치·API 대상이 맞지 않으므로 아직 공개 릴리스로 간주하지 않는다. Vercel 전체 비밀값 해독·임시 저장은 자동 승인 검토에서 거절되어 수행하지 않았다. 단일 DATABASE_URL 읽기 전용 조회는 승인되었지만 Vercel이 값을 반환하지 않아 대상은 미확정이다.
 
@@ -59,7 +63,7 @@ Actions 37191062722의 Neon: 인증 robo_auth, 운용 robo_design. 당시 사용
 
 ## 실행자·백업·복구
 
-실제 실행자는 이 맥의 daily LaunchAgent, 매일 07:30 KST. 월간 예약은 없다. Actions daily/monthly/weekly는 active이고 forward-jobs concurrency를 공유한다. FORWARD_EXECUTOR 미설정으로 정상 예약은 비활성화다. 외부 실행자 상태를 사용자에게 질문했다. 새 환경이 준비되기 전 기존 실행자를 중단하지 않는다.
+실제 SQLite 실행자는 이 맥의 daily LaunchAgent, 매일 07:30 KST. 월간 예약은 없다. Actions daily/monthly/weekly는 active이고 forward-jobs concurrency를 공유한다. develop 후보는 FORWARD_EXECUTOR=actions인 경우만 정상 예약을 실행하지만, 현재 기본 main은 아직 이전 버전으로 그 가드가 없다. main 일간 엔진은 SQLite만 연결해 DATABASE_URL을 사용하지 않는다. 기존 Actions 37168877811은 sqlite3.OperationalError/no such table로 실패했다. 따라서 현재 Actions 예약을 운영 Neon 적립으로 보고하지 않는다. main 릴리스·동일 DB 확인·실행자 전환이 먼저 필요하다. 외부 실행자 상태를 사용자에게 질문했으며 새 환경이 준비되기 전 기존 실행자를 중단하지 않는다.
 
 마지막 실제 성공: 2026-10-04 07:30:00–07:30:10 KST, daily/success, exit=0. 다음 로컬 예정: 2026-10-05 07:30 KST(맥 실행 필요). Actions 전환 후 준비할 월간 기본 예약은 2026-11-01 09:30 KST이며 사용자별 monthly/quarterly 주기 판정은 기존 엔진을 사용한다. 아직 원격 예약이 활성화됐거나 월간 실제 실행에 성공했다고 주장하지 않는다.
 

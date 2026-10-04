@@ -1,5 +1,11 @@
 # 2026-10-03 integration
 
+## 2026-10-04 공개 운영 연결
+
+사용자가 코드 수정·검증·커밋·푸시·PR/CI/develop·main 릴리스·확인된 서비스 배포·데이터 보존 이전·배치·백업을 명시적으로 승인했다. 원본 체크아웃과 미커밋 작업은 보존했다. PR #19 성과·랭킹 통합 및 계산/PostgreSQL CI는 develop `46db48b`, PR #20 영속 배포 준비·실제 복구 인수 기록은 `250f315`로 병합됐다. 두 PR의 전체 CI가 통과했다. 실제 3073/8073은 같은 인증·운용 SQLite를 사용하며 판단 3·주문 8·가격 42,010·체결/평가 0을 보존했다. 새 원장 성과는 실제 관측이 없어 대기한다.
+
+실제 SQLite의 일관된 백업→폐기 PG 이전→PR #12의 두 덤프→다른 빈 폐기 PG 복원 및 데이터·제약·트리거·인덱스·head 검증을 완료했다. 이는 기존 Neon 운영 덤프의 증거가 아니다. Render 현재 계정의 연결 저장소는 Siin-Git/robo와 다르고, Vercel도 이전 MinchoLover 저장소다. 필요한 Render 로그인/권한, 외부 실행자 상태 및 자동 승인 검토가 요구한 정확한 Actions/Vercel 작업 승인을 질문했다. 응답 전 main 릴리스·운영 이전·공개 배포·실행자 전환을 완료했다고 보고하지 않는다. 실제 결과·주소·커밋·백업 위치·복구는 [PUBLIC_OPERATION_RELEASE.md](PUBLIC_OPERATION_RELEASE.md)에 기록했다.
+
 ## Scope and evidence
 
 User authorized isolated integration, week 4 operations UI, immutable final decisions,
