@@ -179,3 +179,10 @@ fetch는 봉인된 run 가격을 덮어쓰지 않는다. 실패 시 `price-failu
 `ranking-1440.png`, `review-1440.png`와 동일 이름 `-390.png`에 저장했다.
 `verified-1440.json`/`verified-390.json`에 기간·수치·15명 랭킹/기여도 검사 결과가 있다.
 AI 구현 결과를 명령·테스트·실제 브라우저 렌더와 대조한 증거이며 운영 실행 증거가 아니다.
+# Session-date correction notice — 2026-10-05
+
+The preserved 3097 results below used the previous UTC-normalized FX labels.
+9/18 was an apparent gap caused by a London session-date error, not a missing
+source bar. Corrected 3099 results, identical-period comparison, closure evidence,
+independent audits and recovery steps are in [YAHOO_SESSION_DATE_FIX.md](YAHOO_SESSION_DATE_FIX.md).
+The current demonstration uses 9/16–10/2 with **11** common observations.

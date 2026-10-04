@@ -482,3 +482,13 @@ Actions workflow/secret/스케줄러는 변경하지 않았고 운영 DB에 T0�
 ## Dashboard disclosure UI (2026-10-05)
 
 See [DASHBOARD_DETAILS_UI.md](DASHBOARD_DETAILS_UI.md) for the isolated frontend changes, preview, and validation. Frontend 74 tests passed; final production build and desktop/mobile browser validation passed. Financial logic and backend were not changed.
+## Yahoo daily session-date correction (2026-10-05)
+
+Continued the existing Draft PR in an isolated worktree; reused UI cc9bfe8 via
+cherry-pick 02cf3eb. Corrected IANA exchange-session labels and first-query boundary
+coverage, preserved the original demo/configuration and rebuilt a new real-price
+ledger for the identical 9/16–10/2 period (11 observations). No finance engine,
+order timestamp, operating DB/T0/scheduler or backup workflow was replaced.
+589 backend and 75 frontend tests pass; build and two Chrome viewport flows pass.
+See [YAHOO_SESSION_DATE_FIX.md](YAHOO_SESSION_DATE_FIX.md) for before/after numbers,
+requested independent audits, professor requirement limits and operational recovery.
