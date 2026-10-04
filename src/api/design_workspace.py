@@ -10,7 +10,7 @@ from threading import RLock
 from fastapi import Depends
 from sqlalchemy import select
 
-from .authz import get_current_user, require_authenticated_csrf
+from .authz import get_current_user, require_authenticated_csrf, require_admin
 from .dependencies import get_db
 from .errors import ApiError
 from .services import participant_service
@@ -176,3 +176,18 @@ def require_design_csrf(user=Depends(require_authenticated_csrf), db=Depends(get
     if slot and not slot.confirmed_at:
         raise ApiError("SETUP_REQUIRED", "먼저 공통 CORE와 Theme의 첫 설정을 완료해 주세요.", 409)
     return user
+
+
+def get_admin_design_db(auth_db=Depends(get_db), admin=Depends(require_admin)):
+    """Internal diagnostics use the ledger DB without enrolling the operator."""
+    if not enabled():
+        yield auth_db
+        return
+    factory = _factory(design_database_url(auth_db))
+    with factory() as db:
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise

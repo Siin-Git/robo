@@ -93,6 +93,16 @@ def _rebalance_status(session, account_id: str, asof: date | None) -> dict:
         PortfolioTarget.effective_date <= (asof or date.today()),
     ).order_by(PortfolioTarget.effective_date.desc(), PortfolioTarget.created_at.desc(),
                PortfolioTarget.target_id.desc()).limit(1))
+    target_context = "AS_OF_VALUATION" if asof else "NO_VALUATION"
+    if asof is None:
+        from .decision_service import operation_context
+        from ...db.models.decision import PortfolioDecision
+        context = operation_context(session, account_id)
+        described = context["pending_decision"] or context["active_decision"]
+        if described:
+            decision = session.get(PortfolioDecision, described["decision_id"])
+            target = session.get(PortfolioTarget, decision.target_id)
+            target_context = "PENDING_DECISION" if context["pending_decision"] else "CONFIRMED_DECISION_NO_VALUATION"
     nav = session.get(_N, (account_id, asof)) if asof else None
     holdings = list(session.scalars(select(Holding).where(
         Holding.account_id == account_id, Holding.date == asof))) if asof else []
@@ -124,6 +134,7 @@ def _rebalance_status(session, account_id: str, asof: date | None) -> dict:
                                for o in orders if o.asset_id == asset],
         })
     return {"as_of": asof.isoformat() if asof else None, "status": state,
+            "target_context": target_context,
             "nav_status": nav.nav_status if nav else None,
             "target_effective_date": C.as_date(target.effective_date).isoformat() if target else None,
             "band": band, "assets": rows}
@@ -150,7 +161,8 @@ def status(session, participant_id: str) -> dict:
     price_d = C.as_date(price_d) if price_d is not None else None
 
     updated = session.scalar(
-        select(func.max(_E.timestamp)).where(_E.account_id == personal.account_id))
+        select(func.max(_E.timestamp)).where(_E.account_id == personal.account_id,
+                                             _E.event_type != "INTERNAL_ASSET_REVIEW"))
 
     if count == 0 or price_d is None:
         freshness = "NO_DATA"

@@ -79,6 +79,8 @@ def test_base_selection_flow(env):
     r = env.client.post("/api/v1/me/base-portfolio", json={"frontier_id": fid}, cookies=cookies, headers={"X-CSRF-Token": csrf})
     assert r.status_code == 200
     assert r.json()["frontier_id"] == fid
+    current = env.client.get("/api/v1/me/base-portfolio", cookies=cookies).json()
+    assert current["status"] == "selected" and current["selection_status"] == "active"
     # history preserved
     r = env.client.get("/api/v1/me/base-portfolio/history", cookies=cookies)
     assert len(r.json()["items"]) == 1

@@ -155,6 +155,34 @@ def test_full_15_engine_accounting_api_consistency_and_no_actual_history(lab):
     assert x.client.get(f'/api/v1/participants/{other}/performance/ledger').status_code==403
 
 
+def test_admin_tracking_keeps_replay_out_of_actual_observations_and_horizons(lab):
+    from src.api.dependencies import get_session_factory
+    from src.api.services import auth_service, internal_tracking_service as tracking
+    from src.api.performance_workspace import read_factory
+    from src.api.errors import ApiError
+    replay.execute(lab.directory)
+    did = lab.run['members'][0]['decision_id']
+    lab.login(0)
+    assert lab.client.get('/api/v1/me/performance/dashboard').json()['observations'] == 10
+    assert lab.client.get(f'/api/v1/admin/tracking/{did}').status_code == 403
+    password = secrets.token_urlsafe(24)
+    with get_session_factory()() as db:
+        auth_service.register(db,'replay-audit@example.com',password,'Local audit',role='admin')
+        db.commit()
+    lab.client.cookies.clear()
+    assert lab.client.post('/api/v1/auth/login',json={'email':'replay-audit@example.com','password':password}).status_code == 200
+    response = lab.client.get(f'/api/v1/admin/tracking/{did}')
+    assert response.status_code == 200
+    out = response.json()
+    assert out['historical_replay_excluded'] and out['observation_source'] == 'DESIGN_FORWARD_LEDGER'
+    assert out['actual_ledger']['observations'] == 0
+    assert all(a['observations'] == 0 and all(h['status'] in ('NOT_REACHED','NOT_APPLICABLE') for h in a['horizons']) for a in out['assets'])
+    with read_factory(str(lab.directory/'replay_ledger.db'))() as db:
+        with pytest.raises(ApiError) as failure:
+            tracking.report(db, did)
+        assert failure.value.code == 'REPLAY_NOT_FORWARD_OBSERVATIONS'
+
+
 def test_failure_after_fills_before_checkpoint_resumes_without_second_initial_buy(lab,monkeypatch):
     from src.forward import ledger
     real=ledger.valuate
