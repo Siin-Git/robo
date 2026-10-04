@@ -18,6 +18,7 @@ import { LedgerHistory } from "@/components/dashboard/LedgerHistory";
 import { DashboardDecisionContext } from "@/components/dashboard/DashboardDecisionContext";
 import { ForwardOperations } from "@/components/dashboard/ForwardOperations";
 import { ledgerReason } from "@/lib/api/ledger-comparison";
+import { BenchmarkOptions } from '@/components/strategies/BenchmarkOptions';
 
 export default function DashboardPage() {
   return <Suspense fallback={<LoadingSkeleton rows={6}/>}><DashboardRoute/></Suspense>;
@@ -62,7 +63,7 @@ function LegacyDashboardPage() {
     {!example && report?.data_kind === "TEST_FIXTURE" && <p className={`${s.exampleBanner} ${s.fixtureBanner}`} role="status">검증용 합성 데이터 · 실제 운용 기록이 아닙니다. 장기 성과나 발표 실적의 근거로 사용하지 않습니다.</p>}
     {!example && <LedgerHistory/>}
     {!example&&report?.latest_recorded_date&&report.latest_recorded_date!==report.end&&<p className="ui-note" role="status">마지막 원장 평가일 {fmtDate(report.latest_recorded_date)} · 상태 {report.latest_recorded_status}. 불완전한 평가액은 수익률 관측 구간에서 제외합니다.</p>}
-    {!example && report?.comparators && <section className={s.operations} aria-label="같은 기간 비교"><h2>같은 관측 기간의 비교 기준</h2><p>{report.start ?? "기록 대기"} — {report.end ?? "기록 대기"}</p><ul>{report.comparators.map(c=><li key={c.key}>{c.label}: {c.status === "AVAILABLE" ? fmtReturn(c.return) : c.reason === "BENCHMARK_DEFINITION_NOT_CONFIGURED" ? "비교 불가 · 기준 포트폴리오 정의 미정" : "비교 불가 · 같은 기간 데이터 부족"}{c.source === "REFERENCE_PRICE_REPLAY_GROSS" && " · 실제 계좌 운용 아님 / 거래비용 제외"}</li>)}</ul></section>}
+    {!example && report?.comparators && <section className={s.operations} aria-label="같은 기간 비교"><h2>같은 관측 기간의 비교 기준</h2><p>{report.start ?? "기록 대기"} — {report.end ?? "기록 대기"}</p><ul>{report.comparators.map(c=><li key={c.key}>{c.label}: {c.status === "AVAILABLE" ? fmtReturn(c.return) : c.reason === "BENCHMARK_DEFINITION_NOT_CONFIGURED" ? "비교 불가 · 기준 포트폴리오 정의 미정" : `비교 불가 · ${c.reason??'같은 기간 데이터 부족'}`}{c.source === "REFERENCE_PRICE_REPLAY_GROSS" && " · 실제 계좌 운용 아님 / 거래비용 제외"}{c.source === 'REVIEWED_REFERENCE_LEVELS'&&<span> · {c.definition?.currency} · 배당 {c.definition?.dividends} · 비용 {c.definition?.costs} · {c.definition_version}</span>}{c.difference!=null&&<span> · 실제 − 기준 {fmtActivePp(c.difference)}</span>}{c.difference_reason&&<span> · 수치 차이 보류: 비용·배당 기준 불일치</span>}</li>)}</ul><BenchmarkOptions/></section>}
     {!example&&query.isLoading?<LoadingSkeleton rows={6}/>:!example&&query.isError?<ErrorState message="성과 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/>:<>
       {ready && <div className={s.kpis}>
         <Metric label="내 누적수익률" value={fmtReturn(m?.cumulative_return)} hint={ready?`${fmtDate(report?.start)} — ${fmtDate(report?.end)}`:"첫 평가액 이후의 변화"} primary/>

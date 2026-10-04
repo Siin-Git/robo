@@ -33,6 +33,10 @@ def test_confirmation_immutable_versioned_idempotent_and_review(client,env,ident
     assert d['expectations']['expected_return']['unit']=='fraction_per_year'
     assert d['target_effective_date'] > d['confirmed_at'][:10]
     assert d['provenance']['artifact_sha256']
+    definition=d['expectations']['expected_return']['definition']
+    assert definition['portfolio_reference']==first and definition['currency']=='KRW'
+    assert definition['start']==d['target_effective_date']
+    assert definition['cost_basis']=='EXCLUDES_TRANSACTION_COSTS'
     with env.factory() as s:
         with pytest.raises(DatabaseError):
             s.execute(text("UPDATE portfolio_decisions SET reason='changed'"))
@@ -52,6 +56,7 @@ def test_confirmation_immutable_versioned_idempotent_and_review(client,env,ident
     out=review.json();assert out['review_only']
     assert out['actual']['status']=='INSUFFICIENT_HISTORY'
     assert all(x['difference'] is None for x in out['comparisons'])
+    assert 'COST_BASIS_DIFFERS' in out['comparisons'][0]['reasons']
     assert all(x['status']=='NOT_REACHED' and x['cumulative_return'] is None for x in out['horizons'])
     assert client.post('/api/v1/me/portfolio/choices',cookies=cookies,headers=headers,json=choice).json()['choice_id']==cid
     assert confirm(client,identity,'other',cid).status_code==409
@@ -78,11 +83,13 @@ def test_owner_and_legacy_no_original_estimates(client,identity,monkeypatch):
     assert client.get('/api/v1/me/decisions',cookies=cookies).json()['legacy_status']=='ORIGINAL_EXPECTATIONS_NOT_RECORDED'
     assert client.get(f'/api/v1/me/decisions/{first}/review',cookies=cookies).status_code==404
 
-def test_actual_window_short_statistics_and_same_units(client,env,identity):
+def test_actual_window_short_statistics_and_same_units(client,env,identity,monkeypatch):
     d_id=confirm(client,identity).json()['decision_id'];cookies,_=identity
     d=client.get('/api/v1/me/decisions',cookies=cookies).json()['items'][0]
     from datetime import timedelta
     start=date.fromisoformat(d['target_effective_date'])
+    from src.api.services import _common as C
+    monkeypatch.setattr(C, 'now_utc', lambda: datetime.combine(start+timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc))
     with env.factory() as s:
         for days,value in [(-1,50),(0,100),(1,102)]:
             day=start+timedelta(days=days)
@@ -95,3 +102,19 @@ def test_actual_window_short_statistics_and_same_units(client,env,identity):
     assert all(x['difference'] is None for x in out['comparisons'])
     ledger=client.get('/api/v1/me/performance/ledger',cookies=cookies).json()
     assert ledger['units']['nav']=='KRW' and ledger['units']['nav_base100']=='index_100'
+
+
+def test_review_excludes_future_valuations_and_does_not_reach_fake_horizons(client,env,identity):
+    d_id=confirm(client,identity).json()['decision_id'];cookies,_=identity
+    d=client.get('/api/v1/me/decisions',cookies=cookies).json()['items'][0]
+    from datetime import timedelta
+    start=date.fromisoformat(d['target_effective_date'])
+    with env.factory() as s:
+        for offset,value in [(0,100),(200,120)]:
+            s.add(NavDaily(account_id=d['account_id'],date=start+timedelta(days=offset),nav=value,cash_balance=value,
+                nav_base100=value,daily_return=0,cumulative_return=0,nav_status='OK',stale_price_flag=False,
+                benchmark_version='CORE_V0.3',theme_universe_version='THEME_UNIVERSE_V0.1',risk_model_version='test',execution_rule_version='test'))
+        s.commit()
+    result=client.get(f'/api/v1/me/decisions/{d_id}/review',cookies=cookies).json()
+    assert result['actual']['observations']==0
+    assert all(h['status']=='NOT_REACHED' and h['cumulative_return'] is None for h in result['horizons'])

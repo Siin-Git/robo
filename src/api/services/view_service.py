@@ -26,6 +26,8 @@ def _theme_or_404(session, theme_id: str):
 
 def submit(session, participant_id: str, theme_ids: list[str], reason: str,
            submitted_at=None) -> list[dict]:
+    from .strategy_service import require_executable
+    require_executable(theme_ids)
     ft = _cfg()
     require_active(session, participant_id)
     if len(set(theme_ids)) != len(theme_ids):

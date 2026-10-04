@@ -27,7 +27,8 @@ export function AppShell({
   const router = useRouter();
   const enrollment = useQuery({queryKey:["experiment-status", user?.user_id],queryFn:()=>get<ExperimentStatus>("/api/v1/me/experiment"),enabled:DEMO_MODE&&!!user});
   const needsSetup = enrollment.data?.status === "setup_required";
-  useEffect(()=>{if(needsSetup && !pathname.startsWith("/setup/") && pathname!=="/account" && !(LAB_MEETING_MODE && pathname==="/ranking")) router.replace("/setup/portfolio");},[needsSetup,pathname,router]);
+  // Strategy evidence is read-only and must be available before confirmation.
+  useEffect(()=>{if(needsSetup && !pathname.startsWith("/setup/") && pathname!=="/account" && pathname!=="/strategies" && !(LAB_MEETING_MODE && pathname==="/ranking")) router.replace("/setup/portfolio");},[needsSetup,pathname,router]);
   const designPage = ["/setup", "/portfolio", "/views"].some(p => pathname === p || pathname.startsWith(p + "/"));
   return (
     <div className="app-shell">
