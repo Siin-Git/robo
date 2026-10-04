@@ -1,0 +1,143 @@
+{
+  "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/VTI?period1=1741219200&period2=1741910400&interval=1d&includeAdjustedClose=true",
+  "captured_at": "2026-10-04T16:31:13.244331+00:00",
+  "requested_start": "2025-03-07",
+  "requested_end": "2025-03-12",
+  "response": {
+    "chart": {
+      "result": [
+        {
+          "meta": {
+            "currency": "USD",
+            "symbol": "VTI",
+            "exchangeName": "PCX",
+            "fullExchangeName": "NYSEArca",
+            "instrumentType": "ETF",
+            "firstTradeDate": 992611800,
+            "regularMarketTime": 1790971200,
+            "hasPrePostMarketData": true,
+            "gmtoffset": -14400,
+            "timezone": "EDT",
+            "exchangeTimezoneName": "America/New_York",
+            "regularMarketPrice": 377.99,
+            "regularMarketChangePercent": 0.749,
+            "fulldayPrice": 378.14,
+            "fulldayChange": 2.81,
+            "fulldayChangePercent": 0.749,
+            "fiftyTwoWeekHigh": 385.12,
+            "fiftyTwoWeekLow": 310.4,
+            "regularMarketDayHigh": 379.61,
+            "regularMarketDayLow": 376.92,
+            "regularMarketVolume": 2943112,
+            "longName": "Vanguard Morningstar Total Stock Market ETF",
+            "shortName": "Vanguard Morningstar Total Stoc",
+            "chartPreviousClose": 287.35,
+            "priceHint": 2,
+            "currentTradingPeriod": {
+              "pre": {
+                "timezone": "EDT",
+                "start": 1790928000,
+                "end": 1790947800,
+                "gmtoffset": -14400
+              },
+              "regular": {
+                "timezone": "EDT",
+                "start": 1790947800,
+                "end": 1790971200,
+                "gmtoffset": -14400
+              },
+              "post": {
+                "timezone": "EDT",
+                "start": 1790971200,
+                "end": 1790985600,
+                "gmtoffset": -14400
+              }
+            },
+            "dataGranularity": "1d",
+            "range": "",
+            "validRanges": [
+              "1d",
+              "5d",
+              "1mo",
+              "3mo",
+              "6mo",
+              "1y",
+              "2y",
+              "5y",
+              "10y",
+              "ytd",
+              "max"
+            ]
+          },
+          "timestamp": [
+            1741271400,
+            1741357800,
+            1741613400,
+            1741699800,
+            1741786200,
+            1741872600
+          ],
+          "indicators": {
+            "quote": [
+              {
+                "open": [
+                  283.5299987792969,
+                  281.2200012207031,
+                  279.42999267578125,
+                  275.0,
+                  276.79998779296875,
+                  274.92999267578125
+                ],
+                "low": [
+                  280.6499938964844,
+                  278.1099853515625,
+                  273.1400146484375,
+                  271.5799865722656,
+                  272.4800109863281,
+                  270.20001220703125
+                ],
+                "volume": [
+                  4836300,
+                  3868700,
+                  6442900,
+                  5282400,
+                  3996100,
+                  3932500
+                ],
+                "high": [
+                  285.82000732421875,
+                  284.04998779296875,
+                  280.2799987792969,
+                  277.0,
+                  277.2900085449219,
+                  275.0
+                ],
+                "close": [
+                  282.010009765625,
+                  283.3399963378906,
+                  275.6199951171875,
+                  273.69000244140625,
+                  275.0400085449219,
+                  271.17999267578125
+                ]
+              }
+            ],
+            "adjclose": [
+              {
+                "adjclose": [
+                  276.2452392578125,
+                  277.5480041503906,
+                  269.9858703613281,
+                  268.0953063964844,
+                  269.417724609375,
+                  265.6365661621094
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "error": null
+    }
+  }
+}

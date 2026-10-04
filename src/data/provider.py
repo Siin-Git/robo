@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pandas as pd
 
@@ -18,7 +19,7 @@ import pandas as pd
 class MarketDataProvider(ABC):
     @abstractmethod
     def get_price_history(self, ticker: str, start, end) -> pd.Series:
-        """Return daily adjusted-close Series indexed by date (UTC-naive)."""
+        """Return daily levels indexed by naive exchange-session dates, not instants."""
         raise NotImplementedError
 
 
@@ -31,6 +32,38 @@ def _to_unix_ts(d) -> int:
     return int(ts.timestamp())
 
 
+def _yahoo_daily_series(node: dict, ticker: str, start_ts: int, end_ts: int) -> pd.Series:
+    """Interpret each daily bar in its source's IANA session timezone.
+
+    A London midnight during BST is the previous UTC day. The timezone must
+    therefore be applied before dropping it; a fixed GMT offset cannot handle DST.
+    These indexes are valuation session labels, never order/fill timestamps.
+    """
+    name = node.get("meta", {}).get("exchangeTimezoneName")
+    try:
+        session_zone = ZoneInfo(name) if isinstance(name, str) else None
+    except (ValueError, ZoneInfoNotFoundError):
+        session_zone = None
+    if session_zone is None:
+        raise RuntimeError(f"Missing or invalid session timezone for {ticker}")
+    stamps = node.get("timestamp") or []
+    quote = node["indicators"]["quote"][0]
+    adj = (node["indicators"].get("adjclose") or [{}])[0].get("adjclose")
+    values = adj if adj and any(v is not None for v in adj) else quote.get("close")
+    if not stamps or values is None:
+        raise RuntimeError(f"Empty price series for ticker {ticker}")
+    idx = pd.to_datetime(stamps, unit="s", utc=True).tz_convert(session_zone).tz_localize(None).normalize()
+    series = pd.Series(values, index=idx, dtype="float64", name=ticker).dropna()
+    series = series[~series.index.duplicated(keep="last")].sort_index()
+    first = pd.Timestamp(start_ts, unit="s", tz="UTC").tz_localize(None).normalize()
+    last = pd.Timestamp(end_ts, unit="s", tz="UTC").tz_localize(None).normalize()
+    series = series.loc[(series.index >= first) & (series.index <= last)]
+    if series.empty:
+        raise RuntimeError(f"Empty price series after cleaning for {ticker}")
+    series.attrs.update(date_basis="EXCHANGE_SESSION_DATE_V1", session_timezone=name)
+    return series
+
+
 def _fetch_yahoo_chart(ticker: str, start, end, retries: int = 3) -> pd.Series:
     start_ts = _to_unix_ts(start)
     # end exclusive: add one day so the last trading day is included
@@ -41,7 +74,9 @@ def _fetch_yahoo_chart(ticker: str, start, end, retries: int = 3) -> pd.Series:
     for host in hosts:
         url = (
             f"https://{host}/v8/finance/chart/{enc}"
-            f"?period1={start_ts}&period2={end_ts}&interval=1d"
+            # Fetch a boundary margin, then filter *session dates*. Otherwise a
+            # BST midnight on the requested first day falls before UTC period1.
+            f"?period1={start_ts - 86400}&period2={end_ts + 86400}&interval=1d"
             f"&events=div%7Csplit&includeAdjustedClose=true"
         )
         for attempt in range(retries):
@@ -58,22 +93,7 @@ def _fetch_yahoo_chart(ticker: str, start, end, retries: int = 3) -> pd.Series:
                 result = chart.get("result")
                 if not result:
                     raise RuntimeError(f"No data returned for ticker {ticker}")
-                node = result[0]
-                stamps = node.get("timestamp") or []
-                quote = node["indicators"]["quote"][0]
-                adj = (node["indicators"].get("adjclose") or [{}])[0].get("adjclose")
-                closes = quote.get("close")
-                # Prefer adjusted close (total-return-like), fall back to close.
-                values = adj if adj and any(v is not None for v in adj) else closes
-                if not stamps or values is None:
-                    raise RuntimeError(f"Empty price series for ticker {ticker}")
-                idx = pd.to_datetime(stamps, unit="s", utc=True).tz_convert(None).normalize()
-                s = pd.Series(values, index=idx, dtype="float64", name=ticker)
-                s = s[s.notna()]
-                s = s[~s.index.duplicated(keep="last")].sort_index()
-                if s.empty:
-                    raise RuntimeError(f"Empty price series after cleaning for {ticker}")
-                return s
+                return _yahoo_daily_series(result[0], ticker, start_ts, end_ts - 86400)
             except Exception as exc:  # noqa: BLE001 - want explicit retry then raise
                 last_err = exc
                 time.sleep(1.0 * (attempt + 1))
