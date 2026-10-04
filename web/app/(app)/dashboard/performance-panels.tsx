@@ -13,7 +13,7 @@ export function PerformancePanels({report,mode,selected,onSelect,onMode,styles:s
   const data=reportChartPoints(report);
   const view=contributionView(report,mode);
   const observedContributions=new Map(view.points.map(p=>[p.date,p]));
-  const contributionPoints=(report.comparison_window?.dates??view.points.map(p=>String(p.date))).map(date=>
+  const contributionPoints=data.map(p=>p.date).map(date=>
     observedContributions.get(date)??{date,total:null,...Object.fromEntries(view.series.map(s=>[s.id,null]))});
   const max=Math.max(...view.ranking.map(r=>Math.abs(r.value)),.0001);
   const labels=Object.fromEntries(view.series.map(item=>[item.id,item.name]));

@@ -11,6 +11,17 @@ vi.mock("@/components/layout/AppShell",()=>({AppShell:({children}:{children:Reac
 vi.mock("@/app/(app)/dashboard/performance-panels",()=>({PerformancePanels:({riskPanel}:{riskPanel:React.ReactNode})=> <div>성과 차트{riskPanel}</div>}));
 afterEach(()=>{cleanup();baseState.status="selected";baseState.isError=false;baseState.report=null;});
 describe("performance dashboard",()=>{
+  it("keeps all replay observations and adds null markers for excluded source dates",()=>{
+    const a=exampleReport('ALL');
+    a.start='2026-10-01';a.end='2026-10-05';
+    a.series=[{date:'2026-10-01',personal:0,benchmark:0,drawdown:0},{date:'2026-10-05',personal:-.2,benchmark:0,drawdown:-.2}];
+    a.replay_context={run_id:'test',kind:'HISTORICAL_REPLAY',label:'test',status:'COMPLETE',ready:15,required:15,completed:15,start:a.start,end:a.end,dates:['2026-10-01','2026-10-05'],forward_start:'2026-10-06',forward_started:false,initial_capital_krw:1e8,excluded_dates:[{date:'2026-10-02',missing_assets:['__FX__'],reason:'missing'}]};
+    expect(reportChartPoints(a)).toEqual([
+      {date:'2026-10-01',personal:0,benchmark:0,drawdown:0},
+      {date:'2026-10-02',personal:null,benchmark:null,drawdown:null},
+      {date:'2026-10-05',personal:-20,benchmark:0,drawdown:-20}
+    ]);
+  });
   it("aligns the common chart on actual dates without deleting losses or bridging an owner gap",()=>{
     const a=exampleReport('ALL');
     a.comparison_window={start:'2026-10-01',end:'2026-10-05',dates:['2026-10-01','2026-10-02','2026-10-05'],status:'AVAILABLE',reason:null};

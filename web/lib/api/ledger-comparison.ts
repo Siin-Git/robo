@@ -23,5 +23,6 @@ export const ledgerReason=(reason:string|null)=>({
   MDD_HISTORY_INSUFFICIENT:"MDD 산출에 필요한 유효 평가 2건 미만",
   OBSERVATION_GAPS:"평가 기록 공백 · 위험 순위 보류",STALE_VALUATIONS:"오래된 가격 평가 포함 · 위험 순위 보류",
   INSUFFICIENT_COMPARABLE_METRIC:"이 지표로 비교 가능한 참여자가 2명 미만입니다.",
-  NOT_COMPARABLE_COHORT:"현재 참여자 비교 대상에 포함되지 않습니다."
+  NOT_COMPARABLE_COHORT:"현재 참여자 비교 대상에 포함되지 않습니다.",
+  REPLAY_INCOMPLETE:"15명 전체 재생이 완료되지 않아 순위를 보류합니다."
 }[reason??""]??reason??"");
