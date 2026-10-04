@@ -1,0 +1,37 @@
+version: BENCHMARK_REVIEW_20261004
+# No team-approved definition. Candidate descriptions do not enable comparison.
+definitions: {}
+candidates:
+  market:
+    - id: kospi_price
+      label: KOSPI 가격지수
+      currency: KRW
+      dividends: EXCLUDED
+      costs: INDEX_GROSS_NO_TRADING_COSTS
+      period: 실제 원장 시작·종료일의 지수 값 모두 필요
+      note: 전략 자료의 과거 비교 기준. 서비스 전체 시장 기준으로 합의된 것은 아님
+      source_url: https://index.krx.co.kr/
+    - id: kospi_total_return
+      label: KOSPI 총수익지수
+      currency: KRW
+      dividends: REINVESTED
+      costs: INDEX_GROSS_NO_TRADING_COSTS
+      period: 실제 원장과 같은 날짜의 일별 총수익지수 필요
+      note: 기존 가격지수 및 조정종가 fallback과 정의가 다름
+      source_url: https://eindex.krx.co.kr/contents/GLB/05/0502/0502050600/GLB0502050600.jsp
+  safe_asset:
+    - id: krw_cash_zero
+      label: 원화 무이자 현금
+      currency: KRW
+      dividends: NONE
+      costs: NONE
+      period: 실제 관측 시작·종료 기간에 수익 0%, 채택 전에는 자동 적용하지 않음
+      note: 현재 원장 현금 관행과 일치. 모델 기대 현금 3%와는 다름
+    - id: kofr_compounded
+      label: KOFR 누적 기준
+      currency: KRW
+      dividends: NONE
+      costs: RATE_REFERENCE_NO_TRADING_COSTS
+      period: 같은 기간 공시 금리, 일수 계산·휴일·공시 지연·복리 규칙 합의 필요
+      note: 익일물 RP 지표금리이며 ETF 종가가 아님
+      source_url: https://www.bok.or.kr/portal/main/contents.do?menuNo=201069

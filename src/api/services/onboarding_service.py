@@ -75,6 +75,8 @@ def upsert_draft(session, user_id: str, participant_id: str, frontier_id: str | 
     return get_draft(session, user_id)
 
 def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str]):
+    from .strategy_service import require_executable
+    require_executable(theme_ids)
     point = find_point(frontier_id)
     if point is None:
         raise not_found("FRONTIER_POINT_NOT_FOUND", f"Unknown frontier_id {frontier_id}.")
@@ -230,6 +232,8 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
     }
 
 def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None, adjustment_choice_id: str | None = None, confirmed_preview: dict | None = None, expected_decision_id: str | None = None, rebalance_frequency: str | None = None):
+    from .strategy_service import require_executable
+    require_executable(theme_ids)
     from . import decision_service as decisions
     from ...db.models.account import Account as _A
     acc = session.scalars(select(_A).where(_A.participant_id == participant_id, _A.account_type == "personal")).first()
