@@ -497,3 +497,26 @@ requested independent audits, professor requirement limits and operational recov
 ## Midterm demo freeze — 2026-10-05
 
 3099 is the sole demonstration baseline: code41b4bdd, same9/16–10/2 period,11observations,15/15complete, P003+0.21127061%/CORE+0.18845140%,rank11. Replaced earlier3097 instructions in LOCAL_COMPETITION_REPLAY.md and marked historical UI-only figures. No app/financial/API change. Private consistent SQLite/code backup and disposable restore validation are recorded in <workspace>/.work/demo-backups/midterm-3099-20261005/freeze.json. The revised5-minute flow and requested independent professor requirement audit distinguish stored selected Frontier point from full historical curve and user Revision from unimplemented internal administrator Revision. Operating scheduler/T0/deployment remain separate and unchanged.
+
+## Separate internal-tracking integration — 2026-10-05
+
+The later user-supplied worktree proves that full Frontier-coordinate capture and
+administrator review already exist on `feat/decision-asset-tracking` at
+`6cd16d8`, `e8298c8`, `4aca339`; they were absent from the frozen3099 branch.
+Read the provided professor transcript and reused that implementation on
+`integration/internal-tracking-demo`, based on `3419ca1`, instead of creating it
+again. The isolated3103 environment preserves all15 demo participants and reads
+actual decision observations from the original design DB, excluding the separate
+past-price replay. New confirmation captures50 Frontier coordinates; legacy
+missing values remain missing. Administrator notes are permission/CSRF protected,
+idempotent and do not change targets/orders; customer APIs exclude those records.
+
+Final local CI-range backend:599passed/0failed/0skipped, including disposable
+PostgreSQL18.6 UTF-8 split-DB/concurrency tests; frontend81passed/19files and
+production build/lint/types pass. Chrome1440/390px: existing replay2passed and
+internal tracking2passed. New financial thresholds/drift-alert changes from the
+old source were deliberately excluded. No new migration, scheduler, operating
+data/T0 rewrite, remote push/merge/deployment or PR12 change.
+See [INTERNAL_TRACKING.md](INTERNAL_TRACKING.md) for exact source boundaries,
+professor requirements, local accounts/data, restart commands and remaining limits.
+The frozen3099 source/data/docs remain unchanged; this section describes3103 only.
