@@ -1,5 +1,13 @@
 # 2026-10-03 integration
 
+## 2026-10-04 최신 운영 인수 범위
+
+PR #19/#20의 기능 통합·영속 DB 배포 준비는 develop `250f315`에 병합됐으며 develop/릴리스 후보 `857d2d1`/개인 fork 릴리스 CI가 모두 성공했다. Draft PR #21은 main에 병합하지 않았다. 사용자가 개인 Render 계정의 MinchoLover/robo 비공개 fork 배포를 결정했고 두 브랜치가 같은 커밋으로 복사된 것을 읽기 전용 확인했다. 개인 main은 `b06a6bf`로 보존됐다.
+
+사용자가 새 운영 원본을 3073의 현재 두 SQLite로 확정했다. 인증 15명, 판단 3·주문 8·가격 42,010·체결/평가 0, head 0008과 백업 대비 핵심 기록 보존을 최종 읽기 전용 검증했다. 기존 07:30 daily와 3073은 유지한다. 이번 남은 작업은 CI·문서·로컬 검증이며 main 병합·Render/Vercel·운영 DB·예약 변경은 별도 대화에 인계한다. 팀원 Neon을 덮어쓰지 않는다.
+
+실제 SQLite 백업→폐기 PG 이전→PR #12의 두 덤프→다른 빈 폐기 PG 복원은 완료했고 원격 운영 이전과 구분한다. Python 511+35, Vitest 67, production 빌드, Chrome 격리 흐름 6개 통과. 상세 CI 링크·데이터·예약·백업·후속 운영 검증은 [PUBLIC_OPERATION_RELEASE.md](PUBLIC_OPERATION_RELEASE.md)에 기록했다. 아래 과거 scope 및 PR #12 open 표기는 당시 기록이다.
+
 ## Scope and evidence
 
 User authorized isolated integration, week 4 operations UI, immutable final decisions,
