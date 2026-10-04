@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 PERIODS = {"1M": 1, "3M": 3, "6M": 6, "1Y": 12, "ALL": 0}
+MIN_RISK_RETURN_OBSERVATIONS = 30
 CORE_GROUPS = {
     "us_equity": "equity", "developed_ex_us": "equity",
     "emerging_markets": "equity", "korea_equity": "equity",
@@ -134,7 +135,7 @@ def calculate_report(nav, benchmark, holdings, trades, period="ALL"):
         metrics["benchmark_return"] = bm[end] / bm[start] - 1
         metrics["difference_pp"] = metrics["cumulative_return"] - metrics["benchmark_return"]
     result["quality"]["benchmark_complete"] = all(r["date"] in bm for r in valid)
-    enough = len(returns) >= 30 and not result["quality"]["missing_nav_dates"] and not result["quality"]["stale_observations"]
+    enough = len(returns) >= MIN_RISK_RETURN_OBSERVATIONS and not result["quality"]["missing_nav_dates"] and not result["quality"]["stale_observations"]
     if enough:
         metrics["volatility"] = float(np.std(returns, ddof=1) * np.sqrt(252))
         if len(active_returns) == len(returns):

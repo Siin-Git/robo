@@ -5,15 +5,42 @@ Only normalized performance is shared; account amounts, holdings, decisions and
 orders stay on owner-scoped endpoints. All figures use calculate_report.
 """
 from datetime import timedelta
+import pandas as pd
 
 from sqlalchemy import select, or_
 
 from ...db.models import Account, Participant, User
-from ...forward.performance_report import calculate_report, PERIODS
+from ...forward.performance_report import calculate_report, PERIODS, MIN_RISK_RETURN_OBSERVATIONS
 from ..errors import ApiError
 from . import performance_report_service as reports, _common as C
 
 BASES = {"return": "cumulative_return", "excess": "difference_pp", "mdd": "mdd", "volatility": "volatility"}
+
+
+def risk_quality(report):
+    """Describe observed estimates separately from justified risk rankings.
+
+    Keep the calculator's MDD even across gaps: it is the worst *observed*
+    drawdown, not proof that an unobserved intervening loss did not occur.
+    Reuse its weekday-gap/stale-price and annualization requirements, and also
+    detect missing dates actually observed by another participant in this window.
+    No values are filled and no new financial thresholds are introduced.
+    """
+    quality = report["quality"]
+    gap = ("OBSERVATION_GAPS" if quality.get("missing_comparison_dates") or quality["missing_nav_dates"]
+           else "STALE_VALUATIONS" if quality["stale_observations"] else None)
+    measured = report["metrics"]["mdd"] is not None
+    volatility = report["metrics"]["volatility"] is not None
+    return {
+        "mdd": {"status": "OBSERVED_ONLY" if measured and gap else "AVAILABLE" if measured else "UNAVAILABLE",
+                "rankable": measured and gap is None,
+                "reason": gap if measured else "MDD_HISTORY_INSUFFICIENT"},
+        "volatility": {"status": "AVAILABLE" if volatility and gap is None else "UNAVAILABLE",
+                       "rankable": volatility and gap is None,
+                       "reason": gap or (None if volatility else "RISK_HISTORY_INSUFFICIENT"),
+                       "return_observations": max(0, report["observations"] - 1),
+                       "minimum_return_observations": MIN_RISK_RETURN_OBSERVATIONS},
+    }
 
 
 def members(auth_db):
@@ -51,17 +78,26 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
                         else "NO_VALUATIONS" if report["observations"] == 0
                         else "ONE_VALUATION" if report["observations"] == 1 else None)
     eligible = [pid for pid in individual if reasons[pid] is None]
-    common = sorted(set.intersection(*[{p["date"] for p in individual[pid]["series"]} for pid in eligible])) if eligible else []
-    reason = "INSUFFICIENT_PARTICIPANTS" if len(eligible) < 2 else "NO_COMMON_PERIOD" if len(common) < 2 else None
-    # Even the charts must use the same observed dates; never interpolate a
-    # participant's missing valuation or include a date before its decision.
+    endpoints = sorted(set.intersection(*[{p["date"] for p in individual[pid]["series"]} for pid in eligible])) if eligible else []
+    reason = "INSUFFICIENT_PARTICIPANTS" if len(eligible) < 2 else "NO_COMMON_PERIOD" if len(endpoints) < 2 else None
+    # Align observed endpoints only. Interior evaluations must not be discarded:
+    # doing so hides drawdowns and changes every path-dependent risk statistic.
     bounded = {}
-    if common:
+    if endpoints:
         for pid in eligible:
-            report = reports.dashboard(db, pid, "ALL", C.as_date(common[0]),
-                C.as_date(common[-1]) + timedelta(days=1), observation_dates=set(common))
+            report = reports.dashboard(db, pid, "ALL", C.as_date(endpoints[0]),
+                C.as_date(endpoints[-1]) + timedelta(days=1))
             report["period"] = period
             bounded[pid] = report
+    # Also retain weekday gap markers when *everyone* missed an interior day.
+    # This is the calculator's existing weekday-gap convention, not an exchange
+    # holiday calendar or a new imputed NAV observation.
+    weekdays = {d.date().isoformat() for d in pd.bdate_range(endpoints[0], endpoints[-1])} if endpoints else set()
+    dates = sorted({p["date"] for report in bounded.values() for p in report["series"]} | weekdays) or endpoints
+    for report in bounded.values():
+        observed = {p["date"] for p in report["series"]}
+        report["quality"]["missing_comparison_dates"] = [d for d in dates if d not in observed]
+        report["metric_quality"] = risk_quality(report)
     rows = []
     for person in people:
         pid = person.participant_id
@@ -71,15 +107,19 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
         row_reason = reasons[pid] or reason
         if comparable and metrics[BASES[basis]] is None:
             row_reason = "CORE_SAME_PERIOD_MISSING" if basis == "excess" else "RISK_HISTORY_INSUFFICIENT"
+        if comparable and basis in ("mdd", "volatility") and not report["metric_quality"][basis]["rankable"]:
+            row_reason = report["metric_quality"][basis]["reason"]
+        points = {p["date"]: p for p in report["series"]} if report else {}
         rows.append({"participant_id": pid, "display_name": person.display_name,
             "rank": None, "reason": row_reason, "metrics": metrics,
             "observations": report["observations"] if report else individual[pid]["observations"],
             "observed_start": individual[pid]["start"], "observed_end": individual[pid]["end"],
             "quality": report["quality"] if report else individual[pid]["quality"],
-            "start": common[0] if report else None, "end": common[-1] if report else None,
-            "series": [{"date": p["date"], "personal_index100": (1+p["personal"])*100,
-                        "core_index100": (1+p["benchmark"])*100 if p["benchmark"] is not None else None}
-                       for p in report["series"]] if report else []})
+            "metric_quality": report["metric_quality"] if report else risk_quality(calculate_report([], [], [], [])),
+            "start": endpoints[0] if report else None, "end": endpoints[-1] if report else None,
+            "series": [{"date": d, "personal_index100": (1+points[d]["personal"])*100 if d in points else None,
+                        "core_index100": (1+points[d]["benchmark"])*100 if d in points and points[d]["benchmark"] is not None else None}
+                       for d in dates] if report and report["observations"] >= 2 else []})
     ranked = sorted([r for r in rows if r["reason"] is None and r["metrics"][BASES[basis]] is not None],
         key=lambda r: (r["metrics"][BASES[basis]] * (1 if basis == "volatility" else -1), r["participant_id"]))
     previous, rank = None, 0
@@ -97,8 +137,8 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
     return {"data_source": "ACCOUNT_LEDGER", "data_kind": "TEST_FIXTURE" if any(
         r.get("data_kind") == "TEST_FIXTURE" for r in individual.values()) else "FORWARD_SIMULATION",
         "period": period, "basis": basis, "status": "AVAILABLE" if reason is None else "UNAVAILABLE",
-        "reason": reason, "start": common[0] if common else None, "end": common[-1] if common else None,
-        "dates": common, "registered": len(rows), "ranked": sum(r["rank"] is not None for r in rows),
+        "reason": reason, "start": endpoints[0] if endpoints else None, "end": endpoints[-1] if endpoints else None,
+        "dates": dates, "registered": len(rows), "ranked": sum(r["rank"] is not None for r in rows),
         "items": sorted(rows, key=lambda r: (r["rank"] is None, r["rank"] or 0, r["participant_id"])),
         "own_report": bounded.get(own_pid) if reason is None else None,
         "units": {"returns": "fraction", "series": "index100", "volatility": "fraction_per_year"},

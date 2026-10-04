@@ -11,7 +11,7 @@ from .performance_service import _accounts
 from . import _common as C
 
 
-def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=None, anchor_latest=True, observation_dates=None):
+def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=None, anchor_latest=True):
     if period not in PERIODS:
         raise ApiError("INVALID_PERIOD", "period must be 1M, 3M, 6M, 1Y or ALL", 400)
     personal, core = _accounts(session, participant_id)
@@ -36,8 +36,7 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
         return [{"date": C.as_date(r.date).isoformat(), "nav": float(r.nav),
                  "cash": float(r.cash_balance), "status": r.nav_status}
                 for r in session.scalars(select(NavDaily).where(NavDaily.account_id == account.account_id).order_by(NavDaily.date))
-                if (start is None or C.as_date(r.date) >= start) and (end_exclusive is None or C.as_date(r.date) < end_exclusive)
-                and (observation_dates is None or C.as_date(r.date).isoformat() in observation_dates)]
+                if (start is None or C.as_date(r.date) >= start) and (end_exclusive is None or C.as_date(r.date) < end_exclusive)]
     kind = "TEST_FIXTURE" if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)) else "FORWARD_SIMULATION"
     def calculate(*args):
         result = calculate_report(*args)

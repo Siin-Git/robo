@@ -39,6 +39,105 @@ def get_comparison(client, cookies, suffix=''):
     return r.json()
 
 
+@pytest.mark.parametrize('basis', ['return', 'mdd', 'volatility'])
+def test_interior_drawdown_survives_common_window_and_missing_peer_day(client, env, monkeypatch, basis):
+    a, da = confirmed(client, monkeypatch, 'drawdown-a@example.com')
+    b, db = confirmed(client, monkeypatch, 'drawdown-b@example.com')
+    seed(env.factory, da, [('2026-10-01', 100), ('2026-10-02', 50), ('2026-10-05', 100)])
+    seed(env.factory, db, [('2026-10-01', 100), ('2026-10-05', 101)])
+    clock(monkeypatch, '2026-10-05')
+    result = get_comparison(client, a, '?basis=' + basis)
+    rows = {r['participant_id']: r for r in result['items']}
+    first, second = rows[da['participant_id']], rows[db['participant_id']]
+    assert first['metrics']['mdd'] == pytest.approx(-.5)
+    assert result['dates'] == ['2026-10-01', '2026-10-02', '2026-10-05']
+    assert (result['start'], result['end']) == ('2026-10-01', '2026-10-05')
+    assert first['observations'] == 3
+    assert second['observations'] == 2
+    assert second['metrics']['mdd'] == 0  # observed-only, not evidence of no intervening loss
+    assert [p['personal_index100'] for p in first['series']] == [100, 50, 100]
+    assert [p['personal_index100'] for p in second['series']] == [100, None, 101]
+    assert second['metric_quality']['mdd']['reason'] == 'OBSERVATION_GAPS'
+    assert second['quality']['missing_comparison_dates'] == ['2026-10-02']
+    if basis == 'return':
+        assert (first['rank'], second['rank']) == (2, 1)
+        assert first['metrics']['cumulative_return'] == 0
+        assert second['metrics']['cumulative_return'] == pytest.approx(.01)
+    else:
+        assert result['ranked'] == 0
+        assert all(r['rank'] is None for r in rows.values())
+    for cookies, row in [(a, first), (b, second)]:
+        individual = client.get('/api/v1/me/performance/dashboard', cookies=cookies).json()
+        common = client.get('/api/v1/me/performance/dashboard?comparison=common', cookies=cookies).json()
+        contribution = client.get('/api/v1/me/performance/contributions?comparison=common', cookies=cookies).json()
+        assert individual['metrics'] == common['metrics'] == row['metrics']
+        assert common['observations'] == row['observations']
+        assert contribution['cumulative_return'] == common['metrics']['cumulative_return']
+        assert [p['date'] for p in contribution['history']] == [p['date'] for p in common['series']]
+        assert contribution['reconciliation']['reconciled'] is True
+        if row is first:
+            assert common['series'][1]['personal'] == pytest.approx(-.5)
+            assert contribution['history'][1]['cumulative_return'] == pytest.approx(-.5)
+            assert sum(contribution['history'][1]['contributions'].values()) == pytest.approx(-.5)
+
+
+@pytest.mark.parametrize('gap,stale', [(False, False), (True, False), (False, True)])
+def test_mdd_short_history_can_be_measured_but_ranking_requires_quality(client, env, monkeypatch, gap, stale):
+    a, da = confirmed(client, monkeypatch, 'quality-a@example.com')
+    _, db = confirmed(client, monkeypatch, 'quality-b@example.com')
+    end = '2026-10-05' if gap else '2026-10-02'
+    for d in [da, db]:
+        seed(env.factory, d, [('2026-10-01', 100), (end, 90)])
+    if stale:
+        with env.factory() as s:
+            row = s.get(NavDaily, (da['account_id'], date.fromisoformat(end)))
+            row.nav_status = 'STALE_PRICE'
+            s.commit()
+    clock(monkeypatch, '2026-10-05')
+    result = get_comparison(client, a, '?basis=mdd')
+    assert result['ranked'] == (0 if gap or stale else 2)
+    assert all(r['metrics']['mdd'] == pytest.approx(-.1) for r in result['items'])
+    assert all(r['metrics']['volatility'] is None for r in result['items'])
+    if gap:
+        assert all(r['metric_quality']['mdd']['reason'] == 'OBSERVATION_GAPS' for r in result['items'])
+        assert result['dates'] == ['2026-10-01', '2026-10-02', '2026-10-05']
+        assert all(r['series'][1]['personal_index100'] is None for r in result['items'])
+    if stale:
+        mine = next(r for r in result['items'] if r['participant_id'] == da['participant_id'])
+        assert mine['metric_quality']['mdd']['reason'] == 'STALE_VALUATIONS'
+        assert mine['metric_quality']['mdd']['status'] == 'OBSERVED_ONLY'
+
+
+def test_annual_volatility_preserves_every_daily_return_and_rejects_missing_observation(client, env, monkeypatch):
+    import pandas as pd
+    a, da = confirmed(client, monkeypatch, 'daily-a@example.com')
+    _, db = confirmed(client, monkeypatch, 'daily-b@example.com')
+    days = [d.date().isoformat() for d in pd.bdate_range('2026-10-01', periods=32)]
+    for d, scale in [(da, 1), (db, 2)]:
+        seed(env.factory, d, [(day, 100 + i * scale + (-1)**i) for i, day in enumerate(days)])
+    clock(monkeypatch, days[-1])
+    a = dict(login(client, 'daily-a@example.com').cookies)
+    result = get_comparison(client, a, '?basis=volatility')
+    assert result['ranked'] == 2
+    assert all(r['metric_quality']['volatility']['rankable'] for r in result['items'])
+    mine = next(r for r in result['items'] if r['participant_id'] == da['participant_id'])
+    own = client.get('/api/v1/me/performance/dashboard?comparison=common', cookies=a).json()
+    assert mine['metrics'] == own['metrics']
+    with env.factory() as s:
+        s.delete(s.get(NavDaily, (db['account_id'], date.fromisoformat(days[5]))))
+        s.commit()
+    after = get_comparison(client, a, '?basis=volatility')
+    first = next(r for r in after['items'] if r['participant_id'] == da['participant_id'])
+    second = next(r for r in after['items'] if r['participant_id'] == db['participant_id'])
+    assert first['observations'] == 32
+    assert first['metrics'] == mine['metrics']
+    assert second['observations'] == 31  # enough returns alone is not sufficient
+    assert second['metrics']['volatility'] is None
+    assert second['metric_quality']['volatility']['reason'] == 'OBSERVATION_GAPS'
+    assert second['series'][5]['personal_index100'] is None
+    assert after['ranked'] == 0
+
+
 def test_common_dates_rebase_same_metrics_contributions_and_refresh(client, env, monkeypatch):
     a, da = confirmed(client, monkeypatch, 'first@example.com')
     b, db = confirmed(client, monkeypatch, 'second@example.com', '2026-10-01')
