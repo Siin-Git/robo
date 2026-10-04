@@ -7,15 +7,41 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: robo_test
+          POSTGRES_PASSWORD: disposable-ci-only
+          POSTGRES_DB: postgres
+        ports: ['5432/tcp']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m pytest tests/db tests/api -q -k "not replay and not pg"
-      - run: python -m pytest tests/forward -q -k "not replay"
+      - name: Prepare isolated PostgreSQL databases
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          python - <<'PY'
+          import os
+          import psycopg
+          port = os.environ['PGPORT']
+          with psycopg.connect(host='127.0.0.1', port=port, user='robo_test', password='disposable-ci-only', dbname='postgres', autocommit=True) as conn:
+              for name in ('robo_test', 'robo_auth_test', 'robo_design_test'):
+                  conn.execute(f'CREATE DATABASE {name}')
+          PY
+      - name: All calculation, API, ledger and database tests
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://robo_test:disposable-ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/robo_test
+          TEST_AUTH_DATABASE_URL: postgresql+psycopg://robo_test:disposable-ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/robo_auth_test
+          TEST_DESIGN_DATABASE_URL: postgresql+psycopg://robo_test:disposable-ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/robo_design_test
+        run: python -m pytest tests --ignore=tests/backup -q
 
   frontend:
     runs-on: ubuntu-latest
