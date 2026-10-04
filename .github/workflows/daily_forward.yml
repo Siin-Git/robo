@@ -30,6 +30,19 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Read-only operating target inventory
+        if: ${{ inputs.dry_run == true }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+        run: python -m scripts.operating_db_inventory --output "$RUNNER_TEMP/operating-db-inventory.json"
+      - name: Preserve private target inventory
+        if: ${{ always() && inputs.dry_run == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: operating-db-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/operating-db-inventory.json
+          retention-days: 7
       - name: Daily forward run
         env:
           APP_PROFILE: local

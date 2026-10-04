@@ -1,6 +1,7 @@
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
+import { LedgerComparison } from "@/components/performance/LedgerComparison";
 
-export default async function ParticipantPage({ params }: { params: Promise<{ participantId: string }> }) {
+export default async function ParticipantPage({ params, searchParams }: { params: Promise<{ participantId: string }>; searchParams:Promise<{source?:string}> }) {
   const { participantId } = await params;
-  return <ParticipantPerformance participantId={participantId}/>;
+  return (await searchParams).source==="demo" ? <ParticipantPerformance participantId={participantId}/> : <LedgerComparison participantId={participantId}/>;
 }

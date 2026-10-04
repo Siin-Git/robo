@@ -92,18 +92,41 @@ def me_nav(db=Depends(get_design_db), user=Depends(get_current_user)):
 
 @router.get("/performance/dashboard", summary="Period-aligned performance and asset contribution")
 def me_performance_dashboard(period: str = Query(default="ALL"),
-                             db=Depends(get_design_db), user=Depends(get_current_user)):
-    report = reports.dashboard(db, _pid(user), period)
+                             comparison: str = Query(default="individual"),
+                             db=Depends(get_design_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
+    if comparison not in ("individual", "common"):
+        raise ApiError("INVALID_COMPARISON", "comparison must be individual or common", 400)
+    if comparison == "common":
+        from ..services.ledger_comparison_service import common_dashboard
+        report = common_dashboard(auth_db, db, _pid(user), period)
+    else:
+        report = reports.dashboard(db, _pid(user), period)
     from ..services.reference_service import comparisons
     report["comparators"] = comparisons(db, _pid(user), report)
-    report["units"] = {"returns": "fraction", "volatility": "fraction_per_year", "nav": "KRW"}
+    report["units"] = {"returns": "fraction", "volatility": "fraction_per_year", "nav": "KRW", "index": "index100"}
     return report
+
+
+@router.get("/performance/comparison", summary="Public common-period recorded-ledger rankings and index100 graphs")
+def me_ledger_comparison(period: str = Query(default="ALL"), basis: str = Query(default="return"),
+                         db=Depends(get_design_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
+    from ..services.ledger_comparison_service import overview
+    result = overview(auth_db, db, period, basis)
+    result.pop("own_report")
+    return result
 
 
 @router.get("/performance/contributions", summary="Own cumulative asset return contributions")
 def me_performance_contributions(period: str = Query(default="ALL"),
-                                 db=Depends(get_design_db), user=Depends(get_current_user)):
-    return reports.cumulative_contributions(db, _pid(user), period)
+                                 comparison: str = Query(default="individual"),
+                                 db=Depends(get_design_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
+    if comparison not in ("individual", "common"):
+        raise ApiError("INVALID_COMPARISON", "comparison must be individual or common", 400)
+    report = None
+    if comparison == "common":
+        from ..services.ledger_comparison_service import common_dashboard
+        report = common_dashboard(auth_db, db, _pid(user), period)
+    return reports.cumulative_contributions(db, _pid(user), period, report=report)
 
 
 @router.get("/performance/ledger", summary="Own persisted ledger for performance calculations")
