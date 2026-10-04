@@ -1,0 +1,39 @@
+# Persistent real-market paper operation. No seed/reset command.
+# Import the independently verified SQLite source before enabling the service.
+# One instance/worker; scale only after moving migrations to a deploy job.
+services:
+  - type: web
+    name: robo-paper-api
+    runtime: python
+    region: singapore
+    plan: free
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/setup_postgres.py --apply && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: APP_PROFILE
+        value: local
+      - key: CAPSTONE_DEMO
+        value: "1"
+      - key: CAPSTONE_MARKET_COMPARISON
+        value: "1"
+      - key: DATABASE_BACKEND
+        value: postgres
+      - key: DATABASE_URL
+        sync: false
+      - key: CAPSTONE_DESIGN_DATABASE_URL
+        sync: false
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: ALLOW_PUBLIC_REGISTRATION
+        value: "false"
+      - key: FORWARD_EXECUTOR
+        value: actions
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
