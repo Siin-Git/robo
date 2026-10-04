@@ -7,8 +7,8 @@ import type {ReplayContext} from "@/app/(app)/dashboard/performance-data";
 import {assetName} from "@/app/(app)/dashboard/performance-data";
 import s from "./ReplayNotice.module.css";
 
-export function useLocalReplay() {
-  return useQuery({queryKey:["local-replay-context"],queryFn:()=>get<{enabled:boolean;replay_context:ReplayContext|null}>("/api/v1/me/performance/replay"),refetchInterval:15_000});
+export function useLocalReplay(enabled = true) {
+  return useQuery({queryKey:["local-replay-context"],queryFn:()=>get<{enabled:boolean;replay_context:ReplayContext|null}>("/api/v1/me/performance/replay"),refetchInterval:15_000,enabled});
 }
 export function ReplayNotice() {
   const query=useLocalReplay();
