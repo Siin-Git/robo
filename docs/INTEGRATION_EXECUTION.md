@@ -477,3 +477,8 @@ Actions workflow/secret/스케줄러는 변경하지 않았고 운영 DB에 T0�
 명령·5분 시연·교수님 요구사항 대조·캡처·한계는
 [LOCAL_COMPETITION_REPLAY.md](LOCAL_COMPETITION_REPLAY.md)에 기록했다.
 푸시와 Draft PR은 사용자 승인 범위이며 병합/배포/운영bootstrap/T0예약/PR12수정은 하지 않는다.
+
+
+## Dashboard disclosure UI (2026-10-05)
+
+See [DASHBOARD_DETAILS_UI.md](DASHBOARD_DETAILS_UI.md) for the isolated frontend changes, preview, and validation. Frontend 74 tests passed; final production build and desktop/mobile browser validation passed. Financial logic and backend were not changed.

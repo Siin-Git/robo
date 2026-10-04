@@ -10,9 +10,11 @@ it('is absent from normal operation and distinguishes incomplete source-gap repl
  response.data={enabled:false};const r=render(<ReplayNotice/>);expect(screen.queryByRole('status')).toBeNull();
  response.data={enabled:true,replay_context:{label:'현재 확정 구성을 과거 10거래일에 적용한 모의실험',ready:15,required:15,completed:8,status:'INCOMPLETE',dates:Array(10),start:'2026-09-16',end:'2026-10-02',initial_capital_krw:1e8,excluded_dates:[{date:'2026-09-24',missing_assets:['kr_equity']}]}};
  r.rerender(<ReplayNotice/>);expect(screen.getByRole('status')).toHaveTextContent('처리 8/15');
- expect(screen.getByRole('status')).toHaveTextContent('연속 10거래일 아님');
+ expect(screen.getByText('과거 가격 모의실험')).toBeVisible();
+ expect(screen.getByText('시연 정보').closest('details')).not.toHaveAttribute('open');
+ expect(screen.getByLabelText('로컬 과거 재생 시연')).toHaveTextContent('연속 거래일 기준이 아닙니다');
  expect(screen.getByRole('status')).toHaveTextContent('순위 보류');
- expect(screen.getByRole('status')).toHaveTextContent('3개월·6개월 추적 실적이 아닙니다');
+ expect(screen.getByLabelText('로컬 과거 재생 시연')).toHaveTextContent('3개월·6개월 추적 실적이 아닙니다');
 });
 it('does not describe the legacy backtest page as the competition run',()=>{
  response.data={enabled:true,replay_context:null};route.source='demo';render(<ReplayNotice/>);
