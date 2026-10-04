@@ -54,5 +54,8 @@ def finish_job(sqlite_path, job_id: str | None, decision: str,
         except Exception as e:  # noqa: BLE001
             print(f"WARNING: could not record job failure: {e}")
         return code if code != 0 else 1
-    _jobs.complete_job(ctx["jobs_db_url"], job_id, stats or {}, sqlite_path=sqlite_path)
+    if (stats or {}).get("status") == "COMPETITION_WAIT":
+        _jobs.wait_job(ctx["jobs_db_url"], job_id, stats, sqlite_path=sqlite_path)
+    else:
+        _jobs.complete_job(ctx["jobs_db_url"], job_id, stats or {}, sqlite_path=sqlite_path)
     return code

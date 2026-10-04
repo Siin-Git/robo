@@ -110,11 +110,22 @@ def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
     같은 계좌·자산에 같은 effective_at 로 대기 중(pending)인 주문이 이미 있으면
     새로 만들지 않는다. 배치를 두 번 돌려도 체결 전 주문이 중복되지 않는다.
     """
+    from .competition import account_gate
+    blocked, start_date = account_gate(con, account_id)
+    if blocked:
+        return []
+    if start_date:
+        effective_at = max(str(effective_at)[:10], start_date)
+    reuse_initial = bool(start_date and not con.execute(
+        "SELECT 1 FROM trades WHERE account_id=? LIMIT 1", (account_id,)).fetchone())
     oids = []
     for row in plan_orders(target_w, baseline, band):
         if row["action"] != "order":
             continue
         asset, tw, cw = row["asset"], row["target"], row["current"]
+        if reuse_initial and con.execute("SELECT 1 FROM orders WHERE account_id=? AND asset_id=? AND status='pending'",
+                                      (account_id, asset)).fetchone():
+            continue  # Reuse the preserved initial order, even with an older effective date.
         if con.execute("SELECT 1 FROM orders WHERE account_id = ? AND asset_id = ?"
                        " AND effective_at = ? AND status = 'pending'",
                        (account_id, asset, effective_at)).fetchone():
@@ -159,6 +170,10 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
                     cost_bps: float, model_version: str,
                     participant_id=None) -> list[str]:
     """Execute all pending orders whose next available close is <= asof_date."""
+    from .competition import account_gate
+    blocked, start_date = account_gate(con, account_id)
+    if blocked or (start_date and asof_date < start_date):
+        return []
     init = con.execute("SELECT initial_capital_krw FROM accounts WHERE account_id = ?",
                        (account_id,)).fetchone()
     capital = float(init["initial_capital_krw"])
@@ -175,7 +190,10 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
     except Exception:
         inception_floor = None
     for o in pending:
-        d = next_available_close(con, o["asset_id"], o["effective_at"])
+        # Keep the original pending order and submission date. Only its actual
+        # execution-price lookup floor changes; earlier prices cannot be used.
+        effective_floor = max(o["effective_at"], start_date) if start_date else o["effective_at"]
+        d = next_available_close(con, o["asset_id"], effective_floor)
         if d is None or d < o["effective_at"] or d > asof_date:
             continue
         if inception_floor is not None and d < inception_floor:

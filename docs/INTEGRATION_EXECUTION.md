@@ -410,3 +410,37 @@ PR #18 이후 develop `cb5c778`에서 `feat/ledger-performance-ranking` 전용 w
 사용자 지정 기준 09e92ad에서 별도 feat/strategy-comparison worktree로 작업하고, 해당 검증 커밋을 포함한 최신 develop 250f315 위로 정리했다. 제공 네 파일은 참고 자료로 읽어 연구 조회에만 등록했다. 주도주 변형/신호 시점, 수출 과거 모델/미래 Active를 구분하며 모델 지수를 거래 가격이나 실제 원장에 넣지 않는다. 예상/실제는 동일한 저장 정의에서만 차이를 계산하고, 미합의 시장/안전자산은 후보와 승인 정의 연결 경로만 제공한다.
 
 [STRATEGY_COMPARISON_HANDOFF.md](STRATEGY_COMPARISON_HANDOFF.md)에 자료 근거/미결정 질문/변경 파일/검사/시연과 수요일 작업을 기록한다. 이 세션은 사용자 추가 조건에 따라 기능 커밋/작업 브랜치 푸시/develop Draft PR까지만 담당한다. develop/main 병합·실제 배포·Render/Vercel/운영 DB/공유 secret/배포 workflow 변경은 수행하지 않는다. 3073과 기존 실제 DB/예약 실행은 보존하며 검사는 임시 DB/3091·8091/별도 빌드에서 수행한다.
+
+## 2026-10-04: 15명 공동 시작 제어만 구현
+
+최신 원격 `release/public-operation`의 `b6add63`을 기준으로 별도
+`.work/competition-start`, `feat/shared-competition-start`를 만들었다.
+기존 체크아웃/미커밋 변경, 실제 3073 앱/계정/운용 DB/예약 실행은 보존했다.
+
+기존 인증 `DemoCohort`/`DemoSlot`과 운용의 불변 판단으로 전원 READY를 확인하고,
+운용 `forward_state`의 `competition_start`·개별 참가자/최초 판단 참조·기존
+`forward_test_inception_at`에 미래 한국 날짜 T0를 한 번만 저장한다. 신규 테이블이나
+마이그레이션 없이 기존 값 길이 제약을 지킨다. 실제 한국 시각이 T0에 도달하기 전에는
+프로필 local에서도 최초 주문/체결/holdings/NAV를 차단한다. 일간 및 직접 엔진 호출,
+주간/월간 경로에 같은 조건을 적용한다. 기존 financial 엔진·비용·초기 금액·밴드는 유지한다.
+
+기존 pending은 삭제/날짜 덮어쓰기 없이 보존하며 T0 이후 가격만 체결에 사용한다.
+호환되는 최초 pending은 재사용하고 충돌 주문/기존 운용 기록/초기 자금 불일치는
+T0 예약을 거부한다. 예약 시점 판단을 최초 구성으로 유지하고 후속 버전도 보존한다.
+대기 job은 기존 skipped 이력으로 남겨 같은 날짜 재시도가 가능하며 실행 잠금·성공
+job의 중복 방지는 그대로다. T0 도달 후 이전 날짜 가격만 있으면 정상 평가 대기다.
+
+최종 Python 3.11.15 전체 백엔드(CI의 `tests --ignore=tests/backup`) **569 passed /
+0 failed / 0 skipped**, 폐기용 PostgreSQL 18과 SQLite 포함. 새 공동 시작 검사 24개는
+2명/15명 전원 흐름, T0 전/후, 기존 pending, 직접 호출, 동일 Actions 환경과 실제
+daily CLI(강제 실행 없음), 늦은 종가, 반복 실행/재연결, 충돌·인증 실패·명단 변경,
+불변 판단/재설계·기존 이후 주문 규칙을 검증했다. 기존 15명 실제 API 확정/조회/
+재시작 테스트도 수정 후 통과했다. 프론트 **71 passed (16 files)** 및 production
+build/타입 검사 통과. UI 변경은 없고 이번에는 추가 브라우저 검사를 수행하지 않았다.
+
+Actions workflow/secret/스케줄러는 변경하지 않았고 운영 DB에 T0를 예약하지 않았다.
+실제 runner와 실제 공동 체결은 운영 미검증이다. 기본 실행 브랜치에 코드 반영,
+실제 15명 READY/동일 초기 자금/충돌 pending 확인, 미래 T0 합의·예약이 남았다.
+원격 push/merge/deploy, history backfill, TIPS·랭킹·기여도·±10%p·알림·백업 PR #12와
+다음 기능은 진행하지 않는다. 상세 명령/차단 위치/적용 한계는
+[SHARED_COMPETITION_START.md](SHARED_COMPETITION_START.md)에 기록했다.

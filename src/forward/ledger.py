@@ -24,6 +24,10 @@ def cash_balance(con: sqlite3.Connection, account_id: str, asof: str,
 def valuate(con: sqlite3.Connection, account_id: str, date: str, versions: dict,
             initial_capital: float, stale_days: int = 14) -> dict:
     """Value holdings at date; write holdings_daily + nav_daily. Returns summary."""
+    from .competition import account_gate
+    blocked, start_date = account_gate(con, account_id)
+    if blocked or (start_date and date < start_date):
+        return {"status": "NAV_INCOMPLETE", "reason": "competition not started for this valuation"}
     assets = [r["asset_id"] for r in con.execute(
         "SELECT DISTINCT asset_id FROM trades WHERE account_id = ? AND execution_at <= ?",
         (account_id, date)).fetchall()]
