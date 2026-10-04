@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 PERIODS = {"1M": 1, "3M": 3, "6M": 6, "1Y": 12, "ALL": 0}
+MIN_RISK_RETURN_OBSERVATIONS = 30
 CORE_GROUPS = {
     "us_equity": "equity", "developed_ex_us": "equity",
     "emerging_markets": "equity", "korea_equity": "equity",
@@ -39,10 +40,20 @@ def calculate_report(nav, benchmark, holdings, trades, period="ALL"):
     result = {"status": "INSUFFICIENT_HISTORY", "period": period,
               "start": valid[0]["date"] if valid else None, "end": end,
               "since": ordered[0]["date"] if ordered else None, "observations": len(valid),
+              "latest_recorded_date": ordered[-1]["date"] if ordered else None,
+              "latest_recorded_status": ordered[-1].get("status", "OK") if ordered else None,
               "benchmark_name": "시스템 기준 CORE", "metrics": metrics,
               "series": [], "assets": [], "attribution": [],
               "quality": {"unresolved_intervals": 0, "stale_observations": sum(r.get("status") == "STALE_PRICE" for r in valid),
                           "missing_nav_dates": 0, "benchmark_complete": False}}
+    # A single observed valuation is a known amount and index anchor, not a
+    # measured zero return. Keep performance series empty until a second date.
+    result["valuation"] = ({"date": end, "nav_krw": valid[-1]["nav"],
+                            "cash_krw": valid[-1].get("cash"),
+                            "index100": valid[-1]["nav"] / valid[0]["nav"] * 100}
+                           if valid else None)
+    result["anchor"] = ({"date": valid[0]["date"], "nav_krw": valid[0]["nav"], "index100": 100}
+                        if valid else None)
     if len(valid) < 2:
         return result
     start, end = valid[0]["date"], valid[-1]["date"]
@@ -124,7 +135,7 @@ def calculate_report(nav, benchmark, holdings, trades, period="ALL"):
         metrics["benchmark_return"] = bm[end] / bm[start] - 1
         metrics["difference_pp"] = metrics["cumulative_return"] - metrics["benchmark_return"]
     result["quality"]["benchmark_complete"] = all(r["date"] in bm for r in valid)
-    enough = len(returns) >= 30 and not result["quality"]["missing_nav_dates"] and not result["quality"]["stale_observations"]
+    enough = len(returns) >= MIN_RISK_RETURN_OBSERVATIONS and not result["quality"]["missing_nav_dates"] and not result["quality"]["stale_observations"]
     if enough:
         metrics["volatility"] = float(np.std(returns, ddof=1) * np.sqrt(252))
         if len(active_returns) == len(returns):

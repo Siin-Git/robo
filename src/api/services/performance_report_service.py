@@ -24,7 +24,8 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
         active = context["active_decision"]
         pending = context["pending_decision"]
         if active or pending:
-            start = C.as_date((active or pending)["target_effective_date"])
+            effective = C.as_date((active or pending)["target_effective_date"])
+            start = max(C.as_date(start), effective) if start else effective
             cutoff = C.as_date(context["as_of"]) + timedelta(days=1)
             end_exclusive = min(C.as_date(end_exclusive), cutoff) if end_exclusive else cutoff
         context["window_start"] = start.isoformat() if start else None
@@ -56,9 +57,9 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
     return calculate(nav, nav_rows(core), holds, trades, period)
 
 
-def cumulative_contributions(session, participant_id, period="ALL"):
+def cumulative_contributions(session, participant_id, period="ALL", report=None):
     """Return an explicit frontend contract over the persisted forward ledger."""
-    report = dashboard(session, participant_id, period)
+    report = report if report is not None else dashboard(session, participant_id, period)
     cumulative_return = report["metrics"]["cumulative_return"]
     contribution_total = sum(row["contribution"] for row in report["assets"])
     difference = (
@@ -98,5 +99,6 @@ def cumulative_contributions(session, participant_id, period="ALL"):
             "reconciled": abs(difference) <= 1e-9 if difference is not None else None,
         },
         "quality": report["quality"],
+        "comparison_window": report.get("comparison_window"),
         "method": "linked_asset_pnl_over_opening_nav",
     }

@@ -11,7 +11,16 @@ export interface DecisionContext {
   active_decision:DecisionSummary|null;pending_decision:DecisionSummary|null;previous_decision:DecisionSummary|null;
   report_decision_id:string|null;window_start:string|null;window_end_exclusive:string|null;
 }
+export interface RiskMetricQuality {
+  status:string;rankable:boolean;reason:string|null;
+  return_observations?:number;minimum_return_observations?:number;
+}
 export interface Report {
+  valuation?:{date:string;nav_krw:number;cash_krw:number|null;index100:number}|null;
+  anchor?:{date:string;nav_krw:number;index100:number}|null;
+  latest_recorded_date?:string|null;latest_recorded_status?:string|null;
+  comparison_window?:{start:string|null;end:string|null;dates:string[];status:string;reason:string|null};
+  metric_quality?:{mdd:RiskMetricQuality;volatility:RiskMetricQuality};
   decision_context?:DecisionContext;
   data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION";
   status:string;period:string;start:string|null;end:string|null;since:string|null;observations:number;benchmark_name:string;
@@ -20,7 +29,16 @@ export interface Report {
   attribution:{date:string;values:Record<string,number>;total:number}[];
   assets:Asset[];
   comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string;decision_id?:string|null;start?:string|null;end?:string|null}[];
-  quality:{unresolved_intervals:number;stale_observations:number;missing_nav_dates:number;benchmark_complete:boolean};
+  quality:{unresolved_intervals:number;stale_observations:number;missing_nav_dates:number;benchmark_complete:boolean;missing_comparison_dates?:string[]};
+}
+// Chart alignment only: retain every recorded value and put explicit nulls on
+// comparison dates without an owner valuation. Financial calculations stay server-side.
+export function reportChartPoints(report:Report) {
+  const observed=new Map(report.series.map(p=>[p.date,p]));
+  return (report.comparison_window?.dates??report.series.map(p=>p.date)).map(date=>{
+    const p=observed.get(date);
+    return {date,personal:p?p.personal*100:null,benchmark:p?.benchmark==null?null:p.benchmark*100,drawdown:p?p.drawdown*100:null};
+  });
 }
 export const GROUPS:Record<string,{name:string;color:string}> = {
   equity:{name:"일반 주식",color:"#3b72e8"},bonds:{name:"채권",color:"#819ba5"},

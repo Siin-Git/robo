@@ -123,7 +123,12 @@ def main():
             raise RuntimeError('Local demo failed to start; inspect logs.')
         print(f'SYNTHETIC MONDAY 2026-10-05 KST: http://127.0.0.1:{args.port}/login', flush=True)
         print('Accounts 1/2: current + pending / new-current record shortage + previous history.', flush=True)
-        print('Accounts 3+: fresh participants. Private credentials are only in accounts.json.', flush=True)
+        if (directory/'ledger-comparison-fixture.json').is_file():
+            print('TEST_FIXTURE: 1=current+pending/3 valuations, 2=0/new-current with old history, 3=1 valuation, 4=late start/2 valuations, 5=fresh, 6=append test.', flush=True)
+        elif (directory/'ledger-observation-gap-fixture.json').is_file():
+            print('TEST_FIXTURE: 1=A/current+pending/100-50-100, 4=B/100-null-101, 2=0/new-current with old history, 3=1 valuation, 5+=fresh. Synthetic NAV inputs only.', flush=True)
+        else:
+            print('Accounts 3+: fresh participants. Private credentials are only in accounts.json.', flush=True)
         print('Ctrl+C stops both servers. This is not production or actual Monday returns.', flush=True)
         processes[0].wait()
     except KeyboardInterrupt:
