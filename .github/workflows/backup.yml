@@ -1,27 +1,82 @@
 name: backup
+run-name: ${{ inputs.diagnose_connection && 'Compare libpq connections (read only, no dumps)' || inputs.inspection_only && 'Inspect PostgreSQL targets (no dumps)' || 'Back up authentication and ledger DBs' }}
 
 on:
   schedule:
-    # Weekly backup, Sunday 01:00 UTC = Sunday 10:00 KST.
-    - cron: "0 1 * * 0"
+    # Default-branch workflow: daily 01:00 UTC = 10:00 KST.
+    - cron: "0 1 * * *"
   workflow_dispatch:
+    inputs:
+      inspection_only:
+        description: Read identities/schema/version only; do not create dumps
+        type: boolean
+        default: false
+      diagnose_connection:
+        description: Compare native libpq URI and converted environment; read only, no dumps
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgres-backup-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   backup:
+    name: ${{ inputs.inspection_only && 'inspect' || 'dump' }} ${{ matrix.target }} database
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      # One failure cannot cancel the other backup/upload.
+      fail-fast: false
+      matrix:
+        target: [auth, design]
+    env:
+      PG_BACKUP_CLIENT_MAJOR: ${{ vars.PG_BACKUP_CLIENT_MAJOR || '17' }}
     steps:
       - uses: actions/checkout@v4
-      - name: pg_dump (Neon)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install explicitly selected PostgreSQL client
+        run: |
+          set -euo pipefail
+          case "$PG_BACKUP_CLIENT_MAJOR" in 14|15|16|17|18) ;; *) echo 'Unsupported PG_BACKUP_CLIENT_MAJOR'; exit 1 ;; esac
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-$PG_BACKUP_CLIENT_MAJOR"
+          echo "/usr/lib/postgresql/$PG_BACKUP_CLIENT_MAJOR/bin" >> "$GITHUB_PATH"
+      - name: Inspect and back up one database
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          BACKUP_AUTH_HOST: ${{ vars.BACKUP_AUTH_HOST }}
+          BACKUP_AUTH_DATABASE: ${{ vars.BACKUP_AUTH_DATABASE }}
+          BACKUP_DESIGN_HOST: ${{ vars.BACKUP_DESIGN_HOST }}
+          BACKUP_DESIGN_DATABASE: ${{ vars.BACKUP_DESIGN_DATABASE }}
+          INSPECTION_ONLY: ${{ inputs.inspection_only || false }}
+          DIAGNOSE_CONNECTION: ${{ inputs.diagnose_connection || false }}
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-          pg_dump "$DATABASE_URL" --format=custom --file=/tmp/robo_backup.dump
-          ls -la /tmp/robo_backup.dump
-      - name: Upload artifact (14-day retention, never committed to git)
+          if [ "$DIAGNOSE_CONNECTION" = true ]; then
+            python -m scripts.postgres_backup_diagnose --target '${{ matrix.target }}' --output-dir "$RUNNER_TEMP/robo-backup"
+            exit $?
+          fi
+          args=()
+          if [ "$INSPECTION_ONLY" = true ]; then args+=(--inspection-only); fi
+          python scripts/postgres_backup.py backup --target '${{ matrix.target }}' --output-dir "$RUNNER_TEMP/robo-backup" "${args[@]}"
+      - name: Preserve successful dump and diagnostic manifest
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: robo-backup
-          path: /tmp/robo_backup.dump
-          retention-days: 14
+          name: robo-${{ matrix.target }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}.dump
+            ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}.json
+            ${{ runner.temp }}/robo-backup/robo_${{ matrix.target }}_connection.json
+          if-no-files-found: ignore
+          retention-days: 90
