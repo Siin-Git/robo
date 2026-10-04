@@ -43,7 +43,13 @@ def latch_first_execution(con, model_version: str) -> str | None:
     from src.forward.state import get_state as _gs, set_state_once as _ss
     from src.forward.db import log_event as _le
     if _gs(con, "first_execution_at") is None:
-        gfirst = con.execute("SELECT MIN(execution_at) m FROM trades").fetchone()["m"]
+        from .replay import connection_directory
+        if connection_directory(con):
+            floor = _gs(con, "forward_test_inception_at")
+            gfirst = con.execute("SELECT MIN(execution_at) m FROM trades WHERE execution_at>=?",
+                                 (floor[:10],)).fetchone()["m"] if floor else None
+        else:
+            gfirst = con.execute("SELECT MIN(execution_at) m FROM trades").fetchone()["m"]
         if gfirst is not None:
             _ss(con, "first_execution_at", gfirst)
             _le(con, "FIRST_EXECUTION_RECORDED", model_version,
@@ -153,6 +159,12 @@ def refresh_payload(con, rep: dict, stale_days: int) -> dict:
 
 def _dry_run_daily(con, cfg, today) -> int:
     """Read-only plan: zero writes, zero job records."""
+    from .competition import policy
+    competition = policy(con)
+    import json
+    print("Competition read-only readiness: " + json.dumps({
+        key: competition.get(key) for key in
+        ("managed", "status", "reason", "ready", "required", "start_date")}))
     ft = cfg["forward_test"]
     n_assets = con.execute("SELECT COUNT(DISTINCT asset_id) c FROM prices_daily").fetchone()["c"]
     stale_assets = [r["asset_id"] for r in con.execute(
@@ -169,6 +181,10 @@ def _dry_run_daily(con, cfg, today) -> int:
 
 @guarded_batch
 def _execute_daily(con, cfg, today):
+    from src.forward.competition import policy
+    current = policy(con)
+    if current.get("reason") == "REPLAY_SCOPED_EXECUTION_REQUIRED":
+        return 0, {"status": "COMPETITION_WAIT", "reason": current["reason"], "valuated": 0}
     from src.forward.prices import refresh_live
     ft = cfg["forward_test"]
     frozen_w, frozen_meta = load_frozen_benchmark(resolve(cfg["frozen_dir"]))

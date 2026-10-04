@@ -184,8 +184,9 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
     plan: dict[str, list[dict]] = {}
     inception_floor = None
     try:
+        from .replay import inception_floor as replay_floor
         from .state import get_state as _get_state
-        inception_floor = _get_state(con, "forward_test_inception_at")
+        inception_floor = replay_floor(con) or _get_state(con, "forward_test_inception_at")
         inception_floor = inception_floor[:10] if inception_floor else None
     except Exception:
         inception_floor = None

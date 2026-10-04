@@ -132,6 +132,10 @@ def readiness(con, cohort):
 
 def policy(con):
     """Fail closed for an active cohort, including APP_PROFILE=local Actions."""
+    from .replay import scoped_policy, default_guard
+    explicit = scoped_policy(con) or default_guard(con)
+    if explicit:
+        return explicit
     cached = _batch.get()
     if cached is not None and cached[0] is con:
         return cached[1]

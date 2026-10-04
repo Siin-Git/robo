@@ -65,6 +65,8 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
     if basis not in BASES:
         raise ApiError("INVALID_BASIS", "Unknown ledger ranking metric.", 400)
     people = members(auth_db)
+    from ...forward.replay import read_metadata
+    replay = read_metadata(db)
     individual = {}
     reasons = {}
     for person in people:
@@ -74,12 +76,14 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
         individual[pid] = report
         context = report.get("decision_context", {})
         reasons[pid] = ("NO_CONFIRMED_DECISION" if not account or context.get("status") == "LEGACY_UNRECORDED"
-                        else "AWAITING_EFFECTIVE_DATE" if not context.get("active_decision")
+                        else "AWAITING_EFFECTIVE_DATE" if not context.get("active_decision") and not replay
                         else "NO_VALUATIONS" if report["observations"] == 0
                         else "ONE_VALUATION" if report["observations"] == 1 else None)
     eligible = [pid for pid in individual if reasons[pid] is None]
     endpoints = sorted(set.intersection(*[{p["date"] for p in individual[pid]["series"]} for pid in eligible])) if eligible else []
     reason = "INSUFFICIENT_PARTICIPANTS" if len(eligible) < 2 else "NO_COMMON_PERIOD" if len(endpoints) < 2 else None
+    if replay and (replay["status"] != "COMPLETE" or len(people) != replay["required"]):
+        reason = "REPLAY_INCOMPLETE"
     # Align observed endpoints only. Interior evaluations must not be discarded:
     # doing so hides drawdowns and changes every path-dependent risk statistic.
     bounded = {}
@@ -134,7 +138,7 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
         reason = "INSUFFICIENT_COMPARABLE_METRIC"
         for row in ranked:
             row["reason"] = reason
-    return {"data_source": "ACCOUNT_LEDGER", "data_kind": "TEST_FIXTURE" if any(
+    return {"data_source": "ACCOUNT_LEDGER", "replay_context": replay, "data_kind": "HISTORICAL_REPLAY" if replay else "TEST_FIXTURE" if any(
         r.get("data_kind") == "TEST_FIXTURE" for r in individual.values()) else "FORWARD_SIMULATION",
         "period": period, "basis": basis, "status": "AVAILABLE" if reason is None else "UNAVAILABLE",
         "reason": reason, "start": endpoints[0] if endpoints else None, "end": endpoints[-1] if endpoints else None,
@@ -153,6 +157,8 @@ def common_dashboard(auth_db, db, pid, period):
         report = calculate_report([], [], [], [], period)
         report["decision_context"] = individual["decision_context"]
         report["data_kind"] = individual["data_kind"]
+        if individual.get("replay_context"):
+            report["replay_context"] = individual["replay_context"]
     report["comparison_window"] = {k: result[k] for k in ("start", "end", "dates", "status", "reason")}
     if result["own_report"] is None:
         mine = next((row for row in result["items"] if row["participant_id"] == pid), None)
