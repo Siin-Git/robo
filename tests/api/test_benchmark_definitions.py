@@ -52,3 +52,19 @@ def test_exact_endpoints_no_interpolation(tmp_path,monkeypatch):
     assert reference('safe_asset','safe',report(),cfg)['reason'] == 'BENCHMARK_DATES_NOT_UNIQUE_AND_ORDERED'
     source.write_text('date,level\n2026-10-01,100\n2026-10-02,inf\n')
     assert reference('safe_asset','safe',report(),cfg)['reason'] == 'BENCHMARK_LEVELS_INVALID'
+
+
+def test_matching_reviewed_net_levels_allow_difference(tmp_path,monkeypatch):
+    # Synthetic reviewed net reference only, never a real benchmark approval.
+    from src.api.services import benchmark_definition_service as service
+    monkeypatch.setattr(service.C, 'ROOT', tmp_path)
+    directory = tmp_path/'data/reference_benchmarks';directory.mkdir(parents=True)
+    (directory/'net-test.csv').write_text('date,level\n2026-10-01,100\n2026-10-02,103\n')
+    cfg = config()
+    cfg['definitions']['safe_asset'].update(method='SUPPLIED_LEVELS',
+        data_file='data/reference_benchmarks/net-test.csv',
+        costs='TRANSACTION_COSTS_INCLUDED',dividends='PROVIDER_ADJUSTED_OR_CLOSE')
+    row = reference('safe_asset','safe',report(),cfg)
+    assert row['status'] == 'AVAILABLE'
+    assert row['difference'] == pytest.approx(-.01)
+    assert row['difference_reason'] is None
