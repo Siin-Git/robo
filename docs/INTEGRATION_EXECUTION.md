@@ -492,3 +492,8 @@ order timestamp, operating DB/T0/scheduler or backup workflow was replaced.
 589 backend and 75 frontend tests pass; build and two Chrome viewport flows pass.
 See [YAHOO_SESSION_DATE_FIX.md](YAHOO_SESSION_DATE_FIX.md) for before/after numbers,
 requested independent audits, professor requirement limits and operational recovery.
+
+
+## Midterm demo freeze — 2026-10-05
+
+3099 is the sole demonstration baseline: code41b4bdd, same9/16–10/2 period,11observations,15/15complete, P003+0.21127061%/CORE+0.18845140%,rank11. Replaced earlier3097 instructions in LOCAL_COMPETITION_REPLAY.md and marked historical UI-only figures. No app/financial/API change. Private consistent SQLite/code backup and disposable restore validation are recorded in <workspace>/.work/demo-backups/midterm-3099-20261005/freeze.json. The revised5-minute flow and requested independent professor requirement audit distinguish stored selected Frontier point from full historical curve and user Revision from unimplemented internal administrator Revision. Operating scheduler/T0/deployment remain separate and unchanged.

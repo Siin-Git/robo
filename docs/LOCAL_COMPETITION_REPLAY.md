@@ -1,188 +1,121 @@
-# 15명 로컬 경쟁 시연 · 과거 가격 재생
+# 중간점검 시연 기준 — 3099 / 2026-10-05
 
-## 목적과 완료 범위
+이번 중간점검은 **http://127.0.0.1:3099/dashboard**를 기준으로 시연한다.
+3097의 수정 전 자료와 별도 최근 10개 관측일 재생은 비교 이력으로 보존한다.
+기능 코드 기준은 `41b4bdd`이며, 이번 고정 작업은 문서·백업·복원 검증이다. 금융/API/UI 기능은 변경하지 않는다.
+최종 문서 커밋과 코드·데이터 해시는 비공개 백업의 `freeze.json`에 기록한다.
+Draft PR: https://github.com/MinchoLover/robo/pull/1 — 대상 `release/public-operation`, 병합하지 않음.
 
-고객이 확정한 서로 다른 위험도·테마 구성을 동일 자금·공통 기간으로 비교하는
-로컬 시연이다. `feat/shared-competition-start`의 `dff6a58`을 그대로 이어받았다.
-새 Competition 모델이나 금융 계산기는 만들지 않았다. 완료 기준은 15명 개인 및
-CORE 계좌에 기존 주문→모의체결→보유·현금→NAV 엔진 기록을 만들고 기존 성과,
-기여도, CORE 비교, 랭킹 화면에서 일치하는 값을 확인하는 것이다.
+## 고정된 데이터와 표시
 
-운영 bootstrap/T0 예약, 기존 3073 앱·예약 변경, 병합/배포, PR #12 수정,
-가격 문제 수정, 새로운 시장/안전자산 기준과 개별 기업 추적 개발은 제외했다.
-사용자 구성을 시연 목적으로 확정하는 대상은 새 로컬 계정뿐이다.
+- 대표 계정: **capstone03@example.com**. 시연 참가자 15/15 READY 및 처리 완료, 개인 15 + CORE 15계좌.
+- 공통 기간: **2026-09-16–2026-10-02**, 실제 가격을 사용한 공통 관측일 **11개**.
+- 관측일: 9/16, 9/17, 9/18, 9/21, 9/22, 9/23, 9/28, 9/29, 9/30, 10/1, 10/2.
+- 그래프 축은 평일 13개. 9/24·25는 확인된 국내시장 휴장이므로 null이며, 연결하거나 보간하지 않는다.
+- **현재 확정 구성을 과거 시장 가격에 적용한 모의실험**이다. 확정 이후 실제 운용이나 3·6개월 실적이 아니다.
+- 계좌마다 초기 가상 자금 1억원, 기존 비용 5bp. 주문 268, 체결 268, 보유평가 2,948, NAV 330, 가격 176건.
+- 대시보드·성과·기여도·CORE·랭킹은 같은 재생 원장과 기간을 사용한다.
 
-## 저장소와 원본 보존
+| capstone03 화면 값 | 고정 기준 |
+|---|---:|
+| 내 누적수익률 | **+0.21%** (+0.21127061%) |
+| CORE 수익률 | **+0.19%** (+0.18845140%) |
+| CORE 대비 차이 | **+0.02%p** (+0.02281921%p) |
+| 관측 최대 낙폭 | **−2.50%** (−2.49590517%) |
+| 수익률 순위 | **11/15** |
+| 마지막 평가액 | **100,161,240원** (100,161,240.09447482원) |
+| 현금 | **100,000원** |
+| 기준 100 지수 | **100.21** |
+| 평가일 수 | **11개** |
 
-- 개인 배포 저장소 `MinchoLover/robo`, 기본/PR 대상 `release/public-operation`:
-  확인 시 `b6add639f1f5248b19fcc32a124529d7cbcc849b`.
-- 팀 `Siin-Git/robo` develop 및 개인 develop: `250f315`. 별개 기준이며 임의 병합하지 않았다.
-- GitHub의 마지막 Production 프론트 deployment도 `b6add63`. Render의 실제 실행 커밋은
-  현재 접근 가능한 워크스페이스로 확인할 수 없다. 이 변경을 운영 적용으로 보고하지 않는다.
-- `.work/competition-replay`, `feat/competition-replay`에서 작업했다. release에는 기존
-  원장 성과/기여도/랭킹과 전략 구성 자료 조회가 이미 포함되어 추가 통합은 필요 없었다.
-- 모든 DB·원본 가격·계정 파일·로그·캡처는 저장소 밖의 private 임시 디렉터리에 있다.
-  기존 root/nested 체크아웃, 다른 worktree, 운영 데이터, 3073/8073 프로세스는 유지한다.
+자산군 기여도: 주식 +0.40%p, 채권 −0.25%p, 대체자산 −0.30%p, 테마 +0.35%p.
+정밀값 합계는 전체 수익률과 일치한다. 화면의 반올림값 합계는 차이가 날 수 있다.
+MDD는 관측값으로 표시하지만 공백이 있는 위험 순위는 보류한다.
+연율 변동성·TE·IR은 수익률 관측 10개(<30)로 산출 조건을 충족하지 않아 표시하지 않는다.
 
-리뷰 브랜치 푸시가 배포를 유발하지 않도록 루트와 `web/vercel.json`의
-`git.deploymentEnabled`에서 **feat/competition-replay만 false**로 지정했다.
-다른 브랜치의 기본 동작/production 설정을 바꾸지 않는다.
-[Vercel 공식 Git configuration](https://vercel.com/docs/project-configuration/git-configuration)의
-브랜치별 설정을 사용하며 provider 계정 설정/실제 배포 명령은 실행하지 않는다.
-최초 push에는 별도 루트 프로젝트 `Vercel – robo`가 자동 Preview를 시도해 실패했다.
-웹 프로젝트만 설정한 것으로는 다른 Root Directory 프로젝트를 차단하지 못했으므로
-루트에도 같은 브랜치 규칙을 추가했다. Production `robo-paper-web`의 `b6add63`은 유지된다.
+**`/review`의 실제 운용 관측 0개는 유지한다.** 이 화면은 원본 판단의 확정 이후 기록을 조회한다.
+과거 재생 11개를 실제 판단 성과로 복사하지 않는다. 서로 다른 출처를 보여주는 정상 동작이다.
+환율 수정 전후 수치와 별도 최근 10개 관측일(9/17–10/2)은 [YAHOO_SESSION_DATE_FIX.md](YAHOO_SESSION_DATE_FIX.md)에 기록했다.
 
-## 설계 판단과 데이터 출처
+## 최종 화면 기준 5분 시연
 
-`capstone_demo.db`는 시연 계정/DemoCohort/DemoSlot, `portfolio_design.db`는 실제 현재
-시각의 최종 확정 판단을 보관한다. 확정은 기존 login/draft/preview/complete API를
-거친다. 위험 수준 15개와 0–2개 테마, 월별/분기별을 다양하게 선택했다.
-
-이 **새로운 로컬 설계 DB만** SQLite backup으로 `replay_ledger.db`에 복사한다.
-기존 운영/합성 시연 DB를 복사하지 않는다. 판단 확정/효력일은 원본과 동일하다.
-원본 설계에는 재생 주문/체결/NAV/T0가 없다. 변경 불가능한 `run.json`에 실행 UUID,
-캡처 판단, 비중, 자금, 공통 날짜, 가격 출처·해시·비용·환율 관행을 보존한다.
-`forward_state`에는 UUID/manifest 해시/진행 상태/계좌별 체크포인트만 추가한다.
-스키마 추가는 없다.
-
-조회는 `COMPETITION_REPLAY_DIR`가 있고 인증 DB가 같은 marked local SQLite인 경우만
-`get_performance_db`의 읽기 전용 replay 세션을 사용한다. 정상 환경에서는 기존 설계
-DB를 그대로 쓴다. 포트폴리오 변경/판단 상세/Revision/3·6개월 검토는 **원본 설계 DB**를
-계속 사용하므로 재생으로 실제 추적 기간을 채우지 않는다. 봉인된 재생은 준비 시점 구성이다.
-다시 설계한 내용은 새 재생 실행에서 반영해야 한다.
-
-`execution_scope`는 이 임시 ledger의 **특정 연결 하나**에만 과거 실행 일정을 제공한다.
-기존 `competition.policy`/`account_gate`를 재사용한다. 저장된 미래 로컬 T0와 원본
-효력일을 과거로 바꾸지 않는다. 그 밖의 daily/직접 엔진 호출은
-`REPLAY_SCOPED_EXECUTION_REQUIRED`로 차단한다. PostgreSQL/기존 로컬 운용은 허용하지 않는다.
-재생 파일 잠금은 동시 bootstrap을 거부하고 daily는 가격 수집 전 차단한다.
-체결 뒤 체크포인트 전 중단도 기존 초기 주문을 재사용하여 복구한다.
-
-## 실제 재생 기록: 2026-10-04 확인
-
-- 15/15 시연 준비·15/15 완료, 개인 15 + CORE 15계좌. 동일 초기 가상 자금 각각 1억원.
-- 기간 **2026-09-16–2026-10-02**, **누락을 제외한 공통 관측일 10개**, 연속 10거래일이 아니다.
-- 사용일: 9/16, 9/17, 9/21, 9/22, 9/23, 9/28, 9/29, 9/30, 10/1, 10/2.
-- 원본 공백: 9/18 USDKRW; 9/24 한국주식/한국국채; 9/25 USDKRW/한국주식/한국국채.
-  원인 코드는 `SOURCE_OBSERVATION_MISSING`: 원본에 해당 관측이 없음을 확인한 것이며
-  휴장/공급자 장애 중 어느 원인인지는 단정하지 않는다. 초기 manifest에는 FX만 보이는
-  주말 9/20·9/27도 제외 목록에 기록되어 있다. 주말 평가를 만들지 않았다.
-- YahooChartProvider의 실제 일별 자료/환율. TIP도 이번 조회에서 수신했다. 누락 날짜를
-  다른 날짜/이전 가격으로 채우지 않았다. 기존 align_daily_krw에 완전한 날짜만 전달했다.
-- 기존 환율 관행: 미헤지 USD 자산은 USDKRW 곱, 한국 원화 자산은 원본,
-  `HEDGED={us_treasury,tips}`는 원본 가격 level을 유지한다. 이것은 기존 헤지 대용
-  가격 규칙이며 실제 원화 환헤지 ETF나 실증 증권 수량/주문을 재현한 것으로 발표하지 않는다.
-- 기존 engine의 5bp 비용, 초기 시뮬레이션 주문과 첫 가용 종가 체결 후 보유.
-  과거 정기 월간/주간 job 전체를 재생한 것은 아니다. 저장 주기 및 현재 상대 밴드 조회는
-  기존 기능 그대로다. 20% 목표의 18%/22% 경계는 허용. KEEP/ADJUST는 구성 선택이지 주문 승인 아니다.
-- 주문 **268**, 체결 **268**, 보유 평가 **2,680**, NAV **300**, 정렬된 가격/환율 **160**.
-  모든 계좌·날짜에서 NAV=보유평가액+현금. NAV 행을 직접 생성한 것이 아니라 엔진을 실행했다.
-- 대표 **capstone03@example.com**: 수익률 **−0.69516694%**, CORE **−1.05969012%**,
-  차이 **+0.36452318%p**, 관측 MDD **−2.03842604%**. 기여도 합계와 수익률이 일치한다.
-  공통 기간 개인 화면/랭킹 수치도 동일하다. 누적수익률 순위 15명은 제공한다.
-- 내부 NAV를 공통 날짜 교집합으로 삭제하지 않는다. 표시 축 13개 평일 중 기록 없는 3일은
-  null이고 선을 연결하지 않는다. MDD는 관측 값만 표시하고 공백 때문에 위험 순위는 보류한다.
-  연율 변동성/TE/IR은 관측 부족으로 null이며 0으로 채우지 않는다.
-
-## 복구와 forward 검증
-
-PREPARED/RUNNING/INCOMPLETE/COMPLETE와 30계좌 날짜 coverage/회계 검증을 사용한다.
-일부 참가자만 성공하거나 완성 후 기록이 손상되면 전체 완료/정상 랭킹을 표시하지 않는다.
-재생 재실행, 준비 중 중단, 체결 후 NAV 전 중단, 체크포인트 후 중단·재개, 파일 잠금,
-누락 가격 거부, manifest 변경 거부를 테스트했다. 서버 재시작 후에도 건수가 동일하다.
-
-`FORWARD_VALIDATION`은 별도 marked **완료 재생 복사본**에만 허용한다. 자동 테스트에서만
-미래 T0 시계·다음 날짜 가격 fixture를 사용했다. 기존 daily 엔진에 연결해 개인/CORE 초기
-주문·체결 건수 유지, 다음 날짜 NAV +30, 동일 날짜 반복 중복 없음, 과거 기록 보존을 확인했다.
-과거 체결을 실제 `first_execution_at`으로 등록하지 않는다.
-원본 시연 DB에 미래 가격을 넣지 않았고 운영 forward 실행 성공도 아니다.
-
-실제 forward 데이터와 이 재생을 한 그래프로 이어 붙이는 기능은 만들지 않았다.
-재생 완료와 운영 전환 가능성 검증을 분리했다. 사용자가 운영 T0를 합의·예약하고 실운용
-코드를 별도로 검토·적용할 때 실제 관측을 쌓아야 한다.
-
-## 교수님 요구 대조
-
-| 요구 | 기존 구현/연결 | 현재 한계 |
+| 시간 | 조작 | 설명 |
 |---|---|---|
-| 구성 선택 이유·성과·기여도 | `/portfolio`, `/dashboard`, `/ranking`; `onboarding_service`, `calculate_report`, 원장 조회 | 실제 시연은 현재 구성 과거 재생임을 표시. 선택 이유는 시연 문구, 투자 권고로 표현하지 않음 |
-| 최초 판단과 Frontier 정보 보존 | `PortfolioDecision`, `decision_service.capture/serialize`, `/review`; Frontier ID/버전·기본/최종 비중·예상값·위험 비교·자료 해시 | 현재 모델로 과거 예상 재생성 없음. Frontier 두 점 화면은 기존 구성 조회를 재사용 |
-| 종목별 이후 추적 | `PriceDaily`, `Holding`, `Trade`, `NavDaily`, 기여도: 선택 ETF/자산별 10개 실제 가격 관측과 평가 | ETF 내부 기업별 후속 가격 추적은 확인되지 않음. `/strategies`와 `strategy_service`는 기존 주도주/수출 구성 snapshot·연구 backtest 조회, 사용자 원장과 별도. 중복 개발하지 않음 |
-| revision 검토·기록 | `/review`, `PortfolioChoice`, KEEP/ADJUST, 새 확정 판단의 previous_decision_id | 검토만으로 자동 변경 없음. 재생을 실제 예상↔실제/3·6개월에 사용하지 않음. 같은 기간/정의의 예상 수치 비교는 기존 제한 유지 |
+| 0:00–0:40 | `/dashboard` → **시연 정보** 열기 | 시연용 15/15, 기간, 공통 관측 11개, 동일 가상 자금, 과거 가격 모의실험임을 설명 |
+| 0:40–1:25 | **내 포트폴리오** → Frontier와 확정 구성 | 기본/개인화 두 점, 테마와 저장된 주기. 현재 곡선과 확정 당시 저장값을 구분 |
+| 1:25–2:10 | `/dashboard` → **보유·운용 내역 보기** | 현금 10만원, 평가액 100,161,240원, 기준 100 지수 100.21. 주문·체결·보유평가 History |
+| 2:10–3:10 | 누적수익률·CORE 그래프 → 기여도 **자산군 / 개별 자산** | +0.21% / +0.19%, 휴장 공백, 기여도 합계. 결측을 연결하지 않음 |
+| 3:10–4:05 | **참여자 성과 비교** → 수익률 순위·CORE 그래프 | 같은 기간 15명, 대표 계정 11위. MDD·변동성 순위 보류 사유 |
+| 4:05–5:00 | `/review` → 최초 판단·모형/자료 버전·선택 History | 최초 예상, 확정시각, 효력일, 판단 ID. 실제 운용 관측은 아직 0개. KEEP/ADJUST는 구성 선택 |
 
-## 운영 참가자 확인
+시연은 고정된 자료의 조회를 중심으로 진행한다. 새 확정이나 새 재생은 필요하지 않다.
+Revision 새 버전·반복 요청·권한 처리는 자동 테스트로 확인했으며, 이 고정 자료에 검증용 선택·주문을 추가하지 않는다.
 
-기존 Actions `daily-forward`를 **dry_run=true**로 실행했다. 실행 `37208198285`의
-읽기 전용 인벤토리: 인증 사용자/참가자 15, 설계 사용자 1·개인/CORE 2계좌·판단 3버전
-(확정 사용자 1명), pending 포함 주문 8, 체결/holdings/NAV 0. 로컬 15/15와 별개이다.
-추가 Actions **37211864102**(이번 브랜치, dry_run=true)에서 기존 공동 gate로 슬롯 확인/
-계좌 소유권/불변 판단 연결까지 조회해 **READY 1/15, NOT_READY, PARTICIPANTS_NOT_READY,
-T0 null**을 확인했다. 나머지 14명을 임의 확정하지 않았다.
-주문/체결/평가/job/T0를 쓰지 않는 dry-run이다. 실제 Render DB와 Actions DB가
-같은지 및 Render 커밋은 해당 운영 workspace 접근이 필요하다. secret 값을 요청하지 않는다.
+발표 설명: “15명이 현재 확정한 구성을 동일한 가상 자금으로 과거 실제 가격의 공통 관측일 11개에 적용했습니다.
+기존 주문·모의체결·평가 엔진의 계산 결과이며, 공동 시작 이후 실제 운용 기록과 구분합니다.”
 
-## 검증과 명령
+## 교수님 요구사항 독립 대조
 
-Python 3.11.15, 별도 PostgreSQL 18.6와 SQLite: 최종 `pytest tests --ignore=tests/backup -q`
-**576 passed / 0 failed / 0 skipped**. 기존 CI와 동일 범위이며 backup 테스트/PR12는 수정하지 않았다.
-프론트 **74 passed (17 files)**, production build(타입 검사 포함) 통과.
-별도 lint 명령은 없으며 Next build 검사를 사용했다. 설치된 잠금파일 기반 node_modules와
-기존 venv를 재사용했으며 의존성 변경은 없다.
-브라우저 테스트: 대표03 로그인→포트폴리오/Frontier→보유·현금/주문·체결→성과/기여도→
-CORE/15명랭킹→공통기간 수치→위험순위 보류→판단 검토→새로고침/재로그인,
-1440×1000·390×844 **2 passed**, 런타임 오류/페이지 수평 잘림 없음.
+교수님 전사 원문은 공유 파일과 대화에서 찾지 못했다. 아래는 사용자가 명시한 요구를 기준으로
+두 번째 서브 에이전트가 현재 브랜치를 독립 검토한 결과다. ETF 내부의 모든 기업 추적을 필수 범위로 확대하지 않는다.
 
-worktree에서 실행한다 (`.venv`/`web/node_modules`는 기존 환경 링크 또는 설치 필요).
+| 요구 | 분류 | 코드·API·화면 근거와 한계 |
+|---|---|---|
+| 최초 판단·선택 Frontier 정보 보존 | **구현·연결 완료** | `onboarding_service.complete → decision_service.capture`, `PortfolioDecision` / `BasePortfolioSelection`. 확정시각·효력일·비중·예상값·단위/기간/정의·Frontier ID/version·모형/자료 해시·이전 판단 ID. UPDATE/DELETE 금지 트리거. `/api/v1/me/decisions/{id}/review` → `/review` |
+| 당시 전체 Frontier 곡선 재현 | **정의 미정** | 선택점과 당시 예상은 저장. `/portfolio`의 곡선은 현재 `/me/frontier`와 summary 조회이며, 판단별 전체 곡선은 별도로 보관하지 않음. 최초 예상은 `/review` 저장값을 사용 |
+| 실제 편입 ETF·자산별 이후 추적 | **구현·연결 완료(재생)** / **데이터 대기(실제 운용)** | `PriceDaily` / `Trade` / `Holding` / `NavDaily` → `ledger_read_service.ledger`, `performance_report.calculate_report` → `/me/performance/ledger`, `/dashboard`, `/contributions`. 보유·가격·수량·현금·History·기여도 11일 연결 |
+| 사용자 본인의 Revision 검토·선택 기록 | **구현·연결 완료** | `decision_service.review` / `choose`, `PortfolioChoice`; `/me/portfolio/choices` GET/POST → `/review` 최초 예상·관측·근거·유지/조정·선택 History. 재설계 시 새 판단과 이전 버전 연결. 읽기만으로 목표나 주문을 변경하지 않음 |
+| 내부 관리자의 다른 참가자 검토·근거 기록 | **미구현**, 책임·권한은 **정의 미정** | 판단 API는 `own(user_id)`로 본인만 조회. `/admin`에 내부 Revision 전용 API/화면 없음. 관리자 운용 조회도 인증 DB를 읽어 이 재생 원장과 연결되지 않음 |
+| 일반 사용자·관리자 기본 권한 | **구현·연결 완료** | `User.role`, `authz.require_admin` / `enforce_owner`. 다른 사용자 판단 404·원장 403, 관리자 역할 검사 통과 |
+| 최초 예상↔실제 수치 / 3·6개월 추적 | **데이터 대기 / 정의 미정** | `/review`는 원본 설계 DB 조회. 기간뿐 아니라 단위·정의·비용·관측 주기·비교 기준이 일치해야 수치 비교 가능. 재생으로 실제 추적 기간을 채우지 않음 |
+
+원장·랭킹 `09e92ad`와 전략 연구 `66df9cc`는 이미 현재 브랜치에 포함돼 있어 중복 개발하지 않았다.
+사용자 Revision은 연결돼 있지만 **내부 관리자 Revision까지 완료된 것은 아니다**.
+두 번째 서브 에이전트는 폐기용 SQLite에서 판단·권한·전략 테스트 32개를 통과시키고 최종 `41b4bdd` 변경분을 재검토했다.
+첫 번째 서브 에이전트는 30계좌 / 330 NAV, 실제 가격, 현금 흐름, 기여도와 랭킹을 읽기 전용으로 독립 대조했다.
+둘 다 애플리케이션 코드·운영 데이터·설정을 수정하지 않았다.
+
+## 로컬 재시작·백업
+
+코드: `/private/tmp/robo-session-dates-20261005`.
+데이터: `/private/tmp/robo-session-corrected-data-20261005`.
+비밀번호는 데이터 폴더의 `accounts.md`에서만 확인한다. Git이나 PR에 넣지 않는다.
 
 ```sh
-# 지금 실행된 시연: 기존 DB와 계정·가격을 그대로 재사용
-.venv/bin/python scripts/competition_replay.py status --directory /private/tmp/robo-competition-replay-f8q138c4
-.venv/bin/python scripts/competition_replay.py run --directory /private/tmp/robo-competition-replay-f8q138c4
-.venv/bin/python scripts/competition_replay.py stop --directory /private/tmp/robo-competition-replay-f8q138c4
-.venv/bin/python scripts/competition_replay.py serve --directory /private/tmp/robo-competition-replay-f8q138c4
-
-# 독립적인 새 시연: 반드시 존재하지 않는 임시 디렉터리, 사용하지 않는 포트
-.venv/bin/python scripts/competition_replay.py init --directory /private/tmp/robo-replay-new --port 3098 --api-port 8098
-.venv/bin/python scripts/competition_replay.py fetch --directory /private/tmp/robo-replay-new
-.venv/bin/python scripts/competition_replay.py prepare --directory /private/tmp/robo-replay-new
-.venv/bin/python scripts/competition_replay.py run --directory /private/tmp/robo-replay-new
-.venv/bin/python scripts/competition_replay.py serve --directory /private/tmp/robo-replay-new
-
-# 실행 중인 별도 시연 서버에 브라우저 검증 (web 디렉터리)
-E2E_REPLAY_DIR=/private/tmp/robo-competition-replay-f8q138c4 E2E_REPLAY_OUTPUT=/private/tmp/robo-competition-replay-f8q138c4/screens npm exec playwright -- test --config playwright.replay.config.ts --reporter=line
+cd /private/tmp/robo-session-dates-20261005
+.venv/bin/python scripts/competition_replay.py stop --directory /private/tmp/robo-session-corrected-data-20261005
+.venv/bin/python scripts/competition_replay.py serve --directory /private/tmp/robo-session-corrected-data-20261005
 ```
 
-fetch는 봉인된 run 가격을 덮어쓰지 않는다. 실패 시 `price-failures.json`의 자산/원인을
-확인한다. DB/manifest는 수동 편집하지 않는다. 서버 stop은 자신의 process group/cwd만
-확인하며 다른 서버를 종료하지 않는다. 로그: 시연 디렉터리 `logs/api.log`, `logs/web.log`.
-임시 디렉터리는 OS 정리 대상이라 영구 운영 저장소가 아니다. 시연 보존이 필요하면
-서버 종료 후 이 **시연 디렉터리 전체**를 별도 비공개 위치에 보관한다. 기존 실제 운용 DB는 별개다.
+이미 실행 중이면 `serve`만으로 재사용한다. 본인 PID·소스 경로를 검사하고 다른 작업의 서버는 종료하지 않는다.
+로그: 데이터 폴더의 `logs/api.log`, `logs/web.log`.
 
-## 돌아와서 볼 5분 시연
+임시 폴더 밖의 비공개 백업: `<workspace>/.work/demo-backups/midterm-3099-20261005/`.
+루트 Git에서 제외된 경로이며 디렉터리 권한은 0700, DB·계정 파일은 0600이다.
+`freeze.json`에 커밋·기간·수치·행수를 고정하고 `CHECKSUMS.json`으로 파일 해시를 검사한다.
+`code.tar`는 해당 커밋의 추적 파일이다. DB·비밀번호를 포함하지 않는다.
+`data/`에 일관된 SQLite 백업 3개, 불변 manifest, 실제 수집 가격, 계정 파일, 검증 기록, 최종 캡처를 보관한다.
+`restore_demo.py`는 새 임시 디렉터리에만 복원하며 기존 시연이나 운영 자료를 덮어쓰지 않는다.
+복원 명령과 폐기용 복원 검증 결과는 비공개 백업의 `README.md`에 남긴다.
 
-접속 `http://127.0.0.1:3097/dashboard`; 대표는 `capstone03@example.com`.
-이미 열어둔 시연 브라우저는 참가자01로 로그인되어 있다. 참가자03 비밀번호는
-시연 디렉터리 `accounts.md` 또는 `accounts.json`에서만 확인한다. 저장소/PR에는 없다.
+## 운영 상태와 구분
 
-1. **0:00–0:30** 상단 15/15와 기간/출처 안내: 현재 구성을 과거에 적용한 별도 모의실험.
-2. **0:30–1:15** 내 포트폴리오: 위험·로봇 테마·확정 주기, Frontier 전/후 두 점, 구성 변화.
-3. **1:15–2:15** 대시보드: 보유·현금·NAV 원화 합계, 주문/체결 History, 누적 그래프.
-4. **2:15–3:00** 개별 자산 기여도: 합계가 전체 수익률과 일치, CORE 기준과 차이 확인.
-5. **3:00–4:00** 참여자 비교: 동일 기간 기준100 그래프·15명 수익률 순위;
-   MDD 선택 시 공백 때문에 순위 대기, 연율 변동성도 보류. 결측은 null로 끊긴다.
-6. **4:00–5:00** 최초 예상·실제 검토: 오늘 확정/미래 효력일·원본 이유/버전,
-   실제 평가 대기 및 3·6개월 미도달. 필요하면 유지/조정 UI를 설명하되 재확정하지 않는다.
-   마무리: 실제 forward는 T0 이후 별도로 쌓이며 지금 결과와 이어붙여 장기 실적으로 발표하지 않는다.
+| 항목 | 이번 확인 |
+|---|---|
+| 로컬 과거 가격 시연 | **완료**: 3099, 15명, 11관측일, 고정 자료 |
+| 이 시연의 이후 자동 적립 | 등록하지 않음. 일반 daily는 재생 DB 실행을 차단 |
+| 기존 3073 자동운용 예약 | 보존. 이번 시연 완료를 해당 예약의 최근 실행 성공으로 보고하지 않음 |
+| 운영 공동 시작 | 마지막 읽기 전용 Actions 확인은 READY 1/15, T0 미설정. 이번에는 운영 READY·T0를 재조회하거나 변경하지 않음 |
+| Render·Vercel | 이번 수정은 배포하지 않음. 실제 Render 런타임 커밋과 Actions DB 동일성은 미확인 |
+| Draft PR | 검토용이며 병합하지 않음. 해당 PR 브랜치의 자동배포 차단 유지 |
 
-핵심 캡처는 시연 디렉터리 `screens/portfolio-1440.png`, `dashboard-1440.png`,
-`ranking-1440.png`, `review-1440.png`와 동일 이름 `-390.png`에 저장했다.
-`verified-1440.json`/`verified-390.json`에 기간·수치·15명 랭킹/기여도 검사 결과가 있다.
-AI 구현 결과를 명령·테스트·실제 브라우저 렌더와 대조한 증거이며 운영 실행 증거가 아니다.
-# Session-date correction notice — 2026-10-05
+운영 적용, 남은 참가자 확정, T0 합의·예약, 단일 배치 주체, 운영 가격 복구는 별도 작업이다.
+로컬 시연의 15/15를 운영 경쟁의 실제 시작 상태로 설명하지 않는다.
 
-The preserved 3097 results below used the previous UTC-normalized FX labels.
-9/18 was an apparent gap caused by a London session-date error, not a missing
-source bar. Corrected 3099 results, identical-period comparison, closure evidence,
-independent audits and recovery steps are in [YAHOO_SESSION_DATE_FIX.md](YAHOO_SESSION_DATE_FIX.md).
-The current demonstration uses 9/16–10/2 with **11** common observations.
+## 검증
+
+기능 코드 `41b4bdd`: 백엔드 589 passed(폐기용 PostgreSQL 18 / SQLite, 기존 CI 범위),
+프론트 75 passed, production build·타입·lint 통과, Chrome 데스크톱 1440 / 모바일 390 흐름 2 passed.
+재실행·중단 복구·부분 완료 보류·별도 forward 복사본의 초기 주문 중복 방지 검증도 유지한다.
+이번 고정 작업은 기능 변경 없이 문서 정합성, 일관된 백업·폐기용 복원, 로그인·성과 조회, 캡처를 확인한다.
+이 백업은 **3099 로컬 SQLite 시연 백업**이며 PR #12의 운영 PostgreSQL 백업과 별개다.
