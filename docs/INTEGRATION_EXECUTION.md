@@ -520,3 +520,8 @@ data/T0 rewrite, remote push/merge/deployment or PR12 change.
 See [INTERNAL_TRACKING.md](INTERNAL_TRACKING.md) for exact source boundaries,
 professor requirements, local accounts/data, restart commands and remaining limits.
 The frozen3099 source/data/docs remain unchanged; this section describes3103 only.
+
+
+## 2026-10-05 local 3103 real-price tracking
+
+See [PRICE_TRACKING_AUTOMATION.md](PRICE_TRACKING_AUTOMATION.md). Reused session-date parsing and incremental price conversion; added completed-session filtering, exact observed-date mode and an explicitly local prices-only hourly worker. Existing 3103 admin reports already poll every 15 seconds. No historical replay, trading start, decision, order, NAV, operating Neon or original scheduler changes. Real collector and unique launchd invocation completed with 0 new rows / 0 failures while waiting for observations on or after the decision effective date. Local and durable backup evidence, regression counts and limitations are recorded in the dedicated document.

@@ -16,6 +16,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import pandas as pd
 
 
+class NoPriceData(RuntimeError):
+    """The provider answered successfully but has no bars in this interval."""
+
+
 class MarketDataProvider(ABC):
     @abstractmethod
     def get_price_history(self, ticker: str, start, end) -> pd.Series:
@@ -47,11 +51,12 @@ def _yahoo_daily_series(node: dict, ticker: str, start_ts: int, end_ts: int) -> 
     if session_zone is None:
         raise RuntimeError(f"Missing or invalid session timezone for {ticker}")
     stamps = node.get("timestamp") or []
-    quote = node["indicators"]["quote"][0]
-    adj = (node["indicators"].get("adjclose") or [{}])[0].get("adjclose")
+    indicators = node.get("indicators", {})
+    quote = (indicators.get("quote") or [{}])[0]
+    adj = (indicators.get("adjclose") or [{}])[0].get("adjclose")
     values = adj if adj and any(v is not None for v in adj) else quote.get("close")
     if not stamps or values is None:
-        raise RuntimeError(f"Empty price series for ticker {ticker}")
+        raise NoPriceData(f"Empty price series for ticker {ticker}")
     idx = pd.to_datetime(stamps, unit="s", utc=True).tz_convert(session_zone).tz_localize(None).normalize()
     series = pd.Series(values, index=idx, dtype="float64", name=ticker).dropna()
     series = series[~series.index.duplicated(keep="last")].sort_index()
@@ -59,8 +64,11 @@ def _yahoo_daily_series(node: dict, ticker: str, start_ts: int, end_ts: int) -> 
     last = pd.Timestamp(end_ts, unit="s", tz="UTC").tz_localize(None).normalize()
     series = series.loc[(series.index >= first) & (series.index <= last)]
     if series.empty:
-        raise RuntimeError(f"Empty price series after cleaning for {ticker}")
+        raise NoPriceData(f"Empty price series after cleaning for {ticker}")
     series.attrs.update(date_basis="EXCHANGE_SESSION_DATE_V1", session_timezone=name)
+    regular = node.get("meta", {}).get("currentTradingPeriod", {}).get("regular", {})
+    if isinstance(regular.get("start"), (int, float)) and isinstance(regular.get("end"), (int, float)):
+        series.attrs["regular_session"] = {k: regular[k] for k in ("start", "end")}
     return series
 
 
@@ -94,6 +102,8 @@ def _fetch_yahoo_chart(ticker: str, start, end, retries: int = 3) -> pd.Series:
                 if not result:
                     raise RuntimeError(f"No data returned for ticker {ticker}")
                 return _yahoo_daily_series(result[0], ticker, start_ts, end_ts - 86400)
+            except NoPriceData:
+                raise  # Holidays/empty intervals are not transport failures.
             except Exception as exc:  # noqa: BLE001 - want explicit retry then raise
                 last_err = exc
                 time.sleep(1.0 * (attempt + 1))

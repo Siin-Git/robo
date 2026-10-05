@@ -33,7 +33,8 @@ def test_original_september_18_fx_bar_keeps_its_london_session():
     assert actual.loc["2026-09-18"] == node["indicators"]["quote"][0]["close"][position]
     assert actual.loc["2026-09-18"] == pytest.approx(1379.530029296875)
     assert "2026-09-20" not in actual.index
-    assert actual.attrs == {"date_basis":"EXCHANGE_SESSION_DATE_V1", "session_timezone":"Europe/London"}
+    assert actual.attrs['date_basis'] == 'EXCHANGE_SESSION_DATE_V1'
+    assert actual.attrs['session_timezone'] == 'Europe/London'
 
 
 @pytest.mark.parametrize("fixture,before,after,offset_before,offset_after", [
