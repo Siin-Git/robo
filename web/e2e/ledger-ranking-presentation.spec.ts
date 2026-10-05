@@ -28,6 +28,12 @@ for(const width of [1440,390])test(`ledger ranking preserves recorded figures an
  await expect(page.getByText('과거 가격 모의실험',{exact:true}).last()).toBeVisible();
  await expect(page.getByRole('region',{name:'위험과 수익 비교'})).toContainText('현재 산출 가능한 참여자 0명');
  const chart=page.getByRole('region',{name:'참여자와 CORE 지수 그래프'});
+ // Confirmed holidays are omitted only from the display axis: eleven original
+ // observations stay unchanged, with one connected SVG path per series.
+ await expect(chart.locator('.recharts-line-curve')).toHaveCount(16);
+ for(const curve of await chart.locator('.recharts-line-curve').all())expect((await curve.getAttribute('d'))?.match(/M/g)).toHaveLength(1);
+ expect(await chart.locator('.recharts-xAxis').textContent()).not.toContain('2026.09.24');
+ expect(await chart.locator('.recharts-xAxis').textContent()).not.toContain('2026.09.25');
  await page.screenshot({path:path.join(output,`ranking-initial-${width}.png`),fullPage:true});
  await page.getByRole('button',{name:'나와 기준',exact:true}).click();await expect(chart.locator('.recharts-line')).toHaveCount(2);
  await page.getByRole('button',{name:'상위 5명',exact:true}).click();await expect(chart.locator('.recharts-line')).toHaveCount(6);

@@ -29,6 +29,12 @@ for(const width of [1440,390])test(`competition replay actual engine browser flo
  await expect(page.getByRole('region',{name:'운용 원장'})).toContainText('체결');
  await expect(page.getByRole('img',{name:/누적수익률:/})).toBeVisible();
  await expect(page.getByRole('heading',{name:'내 수익은 어디에서 나왔을까요?'})).toBeVisible();
+ const growth=page.getByRole('img',{name:/누적수익률:/});
+ await expect(growth.locator('.recharts-line-curve')).toHaveCount(2);
+ for(const curve of await growth.locator('.recharts-line-curve').all())expect((await curve.getAttribute('d'))?.match(/M/g)).toHaveLength(1);
+ expect(await page.getByRole('img',{name:/누적 기여도:/}).locator('.recharts-xAxis').textContent()).not.toContain('09.24');
+ expect(await page.getByRole('img',{name:/누적 기여도:/}).locator('.recharts-xAxis').textContent()).not.toContain('09.25');
+ await expect(page.getByText(/휴장일 가격·평가 기록을 추가하지 않습니다/).first()).toBeVisible();
  const own=await(await page.request.get('/api/v1/me/performance/dashboard')).json();
  const ledger=await(await page.request.get('/api/v1/me/performance/ledger')).json();
  expect(own.observations).toBe(run.dates.length);expect(own.data_kind).toBe('HISTORICAL_REPLAY');

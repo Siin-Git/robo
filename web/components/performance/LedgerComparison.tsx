@@ -14,7 +14,7 @@ import {fmtDate,fmtReturn,fmtPct,fmtActivePp} from "@/lib/format";
 import {themeLabel} from "@/lib/constants";
 import {DEMO_MODE} from "@/lib/api/comparison";
 import {LedgerComparison as Contract,LedgerBasis,LedgerPeer,ledgerReason} from "@/lib/api/ledger-comparison";
-import {PERIODS,Period} from "@/app/(app)/dashboard/performance-data";
+import {PERIODS,Period,observedChartDates} from "@/app/(app)/dashboard/performance-data";
 import s from "./demo-ranking.module.css";
 import ui from "./ledger-ranking.module.css";
 
@@ -57,7 +57,9 @@ export function LedgerComparison({participantId}:{participantId?:string}) {
   // Top-five and KPI ranks use server return_rank, independent of table sorting.
   const returnRank=(p:LedgerPeer)=>p.return_rank??(basis==="return"?p.rank:null);
   const visible=peers.filter(p=>filter==="mine"||filter==="selected" ? p.participant_id===focus : filter==="top" ? returnRank(p)!=null&&returnRank(p)!<=5 : true);
-  const points=(data?.dates??[]).map(date=>({date,core:person?.series.find(p=>p.date===date)?.core_index100??null,
+  const chartDates=observedChartDates(data?.dates??[],data?.replay_context?.excluded_dates,
+    date=>data?.items.some(peer=>peer.series.some(p=>p.date===date&&(p.personal_index100!=null||p.core_index100!=null)))??false);
+  const points=chartDates.map(date=>({date,core:person?.series.find(p=>p.date===date)?.core_index100??null,
     ...Object.fromEntries(visible.map(peer=>[peer.participant_id,peer.series.find(p=>p.date===date)?.personal_index100??null]))}));
   function select(id:string) {setSelected(id);setFilter("selected");summaryRef.current?.scrollIntoView?.({behavior:window.matchMedia?.("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});}
   function filterChart(next:Filter) {setFilter(next);if(next==="mine")setSelected(null);}
@@ -84,7 +86,7 @@ export function LedgerComparison({participantId}:{participantId?:string}) {
         <div className="race-participant-picker"><label>참여자와 기준 비교<select aria-label="참여자와 기준 비교" className="input" value={selected??""} onChange={e=>select(e.target.value)}><option value="" disabled>참여자를 선택하세요</option>{data.items.map(p=><option key={p.participant_id} value={p.participant_id}>{p.display_name}{p.participant_id===me.data?.participant_id?" (나)":""}{p.series.length<2?" · 집계 대기":""}</option>)}</select></label></div>
         <ul className="race-legend" aria-label="차트 선 색상 안내">{visible.some(p=>p.participant_id===focus)&&<li><i style={{background:MY_LINE.color}}/>{own?"내 포트폴리오":person?.display_name??"선택 참여자"}</li>}<li><i style={{background:CORE_LINE.color}}/>기준 포트폴리오 (CORE)</li>{visible.some(p=>p.participant_id!==focus)&&<li><i style={{background:"#c6cdd8"}}/>다른 참가자</li>}</ul>
         {data.dates.length>1&&peers.length>1 ? <section className={ui.chart} aria-label="참여자와 CORE 지수 그래프"><PerformanceChart data={points} series={[...visible.map(p=>({key:p.participant_id,dataKey:p.participant_id,label:p.display_name,...(p.participant_id===focus?{color:MY_LINE.color,width:3}:{color:"#c6cdd8",width:1})})),{key:"core",dataKey:"core",label:"선택 참여자의 CORE V0.3",...CORE_LINE,width:2.5}]} curve="linear" animate={false} connectNulls={false} showPoints framed={false} showLegend={false}/></section> : <div className={ui.waiting} role="status"><strong>첫 성과 기록을 기다리고 있습니다</strong><p>{ledgerReason(person?.reason??data.reason) || "같은 기간의 평가 기록이 두 건 이상 쌓이면 표시됩니다."}</p></div>}
-        <p className={s.footnote}>평가 기록이 없는 구간은 연결하지 않습니다. 같은 기간의 기록된 NAV를 비교합니다.</p>
+        <p className={s.footnote}>확인된 휴장일은 표시축에서 제외해 앞뒤 관측을 연결합니다. 원인 불명의 평가 누락은 선을 끊어 표시합니다.</p>
       </section>
       <RiskMap items={data.items} focus={focus} select={select}/>
       <section className={s.panel} aria-label="운용 기록 참여자 순위"><div className={s.toolbar}><div><h2>참여자 순위 <span>{data.registered}명</span></h2><p>참여자를 선택하면 위에서 같은 기간의 성과를 비교할 수 있습니다.</p></div><label>정렬 기준<span className={s.selectWrap}><select aria-label="순위 기준" className="input" value={basis} onChange={e=>setBasis(e.target.value as LedgerBasis)}>{bases.map(b=><option key={b.key} value={b.key}>{b.label}</option>)}</select><ChevronDown size={14}/></span></label></div>
@@ -96,7 +98,7 @@ export function LedgerComparison({participantId}:{participantId?:string}) {
       {data.theme_selectors?.length ? <ThemeComparison ledger data={{theme_selectors:data.theme_selectors,comparable:data.items.filter(p=>p.metrics.cumulative_return!=null).length}}/> : <section className="analytics-panel" aria-label="테마별 성과 대기"><h2>편입 테마별 성과</h2><p className="caption">같은 기간의 테마 보유·평가 기록이 쌓이면 참여자 평균을 보여드립니다.</p></section>}
       <details className={`${s.guide} ${ui.guide}`}><summary>비교 기준 보기</summary>
         <p>{data.data_kind==="HISTORICAL_REPLAY"?"현재 확정 구성의 과거 가격 모의실험 원장입니다. 확정 이후 실제 운용 실적이 아닙니다.":data.data_kind==="TEST_FIXTURE"?"검증용 합성 데이터 · 실제 운용 기록이 아닙니다.":"확정 이후의 실제 시장 가격 모의운용 원장입니다."} 입출금 없는 계좌의 기록된 NAV 변화로 계산합니다.</p>
-        <dl><div><dt>공통 비교 기간</dt><dd>{fmtDate(data.start)} — {fmtDate(data.end)} · 표시 날짜 {data.dates.length}개 · 순위 산출 {data.ranked}명 / 등록 {data.registered}명. 시작·종료일을 맞추고 각 참여자의 구간 내부 실제 평가를 모두 사용합니다.</dd></div><div><dt>기준 100 지수</dt><dd>원화 평가금액이 아닙니다. 같은 시작 평가일 100에서 시작합니다. CORE는 선택 참여자의 같은 기간 시스템 기준 원장입니다. 평가가 없는 날짜는 빈칸으로 둡니다.</dd></div><div><dt>편입 테마</dt><dd>기간 내 보유 기록으로 묶은 참여자들의 포트폴리오 평균입니다. 테마 자체의 수익률이 아니며 두 테마 편입자는 두 그룹에 모두 포함됩니다. 각 지표의 실제 관측 인원을 표시합니다.</dd></div></dl>
+        <dl><div><dt>공통 비교 기간</dt><dd>{fmtDate(data.start)} — {fmtDate(data.end)} · 그래프 표시 날짜 {chartDates.length}개 · 순위 산출 {data.ranked}명 / 등록 {data.registered}명. 시작·종료일을 맞추고 각 참여자의 구간 내부 실제 평가를 모두 사용합니다.</dd></div><div><dt>기준 100 지수</dt><dd>원화 평가금액이 아닙니다. 같은 시작 평가일 100에서 시작합니다. CORE는 선택 참여자의 같은 기간 시스템 기준 원장입니다. 확인된 휴장일만 표시축에서 제외하며, 실제 관측과 원인 불명의 누락은 유지합니다. 휴장일 가격·평가·수익률을 생성하지 않습니다.</dd></div><div><dt>편입 테마</dt><dd>기간 내 보유 기록으로 묶은 참여자들의 포트폴리오 평균입니다. 테마 자체의 수익률이 아니며 두 테마 편입자는 두 그룹에 모두 포함됩니다. 각 지표의 실제 관측 인원을 표시합니다.</dd></div></dl>
         {person&&<section aria-label="선택 참여자 성과" className={ui.detail}><h3>{person.display_name} · 공통 기간 성과</h3><p>수익률 {fmtReturn(person.metrics.cumulative_return)} · CORE 수익률 {fmtReturn(person.metrics.benchmark_return)} · 최대 낙폭 {fmtPct(person.metrics.mdd)} · 연율 변동성 {fmtPct(person.metrics.volatility)}</p><p>개인 관측 {fmtDate(person.observed_start)} — {fmtDate(person.observed_end)} · 평가 {person.observations}건</p>
           <p>MDD는 유효 평가 2건 이상에서 관측된 최대 낙폭입니다. 평가 공백·오래된 가격이 있으면 놓친 낙폭을 확인할 수 없어 위험 순위를 보류합니다. 연율 변동성은 별도로 유효 수익률 30개 이상과 기존 평일 공백·가격 품질 조건이 필요합니다.</p>{person.reason&&<p>{ledgerReason(person.reason)}</p>}{person.metric_quality?.mdd?.reason&&<p>MDD 비교: {ledgerReason(person.metric_quality.mdd.reason)}</p>}{person.metric_quality?.volatility?.reason&&<p>연율 변동성: {ledgerReason(person.metric_quality.volatility.reason)} · 유효 수익률 {person.metric_quality.volatility.return_observations}개 / 필요 {person.metric_quality.volatility.minimum_return_observations}개</p>}{person.quality&&<p>오래된 가격 평가일 {person.quality.stale_observations}개 · 평일 평가 공백 구간 {person.quality.missing_nav_dates}개 · 표시 구간 내 평가 누락 {person.quality.missing_comparison_dates?.length??0}개</p>}
         </section>}

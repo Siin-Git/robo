@@ -50,6 +50,21 @@ it('retains the interior loss and null gap, and distinguishes observed MDD from 
  expect(screen.getByRole('region',{name:'운용 기록 참여자 순위'})).toHaveTextContent('MDD 순위 보류');
 });
 
+it('omits only confirmed empty closure dates and preserves observations from any participant',()=>{
+ const dates=['2026-09-23','2026-09-24','2026-09-28','2026-09-29','2026-09-30'];
+ const a={...peer('A'),observations:3,series:dates.map(date=>({date,personal_index100:date==='2026-09-24'||date==='2026-09-29'?null:100,core_index100:date==='2026-09-24'||date==='2026-09-29'?null:100}))};
+ const b={...a,participant_id:'B',display_name:'B',series:a.series.map(p=>({...p}))};
+ state.data={items:[a,b],dates,ranked:2,registered:2,replay_context:{excluded_dates:[{date:'2026-09-24',reason:'MARKET_CLOSED'},{date:'2026-09-29',reason:'SOURCE_OBSERVATION_MISSING'}]}};
+ const before=JSON.stringify(state.data);
+ const {rerender}=render(<LedgerComparison/>);
+ expect(state.chart.data.map((p:any)=>p.date)).toEqual(['2026-09-23','2026-09-28','2026-09-29','2026-09-30']);
+ expect(state.chart.data[2]).toEqual({date:'2026-09-29',A:null,B:null,core:null});
+ expect(state.chart.connectNulls).toBe(false);expect(JSON.stringify(state.data)).toBe(before);
+ b.series[1].personal_index100=50;
+ rerender(<LedgerComparison/>);
+ expect(state.chart.data[1]).toEqual({date:'2026-09-24',A:null,B:50,core:null});
+});
+
 it('keeps full precision server return ranks for top-five and KPI when the table uses a risk basis',()=>{
  const items=Array.from({length:6},(_,i)=>({...peer(i===0?'A':`P${i}`),rank:null,return_rank:6-i,observations:2,
    metrics:{...metrics,cumulative_return:.01},series:[{date:'2026-10-02',personal_index100:100,core_index100:100},{date:'2026-10-05',personal_index100:101,core_index100:102}]}));

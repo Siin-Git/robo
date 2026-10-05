@@ -30,6 +30,23 @@ describe("performance dashboard",()=>{
     a.series.splice(1,1);
     expect(reportChartPoints(a)[1]).toEqual({date:'2026-10-02',personal:null,benchmark:null,drawdown:null});
   });
+  it("connects across confirmed closures while retaining unknown gaps and recorded losses",()=>{
+    const a=exampleReport('ALL');
+    a.start='2026-09-23';a.end='2026-09-30';a.attribution=[];
+    a.series=[{date:'2026-09-23',personal:0,benchmark:0,drawdown:0},{date:'2026-09-28',personal:-.5,benchmark:0,drawdown:-.5},{date:'2026-09-30',personal:0,benchmark:0,drawdown:0}];
+    a.replay_context={run_id:'test',kind:'HISTORICAL_REPLAY',label:'test',status:'COMPLETE',ready:15,required:15,completed:15,start:a.start,end:a.end,dates:a.series.map(p=>p.date),forward_start:'2026-10-06',forward_started:false,initial_capital_krw:1e8,excluded_dates:[{date:'2026-09-24',missing_assets:['korea_equity'],reason:'MARKET_CLOSED'},{date:'2026-09-29',missing_assets:['__FX__'],reason:'SOURCE_OBSERVATION_MISSING'}]};
+    const before=JSON.stringify(a);
+    expect(reportChartPoints(a)).toEqual([
+      {date:'2026-09-23',personal:0,benchmark:0,drawdown:0},
+      {date:'2026-09-28',personal:-50,benchmark:0,drawdown:-50},
+      {date:'2026-09-29',personal:null,benchmark:null,drawdown:null},
+      {date:'2026-09-30',personal:0,benchmark:0,drawdown:0}
+    ]);
+    expect(JSON.stringify(a)).toBe(before);
+    // A recorded point always wins over a calendar label.
+    a.replay_context.excluded_dates.push({date:'2026-09-28',missing_assets:[],reason:'MARKET_CLOSED'});
+    expect(reportChartPoints(a).find(p=>p.date==='2026-09-28')?.personal).toBe(-50);
+  });
   it("displays one real valuation as KRW and an index anchor, without zero performance",()=>{
     baseState.report={status:"INSUFFICIENT_HISTORY",observations:1,start:"2026-10-05",end:"2026-10-05",valuation:{date:"2026-10-05",nav_krw:123456,cash_krw:456,index100:100},series:[],assets:[],metrics:{cumulative_return:null},quality:{}};
     render(<DashboardPage/>);

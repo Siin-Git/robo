@@ -38,15 +38,23 @@ export interface ReplayContext {
   forward_start:string;forward_started:boolean;initial_capital_krw:number;
   excluded_dates:{date:string;missing_assets:string[];reason:string;asset_reasons?:Record<string,string>}[];
 }
+// Only a server-confirmed closure without any recorded observation is omitted
+// from the display axis. Unknown gaps remain null; no prices or NAV are created.
+export function observedChartDates(dates:string[],exclusions:ReplayContext["excluded_dates"]|undefined,hasObservation:(date:string)=>boolean) {
+  const closed=new Set(exclusions?.filter(p=>p.reason==="MARKET_CLOSED").map(p=>p.date));
+  return dates.filter(date=>!closed.has(date)||hasObservation(date));
+}
 // Chart alignment only: retain every recorded value and put explicit nulls on
-// comparison dates without an owner valuation. Financial calculations stay server-side.
+// unknown missing dates. Financial calculations stay server-side.
 export function reportChartPoints(report:Report) {
   const observed=new Map(report.series.map(p=>[p.date,p]));
   const replayDates=report.replay_context?Array.from(new Set([
     ...report.series.map(p=>p.date),
     ...report.replay_context.excluded_dates.map(p=>p.date).filter(d=>d>=(report.start??"")&&d<=(report.end??""))
   ])).sort():null;
-  return (report.comparison_window?.dates??replayDates??report.series.map(p=>p.date)).map(date=>{
+  const dates=observedChartDates(report.comparison_window?.dates??replayDates??report.series.map(p=>p.date),
+    report.replay_context?.excluded_dates,date=>observed.has(date)||report.attribution.some(p=>p.date===date));
+  return dates.map(date=>{
     const p=observed.get(date);
     return {date,personal:p?p.personal*100:null,benchmark:p?.benchmark==null?null:p.benchmark*100,drawdown:p?p.drawdown*100:null};
   });

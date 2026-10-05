@@ -19,7 +19,9 @@ export function PerformancePanels({report,mode,selected,onSelect,onMode,styles:s
   const labels=Object.fromEntries(view.series.map(item=>[item.id,item.name]));
   const switchSelected=(id:string)=>onSelect(selected===id?null:id);
   const exclusions=report.replay_context?.excluded_dates.filter(d=>d.date>=(report.start??"")&&d.date<=(report.end??""))??[];
-  const gapNote=exclusions.length?<p className={s.infoNote}>빈 구간: {exclusions.map(d=>`${fmtDate(d.date)} ${d.reason==="MARKET_CLOSED"?"정상 휴장":"수집 자료 누락(원인 미확인)"}`).join(" · ")}. 해당 날짜는 평가하지 않았으며 선을 연결하지 않습니다.</p>:null;
+  const unknown=exclusions.filter(d=>d.reason!=="MARKET_CLOSED");
+  const closed=exclusions.filter(d=>d.reason==="MARKET_CLOSED");
+  const gapNote=exclusions.length?<p className={s.infoNote}>{closed.length>0&&<>휴장일 {closed.map(d=>fmtDate(d.date)).join(" · ")}은 표시축에서 제외해 앞뒤 관측을 연결합니다. </>}{unknown.length>0&&<>수집 자료 누락 {unknown.map(d=>fmtDate(d.date)).join(" · ")}은 선을 끊어 표시합니다.</>} 휴장일 가격·평가 기록을 추가하지 않습니다.</p>:null;
   return <>
     <section className={s.panel} aria-labelledby="performance-chart-heading"><div className={s.sectionHeading}><div><span className={s.eyebrow}>GROWTH OVER TIME</span><h2 id="performance-chart-heading">내 포트폴리오는 어떻게 움직였을까요?</h2></div><span className={s.unit}>누적수익률 %</span></div>
       <div className={s.lineLegend}><span><i style={{background:"#3268df"}}/>내 포트폴리오<strong>{fmtReturn(report.metrics.cumulative_return)}</strong></span><span><i style={{background:"#8896ab"}}/>시스템 기준 CORE<strong>{fmtReturn(report.metrics.benchmark_return)}</strong></span></div>

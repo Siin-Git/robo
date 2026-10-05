@@ -1,4 +1,4 @@
-import type {Report, Period} from "@/app/(app)/dashboard/performance-data";
+import type {Report, Period, ReplayContext} from "@/app/(app)/dashboard/performance-data";
 
 export type LedgerBasis="return"|"excess"|"mdd"|"volatility";
 export interface LedgerPeer {
@@ -11,6 +11,7 @@ export interface LedgerPeer {
   series:{date:string;personal_index100:number|null;core_index100:number|null}[];
 }
 export interface LedgerComparison {
+  replay_context?:ReplayContext|null;
   return_ranked?:number;theme_basis?:string;
   theme_selectors?:LedgerThemeSummary[];
   data_source:"ACCOUNT_LEDGER";data_kind:string;period:Period;basis:LedgerBasis;
