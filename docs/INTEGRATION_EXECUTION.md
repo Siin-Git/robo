@@ -1,5 +1,9 @@
 # 2026-10-03 integration
 
+## 2026-10-05 ledger ranking presentation
+
+The default recorded-ledger comparison now uses the existing demo card/table/chart presentation. Financial figures, missing observations and risk quality gates are preserved. Public period theme IDs/metric averages and independent server return ranks are additive read-only fields. Scope, actual validation, isolated preview and limitations are recorded in [LEDGER_RANKING_PRESENTATION.md](LEDGER_RANKING_PRESENTATION.md). No operation, replay execution, scheduler, merge, push or deployment was performed.
+
 ## 2026-10-04 최신 운영 인수 범위
 
 PR #19/#20의 기능 통합·영속 DB 배포 준비는 develop `250f315`에 병합됐으며 develop/릴리스 후보 `857d2d1`/개인 fork 릴리스 CI가 모두 성공했다. Draft PR #21은 main에 병합하지 않았다. 사용자가 개인 Render 계정의 MinchoLover/robo 비공개 fork 배포를 결정했고 두 브랜치가 같은 커밋으로 복사된 것을 읽기 전용 확인했다. 개인 main은 `b06a6bf`로 보존됐다.
