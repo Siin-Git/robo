@@ -64,7 +64,7 @@ def capture(session, user_id, pid, account, target, selection, preview, reason, 
                     "sampling": frequency, "portfolio_reference": None,
                     "benchmark_reference": selection.selection_id if name == "tracking_error" else "NONE"},
                 "unavailable_reason": None if value is not None else "MODEL_DATA_UNAVAILABLE"}
-    paths = ["outputs/latest/bl_posterior_returns.csv", "config/expected_returns_v0.yaml", "config/forward_v0.yaml", "src/forward/portfolio.py", "src/api/services/portfolio_service.py", "src/risk/covariance.py"]
+    paths = ["outputs/latest/bl_posterior_returns.csv", "config/expected_returns_v0.yaml", "config/forward_v0.yaml", "src/forward/portfolio.py", "src/api/services/portfolio_service.py", "src/risk/covariance.py", "src/api/services/frontier_service.py", "src/api/services/internal_tracking_service.py", "outputs/api/frontier.json"]
     hashes = {p: sha256((C.ROOT/p).read_bytes()).hexdigest() for p in paths if (C.ROOT/p).exists()}
     from . import market_comparison
     if market_comparison.enabled():
@@ -74,6 +74,9 @@ def capture(session, user_id, pid, account, target, selection, preview, reason, 
         from ...db.models import PriceDaily
         px = session.scalars(select(PriceDaily).order_by(PriceDaily.date, PriceDaily.asset_id)).all()
         data_version = {"version": "design_price_store", "sha256": sha256(json.dumps([(str(p.date), p.asset_id, str(p.price), p.source) for p in px]).encode()).hexdigest(), "rows": len(px)}
+    from .internal_tracking_service import snapshot, SNAPSHOT_KEY
+    internal_snapshot = snapshot(session, target.weights_json, selection.weights_json,
+                                 preview["risk_comparison"]["as_of"])
     row = D(decision_id=str(uuid4()), user_id=user_id, participant_id=pid, account_id=account.account_id,
         version=old.version + 1 if old else 1, previous_decision_id=old.decision_id if old else None,
         selection_id=selection.selection_id, target_id=target.target_id, confirmed_at=target.created_at,
@@ -87,6 +90,7 @@ def capture(session, user_id, pid, account, target, selection, preview, reason, 
             "risk_comparison": preview["risk_comparison"], "artifact_sha256": hashes,
             "data_version": data_version, "price_data_as_of": preview["risk_comparison"]["as_of"], "capture": "AT_CONFIRMATION",
             "adjustment_choice_id": adjustment_choice_id, "execution_policy": POLICY,
+            SNAPSHOT_KEY: internal_snapshot,
             **({"rebalance_frequency": rebalance_frequency} if rebalance_frequency else {})})
     for m in row.expectations_json.values():
         m["definition"]["portfolio_reference"] = row.decision_id
@@ -95,11 +99,13 @@ def capture(session, user_id, pid, account, target, selection, preview, reason, 
     return row
 
 def serialize(row):
+    from .internal_tracking_service import SNAPSHOT_KEY
+    public_provenance = {k: v for k, v in (row.provenance_json or {}).items() if k != SNAPSHOT_KEY}
     return {"decision_id": row.decision_id, "version": row.version, "user_id": row.user_id,
         "participant_id": row.participant_id, "account_id": row.account_id, "target_id": row.target_id,
         "selection_id": row.selection_id, "previous_decision_id": row.previous_decision_id,
         "confirmed_at": C.as_aware_utc(row.confirmed_at).isoformat(), "target_effective_date": C.as_date(row.effective_date).isoformat(),
-        "weights": row.weights_json, "expectations": row.expectations_json, "provenance": row.provenance_json, "reason": row.reason}
+        "weights": row.weights_json, "expectations": row.expectations_json, "provenance": public_provenance, "reason": row.reason}
 
 def own(session, user_id, decision_id):
     row = session.scalar(select(D).where(D.decision_id == decision_id, D.user_id == user_id))

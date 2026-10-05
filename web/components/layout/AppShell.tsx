@@ -24,13 +24,15 @@ export function AppShell({
   softBackground?: boolean;
 }) {
   const user = useCurrentUser();
-  const replay = useLocalReplay();
   const pathname = usePathname();
   const router = useRouter();
-  const enrollment = useQuery({queryKey:["experiment-status", user?.user_id],queryFn:()=>get<ExperimentStatus>("/api/v1/me/experiment"),enabled:DEMO_MODE&&!!user});
+  // Internal review requires admin authorization, not a participant portfolio.
+  const adminPage = pathname === "/admin" || pathname.startsWith("/admin/");
+  const replay = useLocalReplay(!adminPage);
+  const enrollment = useQuery({queryKey:["experiment-status", user?.user_id],queryFn:()=>get<ExperimentStatus>("/api/v1/me/experiment"),enabled:DEMO_MODE&&!!user&&!adminPage});
   const needsSetup = enrollment.data?.status === "setup_required";
   // Strategy evidence is read-only and must be available before confirmation.
-  useEffect(()=>{if(needsSetup && !pathname.startsWith("/setup/") && pathname!=="/account" && pathname!=="/strategies" && !(LAB_MEETING_MODE && pathname==="/ranking")) router.replace("/setup/portfolio");},[needsSetup,pathname,router]);
+  useEffect(()=>{if(needsSetup && !adminPage && !pathname.startsWith("/setup/") && pathname!=="/account" && pathname!=="/strategies" && !(LAB_MEETING_MODE && pathname==="/ranking")) router.replace("/setup/portfolio");},[needsSetup,adminPage,pathname,router]);
   const designPage = ["/setup", "/portfolio", "/views"].some(p => pathname === p || pathname.startsWith(p + "/"));
   return (
     <div className="app-shell">
@@ -38,7 +40,7 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader title={headerTitle} right={headerRight} />
         <main className="mx-auto w-full max-w-[1440px] px-[16px] pt-[28px] md:px-[32px]">
-          <Suspense fallback={null}><ReplayNotice/></Suspense>
+          {!adminPage && <Suspense fallback={null}><ReplayNotice/></Suspense>}
           {DEMO_MODE && !replay.data?.enabled && designPage && !needsSetup && !hideDesignNotice && <p className="mb-[20px] rounded-[8px] bg-brand-soft px-[16px] py-[12px] text-[13px] leading-[20px] text-text-secondary">{enrollment.data?.market_comparison ? "포트폴리오를 재구성하고 저장하면 내 구성과 비교 결과가 함께 갱신됩니다. 주간 의견은 별도로 기록됩니다." : "확정된 실험 구성과 이후 자유 설계는 별도로 보관됩니다. 자유 설계·주간 의견의 수정은 과거 비교 성과를 덮어쓰지 않습니다."}</p>}
           {children}
         </main>
