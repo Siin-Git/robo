@@ -69,5 +69,3 @@ def test_no_close_metadata_waits_instead_of_guessing_today_is_final():
     p=ClosedSessionProvider(Source({'KR':bars([100],['2026-10-05'],'Asia/Seoul')}),
                             pd.Timestamp('2026-10-05T08:00Z').to_pydatetime())
     assert p.get_price_history('KR','2026-10-05','2026-10-05').empty
-
-

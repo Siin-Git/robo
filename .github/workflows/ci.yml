@@ -33,7 +33,7 @@ jobs:
           import psycopg
           port = os.environ['PGPORT']
           with psycopg.connect(host='127.0.0.1', port=port, user='robo_test', password='disposable-ci-only', dbname='postgres', autocommit=True) as conn:
-              for name in ('robo_test', 'robo_auth_test', 'robo_design_test'):
+              for name in ('robo_test', 'robo_auth_test', 'robo_design_test', 'cloud_price_test'):
                   conn.execute(f'CREATE DATABASE {name}')
           PY
       - name: All calculation, API, ledger and database tests
@@ -41,6 +41,7 @@ jobs:
           TEST_DATABASE_URL: postgresql+psycopg://robo_test:disposable-ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/robo_test
           TEST_AUTH_DATABASE_URL: postgresql+psycopg://robo_test:disposable-ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/robo_auth_test
           TEST_DESIGN_DATABASE_URL: postgresql+psycopg://robo_test:disposable-ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/robo_design_test
+          PRICE_TEST_DATABASE_URL: postgresql://robo_test:disposable-ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/cloud_price_test
         run: python -m pytest tests --ignore=tests/backup -q
 
   frontend:
