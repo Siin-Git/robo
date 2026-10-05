@@ -545,3 +545,9 @@ The frozen3099 source/data/docs remain unchanged; this section describes3103 onl
 ## 2026-10-05 local 3103 real-price tracking
 
 See [PRICE_TRACKING_AUTOMATION.md](PRICE_TRACKING_AUTOMATION.md). Reused session-date parsing and incremental price conversion; added completed-session filtering, exact observed-date mode and an explicitly local prices-only hourly worker. Existing 3103 admin reports already poll every 15 seconds. No historical replay, trading start, decision, order, NAV, operating Neon or original scheduler changes. Real collector and unique launchd invocation completed with 0 new rows / 0 failures while waiting for observations on or after the decision effective date. Local and durable backup evidence, regression counts and limitations are recorded in the dedicated document.
+
+## Unified personal-repository review — 2026-10-05
+
+User requested one GitHub review for all implemented work. Preserved existing focused commits and merged operating release `efc67649` and local tracking `2ed955d` into the ranking presentation branch. The resulting head updates Draft PR #1, targeting `release/public-operation`; no operating release merge or deployment is included. Operating price-only workflows and backup code are preserved exactly. Root/web Vercel configuration continues to disable deployment of `feat/competition-replay`.
+
+The later user request connects graphs across confirmed holidays. Only empty `MARKET_CLOSED` dates are omitted from chart display; actual observations and unknown missing dates remain. Backend/API figures and risk quality rules are unchanged. Full backend 682 passed with disposable PostgreSQL/restore checks, frontend 86 passed, build/types passed, and six Chrome desktop/mobile flows passed. See [CAPSTONE_UNIFIED_HANDOFF.md](CAPSTONE_UNIFIED_HANDOFF.md) for current verification, source commits, local preview, operational limits and remaining team definitions. Earlier sections retain their original milestone status.

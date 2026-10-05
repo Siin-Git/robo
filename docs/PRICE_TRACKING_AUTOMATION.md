@@ -1,5 +1,7 @@
 # Local internal price tracking — 2026-10-05
 
+> 2026-10-05 통합 상태: 이 기능은 기존 Draft PR #1에 함께 반영한다. 아래는 해당 기능의 최초 작업 기록이며, 현재 통합 검증과 배포 범위는 [CAPSTONE_UNIFIED_HANDOFF.md](CAPSTONE_UNIFIED_HANDOFF.md)를 기준으로 확인한다.
+
 ## Problem and scope
 
 The user requested automatic real-price tracking in the separate 3103 admin environment. That environment had an empty original design price store and a separate frozen historical replay ledger. The cloud daily-forward run 37250327467 was scheduled for 07:30 KST but started at 10:09 KST and failed its Korean intraday guard before collecting anything. The deployed head remained b6add63, not the corrected replay/internal-tracking commits.

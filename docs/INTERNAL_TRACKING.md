@@ -1,5 +1,7 @@
 # 내부 판단·자산 추적 통합 — 2026-10-05
 
+> 2026-10-05 통합 상태: 이 기능은 기존 Draft PR #1에 함께 반영한다. 아래는 해당 기능의 최초 작업 기록이며, 현재 통합 검증과 배포 범위는 [CAPSTONE_UNIFIED_HANDOFF.md](CAPSTONE_UNIFIED_HANDOFF.md)를 기준으로 확인한다.
+
 ## 기준과 재사용한 구현
 
 고정 중간점검 시연은 `/private/tmp/robo-session-dates-20261005`의 `3419ca1479ded66f3dfd513d4b47e3090f94362d`, 프론트 3099이다. 이 작업은 별도 `/private/tmp/robo-internal-tracking-integration-20261005`, 브랜치 `integration/internal-tracking-demo`에서 진행했다. 3099 코드·DB·백업은 수정하지 않았다.
