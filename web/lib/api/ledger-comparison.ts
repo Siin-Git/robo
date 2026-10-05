@@ -2,6 +2,7 @@ import type {Report, Period} from "@/app/(app)/dashboard/performance-data";
 
 export type LedgerBasis="return"|"excess"|"mdd"|"volatility";
 export interface LedgerPeer {
+  themes?:string[];return_rank?:number|null;
   participant_id:string;display_name:string;rank:number|null;reason:string|null;
   metrics:Report["metrics"];observations:number;observed_start:string|null;observed_end:string|null;
   start:string|null;end:string|null;
@@ -10,9 +11,16 @@ export interface LedgerPeer {
   series:{date:string;personal_index100:number|null;core_index100:number|null}[];
 }
 export interface LedgerComparison {
+  return_ranked?:number;theme_basis?:string;
+  theme_selectors?:LedgerThemeSummary[];
   data_source:"ACCOUNT_LEDGER";data_kind:string;period:Period;basis:LedgerBasis;
   status:string;reason:string|null;start:string|null;end:string|null;dates:string[];
   registered:number;ranked:number;items:LedgerPeer[];
+}
+export interface LedgerThemeSummary {
+  theme_id:string;count:number;
+  cumulative_return:number|null;excess_return:number|null;mdd:number|null;
+  measured:{cumulative_return:number;excess_return:number;mdd:number};
 }
 export const ledgerReason=(reason:string|null)=>({
   NO_CONFIRMED_DECISION:"포트폴리오 확정 기록 없음",AWAITING_EFFECTIVE_DATE:"목표 효력일 대기",

@@ -17,6 +17,38 @@ from . import performance_report_service as reports, _common as C
 BASES = {"return": "cumulative_return", "excess": "difference_pp", "mdd": "mdd", "volatility": "volatility"}
 
 
+def assign_ranks(rows, metric, ascending=False, field="rank"):
+    """Reuse full precision and competition ties for every public rank."""
+    ordered = sorted(rows, key=lambda r: (r["metrics"][metric] * (1 if ascending else -1), r["participant_id"]))
+    if len(ordered) < 2:
+        return
+    previous, rank = None, 0
+    for i, row in enumerate(ordered, 1):
+        value = row["metrics"][metric]
+        if previous is None or value != previous:
+            rank = i
+        row[field], previous = rank, value
+
+
+def theme_summary(rows):
+    """Public period exposure IDs and portfolio averages, never holding amounts.
+
+    Membership is the report's observed assets, not a mutable draft/current View.
+    A two-theme portfolio belongs to both groups. Each metric keeps its own
+    measured denominator; MDD remains explicitly an observed estimate.
+    """
+    result = []
+    for tid in sorted({t for row in rows for t in row["themes"]}):
+        members = [row for row in rows if tid in row["themes"]]
+        item = {"theme_id": tid, "count": len(members), "measured": {}}
+        for public, key in (("cumulative_return", "cumulative_return"), ("excess_return", "difference_pp"), ("mdd", "mdd")):
+            values = [r["metrics"][key] for r in members if r["metrics"][key] is not None]
+            item[public] = sum(values) / len(values) if values else None
+            item["measured"][public] = len(values)
+        result.append(item)
+    return result
+
+
 def risk_quality(report):
     """Describe observed estimates separately from justified risk rankings.
 
@@ -115,7 +147,8 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
             row_reason = report["metric_quality"][basis]["reason"]
         points = {p["date"]: p for p in report["series"]} if report else {}
         rows.append({"participant_id": pid, "display_name": person.display_name,
-            "rank": None, "reason": row_reason, "metrics": metrics,
+            "rank": None, "return_rank": None, "reason": row_reason, "metrics": metrics,
+            "themes": sorted({a["asset_id"][6:] for a in report["assets"] if a["asset_id"].startswith("theme:")}) if report else [],
             "observations": report["observations"] if report else individual[pid]["observations"],
             "observed_start": individual[pid]["start"], "observed_end": individual[pid]["end"],
             "quality": report["quality"] if report else individual[pid]["quality"],
@@ -126,14 +159,11 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
                        for d in dates] if report and report["observations"] >= 2 else []})
     ranked = sorted([r for r in rows if r["reason"] is None and r["metrics"][BASES[basis]] is not None],
         key=lambda r: (r["metrics"][BASES[basis]] * (1 if basis == "volatility" else -1), r["participant_id"]))
-    previous, rank = None, 0
+    return_rows = [r for r in rows if r["metrics"]["cumulative_return"] is not None]
+    assign_ranks(return_rows, "cumulative_return", field="return_rank")
     # A metric available for just one participant does not make a comparison.
     if len(ranked) >= 2:
-        for i, row in enumerate(ranked, 1):
-            value = row["metrics"][BASES[basis]]
-            if previous is None or value != previous:
-                rank = i
-            row["rank"], previous = rank, value
+        assign_ranks(ranked, BASES[basis], ascending=basis == "volatility")
     elif reason is None:
         reason = "INSUFFICIENT_COMPARABLE_METRIC"
         for row in ranked:
@@ -143,6 +173,8 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
         "period": period, "basis": basis, "status": "AVAILABLE" if reason is None else "UNAVAILABLE",
         "reason": reason, "start": endpoints[0] if endpoints else None, "end": endpoints[-1] if endpoints else None,
         "dates": dates, "registered": len(rows), "ranked": sum(r["rank"] is not None for r in rows),
+        "return_ranked": sum(r["return_rank"] is not None for r in rows),
+        "theme_selectors": theme_summary(rows), "theme_basis": "OBSERVED_PERIOD_ASSETS",
         "items": sorted(rows, key=lambda r: (r["rank"] is None, r["rank"] or 0, r["participant_id"])),
         "own_report": bounded.get(own_pid) if reason is None else None,
         "units": {"returns": "fraction", "series": "index100", "volatility": "fraction_per_year"},
