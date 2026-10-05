@@ -1,0 +1,12 @@
+{
+  "scope": "Explicit audit of 2026-09-16 through 2026-10-02; not a general exchange calendar",
+  "closed_assets": {
+    "2026-09-24": ["korea_equity", "korea_treasury"],
+    "2026-09-25": ["korea_equity", "korea_treasury"]
+  },
+  "sources": [
+    "https://open.krx.co.kr/contents/MKD/01/0110/01100305/MKD01100305.jsp",
+    "https://trn.krx.co.kr/index.jsp (2026-09-21 Chuseok notice: 09/24-09/27)",
+    "https://www.nyse.com/publicdocs/nyse/ICE_NYSE_2026_Yearly_Trading_Calendar.pdf"
+  ]
+}

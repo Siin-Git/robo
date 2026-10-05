@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 
 from ..authz import get_current_user
 from ..dependencies import get_db
+from ..performance_workspace import get_performance_db
 from ..design_workspace import get_design_db, require_design_csrf
 from ..errors import ApiError
 from ..schemas.view import ViewSubmit
@@ -16,6 +17,13 @@ from ..services import portfolio_service as pf
 from ..services import view_service as views
 
 router = APIRouter(prefix="/me", tags=["me"])
+
+
+@router.get("/performance/replay", summary="Local-only counterfactual run provenance and completion")
+def me_replay(db=Depends(get_performance_db), user=Depends(get_current_user)):
+    import os
+    from ...forward.replay import read_metadata
+    return {"enabled": bool(os.environ.get("COMPETITION_REPLAY_DIR")), "replay_context": read_metadata(db)}
 
 
 @router.get("/comparison", summary="Own demo comparison snapshot")
@@ -49,7 +57,10 @@ def me_summary(db=Depends(get_design_db), user=Depends(get_current_user)):
     from sqlalchemy import select
     account = db.scalar(select(Account).where(Account.participant_id == _pid(user), Account.account_type == 'personal'))
     decision = latest(db, account.account_id) if account else None
-    result['rebalance_frequency'] = decision.provenance_json.get('rebalance_frequency') if decision else None
+    recorded = decision.provenance_json.get('rebalance_frequency') if decision else None
+    from ..services import _common as C
+    result['rebalance_frequency'] = recorded or (C.load_forward_cfg()['forward_test']['core_rebalance']['frequency'] if decision else None)
+    result['rebalance_frequency_source'] = 'CONFIRMED_SELECTION' if recorded else 'LEGACY_DEFAULT' if decision else 'UNCONFIRMED'
     return result
 
 
@@ -93,7 +104,7 @@ def me_nav(db=Depends(get_design_db), user=Depends(get_current_user)):
 @router.get("/performance/dashboard", summary="Period-aligned performance and asset contribution")
 def me_performance_dashboard(period: str = Query(default="ALL"),
                              comparison: str = Query(default="individual"),
-                             db=Depends(get_design_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
+                             db=Depends(get_performance_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
     if comparison not in ("individual", "common"):
         raise ApiError("INVALID_COMPARISON", "comparison must be individual or common", 400)
     if comparison == "common":
@@ -109,7 +120,7 @@ def me_performance_dashboard(period: str = Query(default="ALL"),
 
 @router.get("/performance/comparison", summary="Public common-period recorded-ledger rankings and index100 graphs")
 def me_ledger_comparison(period: str = Query(default="ALL"), basis: str = Query(default="return"),
-                         db=Depends(get_design_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
+                         db=Depends(get_performance_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
     from ..services.ledger_comparison_service import overview
     result = overview(auth_db, db, period, basis)
     result.pop("own_report")
@@ -119,7 +130,7 @@ def me_ledger_comparison(period: str = Query(default="ALL"), basis: str = Query(
 @router.get("/performance/contributions", summary="Own cumulative asset return contributions")
 def me_performance_contributions(period: str = Query(default="ALL"),
                                  comparison: str = Query(default="individual"),
-                                 db=Depends(get_design_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
+                                 db=Depends(get_performance_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
     if comparison not in ("individual", "common"):
         raise ApiError("INVALID_COMPARISON", "comparison must be individual or common", 400)
     report = None
@@ -132,27 +143,27 @@ def me_performance_contributions(period: str = Query(default="ALL"),
 @router.get("/performance/ledger", summary="Own persisted ledger for performance calculations")
 def me_performance_ledger(start: str | None = Query(default=None),
                           end: str | None = Query(default=None),
-                          db=Depends(get_design_db), user=Depends(get_current_user)):
+                          db=Depends(get_performance_db), user=Depends(get_current_user)):
     return ledger_reads.ledger(db, _pid(user), start, end)
 
 
 @router.get("/performance/active", summary="Own active returns")
-def me_active(db=Depends(get_design_db), user=Depends(get_current_user)):
+def me_active(db=Depends(get_performance_db), user=Depends(get_current_user)):
     return perf.active_returns(db, _pid(user))
 
 
 @router.get("/performance/attribution", summary="Own attribution")
-def me_attribution(db=Depends(get_design_db), user=Depends(get_current_user)):
+def me_attribution(db=Depends(get_performance_db), user=Depends(get_current_user)):
     return perf.attribution(db, _pid(user))
 
 
 @router.get("/ledger/status", summary="Own forward-ledger status (freshness, coverage)")
-def me_ledger_status(db=Depends(get_design_db), user=Depends(get_current_user)):
+def me_ledger_status(db=Depends(get_performance_db), user=Depends(get_current_user)):
     return ledger.status(db, _pid(user))
 
 
 @router.get("/alerts", summary="Own alerts (orders, executions, rebalance, data issues)")
 def me_alerts(limit: int = Query(default=50, ge=1, le=200),
               offset: int = Query(default=0, ge=0),
-              db=Depends(get_design_db), user=Depends(get_current_user)):
+              db=Depends(get_performance_db), user=Depends(get_current_user)):
     return ledger.alerts(db, _pid(user), limit, offset)

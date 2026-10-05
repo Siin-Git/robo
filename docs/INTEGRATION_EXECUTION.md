@@ -1,5 +1,9 @@
 # 2026-10-03 integration
 
+## 2026-10-05 ledger ranking presentation
+
+The default recorded-ledger comparison now uses the existing demo card/table/chart presentation. Financial figures, missing observations and risk quality gates are preserved. Public period theme IDs/metric averages and independent server return ranks are additive read-only fields. Scope, actual validation, isolated preview and limitations are recorded in [LEDGER_RANKING_PRESENTATION.md](LEDGER_RANKING_PRESENTATION.md). No operation, replay execution, scheduler, merge, push or deployment was performed.
+
 ## 2026-10-04 최신 운영 인수 범위
 
 PR #19/#20의 기능 통합·영속 DB 배포 준비는 develop `250f315`에 병합됐으며 develop/릴리스 후보 `857d2d1`/개인 fork 릴리스 CI가 모두 성공했다. Draft PR #21은 main에 병합하지 않았다. 사용자가 개인 Render 계정의 MinchoLover/robo 비공개 fork 배포를 결정했고 두 브랜치가 같은 커밋으로 복사된 것을 읽기 전용 확인했다. 개인 main은 `b06a6bf`로 보존됐다.
@@ -426,3 +430,124 @@ PR #18 이후 develop `cb5c778`에서 `feat/ledger-performance-ranking` 전용 w
 사용자 지정 기준 09e92ad에서 별도 feat/strategy-comparison worktree로 작업하고, 해당 검증 커밋을 포함한 최신 develop 250f315 위로 정리했다. 제공 네 파일은 참고 자료로 읽어 연구 조회에만 등록했다. 주도주 변형/신호 시점, 수출 과거 모델/미래 Active를 구분하며 모델 지수를 거래 가격이나 실제 원장에 넣지 않는다. 예상/실제는 동일한 저장 정의에서만 차이를 계산하고, 미합의 시장/안전자산은 후보와 승인 정의 연결 경로만 제공한다.
 
 [STRATEGY_COMPARISON_HANDOFF.md](STRATEGY_COMPARISON_HANDOFF.md)에 자료 근거/미결정 질문/변경 파일/검사/시연과 수요일 작업을 기록한다. 이 세션은 사용자 추가 조건에 따라 기능 커밋/작업 브랜치 푸시/develop Draft PR까지만 담당한다. develop/main 병합·실제 배포·Render/Vercel/운영 DB/공유 secret/배포 workflow 변경은 수행하지 않는다. 3073과 기존 실제 DB/예약 실행은 보존하며 검사는 임시 DB/3091·8091/별도 빌드에서 수행한다.
+
+## 2026-10-04: 15명 공동 시작 제어만 구현
+
+최신 원격 `release/public-operation`의 `b6add63`을 기준으로 별도
+`.work/competition-start`, `feat/shared-competition-start`를 만들었다.
+기존 체크아웃/미커밋 변경, 실제 3073 앱/계정/운용 DB/예약 실행은 보존했다.
+
+기존 인증 `DemoCohort`/`DemoSlot`과 운용의 불변 판단으로 전원 READY를 확인하고,
+운용 `forward_state`의 `competition_start`·개별 참가자/최초 판단 참조·기존
+`forward_test_inception_at`에 미래 한국 날짜 T0를 한 번만 저장한다. 신규 테이블이나
+마이그레이션 없이 기존 값 길이 제약을 지킨다. 실제 한국 시각이 T0에 도달하기 전에는
+프로필 local에서도 최초 주문/체결/holdings/NAV를 차단한다. 일간 및 직접 엔진 호출,
+주간/월간 경로에 같은 조건을 적용한다. 기존 financial 엔진·비용·초기 금액·밴드는 유지한다.
+
+기존 pending은 삭제/날짜 덮어쓰기 없이 보존하며 T0 이후 가격만 체결에 사용한다.
+호환되는 최초 pending은 재사용하고 충돌 주문/기존 운용 기록/초기 자금 불일치는
+T0 예약을 거부한다. 예약 시점 판단을 최초 구성으로 유지하고 후속 버전도 보존한다.
+대기 job은 기존 skipped 이력으로 남겨 같은 날짜 재시도가 가능하며 실행 잠금·성공
+job의 중복 방지는 그대로다. T0 도달 후 이전 날짜 가격만 있으면 정상 평가 대기다.
+
+최종 Python 3.11.15 전체 백엔드(CI의 `tests --ignore=tests/backup`) **569 passed /
+0 failed / 0 skipped**, 폐기용 PostgreSQL 18과 SQLite 포함. 새 공동 시작 검사 24개는
+2명/15명 전원 흐름, T0 전/후, 기존 pending, 직접 호출, 동일 Actions 환경과 실제
+daily CLI(강제 실행 없음), 늦은 종가, 반복 실행/재연결, 충돌·인증 실패·명단 변경,
+불변 판단/재설계·기존 이후 주문 규칙을 검증했다. 기존 15명 실제 API 확정/조회/
+재시작 테스트도 수정 후 통과했다. 프론트 **71 passed (16 files)** 및 production
+build/타입 검사 통과. UI 변경은 없고 이번에는 추가 브라우저 검사를 수행하지 않았다.
+
+Actions workflow/secret/스케줄러는 변경하지 않았고 운영 DB에 T0를 예약하지 않았다.
+실제 runner와 실제 공동 체결은 운영 미검증이다. 기본 실행 브랜치에 코드 반영,
+실제 15명 READY/동일 초기 자금/충돌 pending 확인, 미래 T0 합의·예약이 남았다.
+원격 push/merge/deploy, history backfill, TIPS·랭킹·기여도·±10%p·알림·백업 PR #12와
+다음 기능은 진행하지 않는다. 상세 명령/차단 위치/적용 한계는
+[SHARED_COMPETITION_START.md](SHARED_COMPETITION_START.md)에 기록했다.
+
+## 2026-10-04: 별도 로컬 15명 가격 재생과 시연
+
+개인 저장소 `MinchoLover/robo`의 release `b6add63`와 공동 시작 `dff6a58`을 기준으로
+`.work/competition-replay`/`feat/competition-replay`에서 진행했다. 팀 develop `250f315`와
+개인 배포 브랜치를 혼동하지 않았다. 기존 원장 성과·기여도·랭킹/전략 자료 조회를 재사용했다.
+
+새 시연 15명을 기존 최종 확정 API로 준비하고 원본 판단 날짜를 유지한 채 별도 SQLite
+실행 UUID와 manifest/상태/잠금/체크포인트로 기존 주문·체결·평가 엔진을 과거에 적용했다.
+외부 가격은 Yahoo 원본이며 최근 완전한 공통 관측일 10개(9/16–10/2, 연속 거래일 아님)를
+사용했다. 원본 결측을 채우지 않았고 30계좌의 주문/체결268건·보유평가2,680건·NAV300건을
+생성했다. 개인/기여도/CORE/랭킹의 동일 기간 수치와 회계 정합성을 확인했다.
+
+실제 판단/Revision/3·6개월 조회는 원본 설계 DB, 재생 성과 조회만 읽기 전용 별도 원장이다.
+소급 체결/공동 시작 차단은 전역 해제하지 않았다. 일반 daily는 replay DB에서 차단된다.
+반복/준비 및 체결 직후 중단·재개/부분 완료 랭킹 차단/manifest 보호를 검증했다.
+별도 복사본의 미래 일간 연결에서 초기 주문 증가 없이 NAV30건을 추가했고 동일 날짜 중복은
+없었다. 이 결과는 격리 fixture 검사이며 운영 시작이나 미래 실가격 관측이 아니다.
+
+백엔드 최종 576 passed(폐기용 PostgreSQL18+SQLite, skip0), 프론트74 passed 및 빌드/타입 검사,
+대표03 실제 브라우저 데스크톱/390px 모바일 2 passed. 새로고침·재로그인·15/15 유지·결측선
+끊김·위험 순위 보류·판단 원본 조회를 확인했다. 3097/8097 시연 서버를 같은 DB로 재시작해
+기록 유지도 확인했다. 기존3073/8073·운영DB·자동운용 예약은 보존한다.
+
+읽기 전용 Actions37208198285에서 실제 Actions 대상의 계정15/설계 확정사용자1·판단3버전,
+체결·평가0을 확인했다. Render의 대상 일치와 전체 READY는 별도 상태이며 로컬15/15로
+대신하지 않는다. 추가 read-only Actions37211864102에서 공동 gate 기준 READY1/15·T0 null을
+확인했다. 주도주/수출 구성 snapshot은 기존 연구 자료, ETF/자산별 실제 가격·보유
+추적과 구분한다. 내부 기업 후속 추적은 확인되지 않아 중복 개발하지 않았다.
+
+명령·5분 시연·교수님 요구사항 대조·캡처·한계는
+[LOCAL_COMPETITION_REPLAY.md](LOCAL_COMPETITION_REPLAY.md)에 기록했다.
+푸시와 Draft PR은 사용자 승인 범위이며 병합/배포/운영bootstrap/T0예약/PR12수정은 하지 않는다.
+
+
+## Dashboard disclosure UI (2026-10-05)
+
+See [DASHBOARD_DETAILS_UI.md](DASHBOARD_DETAILS_UI.md) for the isolated frontend changes, preview, and validation. Frontend 74 tests passed; final production build and desktop/mobile browser validation passed. Financial logic and backend were not changed.
+## Yahoo daily session-date correction (2026-10-05)
+
+Continued the existing Draft PR in an isolated worktree; reused UI cc9bfe8 via
+cherry-pick 02cf3eb. Corrected IANA exchange-session labels and first-query boundary
+coverage, preserved the original demo/configuration and rebuilt a new real-price
+ledger for the identical 9/16–10/2 period (11 observations). No finance engine,
+order timestamp, operating DB/T0/scheduler or backup workflow was replaced.
+589 backend and 75 frontend tests pass; build and two Chrome viewport flows pass.
+See [YAHOO_SESSION_DATE_FIX.md](YAHOO_SESSION_DATE_FIX.md) for before/after numbers,
+requested independent audits, professor requirement limits and operational recovery.
+
+
+## Midterm demo freeze — 2026-10-05
+
+3099 is the sole demonstration baseline: code41b4bdd, same9/16–10/2 period,11observations,15/15complete, P003+0.21127061%/CORE+0.18845140%,rank11. Replaced earlier3097 instructions in LOCAL_COMPETITION_REPLAY.md and marked historical UI-only figures. No app/financial/API change. Private consistent SQLite/code backup and disposable restore validation are recorded in <workspace>/.work/demo-backups/midterm-3099-20261005/freeze.json. The revised5-minute flow and requested independent professor requirement audit distinguish stored selected Frontier point from full historical curve and user Revision from unimplemented internal administrator Revision. Operating scheduler/T0/deployment remain separate and unchanged.
+
+## Separate internal-tracking integration — 2026-10-05
+
+The later user-supplied worktree proves that full Frontier-coordinate capture and
+administrator review already exist on `feat/decision-asset-tracking` at
+`6cd16d8`, `e8298c8`, `4aca339`; they were absent from the frozen3099 branch.
+Read the provided professor transcript and reused that implementation on
+`integration/internal-tracking-demo`, based on `3419ca1`, instead of creating it
+again. The isolated3103 environment preserves all15 demo participants and reads
+actual decision observations from the original design DB, excluding the separate
+past-price replay. New confirmation captures50 Frontier coordinates; legacy
+missing values remain missing. Administrator notes are permission/CSRF protected,
+idempotent and do not change targets/orders; customer APIs exclude those records.
+
+Final local CI-range backend:599passed/0failed/0skipped, including disposable
+PostgreSQL18.6 UTF-8 split-DB/concurrency tests; frontend81passed/19files and
+production build/lint/types pass. Chrome1440/390px: existing replay2passed and
+internal tracking2passed. New financial thresholds/drift-alert changes from the
+old source were deliberately excluded. No new migration, scheduler, operating
+data/T0 rewrite, remote push/merge/deployment or PR12 change.
+See [INTERNAL_TRACKING.md](INTERNAL_TRACKING.md) for exact source boundaries,
+professor requirements, local accounts/data, restart commands and remaining limits.
+The frozen3099 source/data/docs remain unchanged; this section describes3103 only.
+
+
+## 2026-10-05 local 3103 real-price tracking
+
+See [PRICE_TRACKING_AUTOMATION.md](PRICE_TRACKING_AUTOMATION.md). Reused session-date parsing and incremental price conversion; added completed-session filtering, exact observed-date mode and an explicitly local prices-only hourly worker. Existing 3103 admin reports already poll every 15 seconds. No historical replay, trading start, decision, order, NAV, operating Neon or original scheduler changes. Real collector and unique launchd invocation completed with 0 new rows / 0 failures while waiting for observations on or after the decision effective date. Local and durable backup evidence, regression counts and limitations are recorded in the dedicated document.
+
+## Unified personal-repository review — 2026-10-05
+
+User requested one GitHub review for all implemented work. Preserved existing focused commits and merged operating release `efc67649` and local tracking `2ed955d` into the ranking presentation branch. The resulting head updates Draft PR #1, targeting `release/public-operation`; no operating release merge or deployment is included. Operating price-only workflows and backup code are preserved exactly. Root/web Vercel configuration continues to disable deployment of `feat/competition-replay`.
+
+The later user request connects graphs across confirmed holidays. Only empty `MARKET_CLOSED` dates are omitted from chart display; actual observations and unknown missing dates remain. Backend/API figures and risk quality rules are unchanged. Full backend 682 passed with disposable PostgreSQL/restore checks, frontend 86 passed, build/types passed, and six Chrome desktop/mobile flows passed. See [CAPSTONE_UNIFIED_HANDOFF.md](CAPSTONE_UNIFIED_HANDOFF.md) for current verification, source commits, local preview, operational limits and remaining team definitions. Earlier sections retain their original milestone status.

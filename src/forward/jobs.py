@@ -170,6 +170,19 @@ def complete_job(db_url: str | None, job_id: str, stats: dict | None = None,
             status="success", completed_at=_now(), stats_json=dict(stats or {})))
 
 
+def wait_job(db_url: str | None, job_id: str, stats: dict, sqlite_path=None) -> None:
+    """Expected start-gate wait, retryable in the same scheduling slot.
+
+    Reuse the existing skipped status. Unlike successful financial work this
+    must not permanently consume the date; the original attempt is retained.
+    """
+    engine = _engine_for(db_url, sqlite_path)
+    with engine.begin() as conn:
+        table = _table()
+        conn.execute(update(table).where(table.c.job_id == job_id).values(
+            status="skipped", completed_at=_now(), stats_json=dict(stats)))
+
+
 def fail_job(db_url: str | None, job_id: str, error: str, sqlite_path=None) -> None:
     engine = _engine_for(db_url, sqlite_path)
     table = _table()

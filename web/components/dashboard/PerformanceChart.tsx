@@ -34,6 +34,8 @@ export function PerformanceChart({
   curve = "monotone",
   connectNulls = true,
   showPoints = false,
+  framed = true,
+  showLegend = true,
 }: {
   data: Record<string, number | string | null>[];
   series: Series[];
@@ -43,9 +45,11 @@ export function PerformanceChart({
   curve?: "monotone" | "linear";
   connectNulls?: boolean;
   showPoints?: boolean;
+  framed?: boolean;
+  showLegend?: boolean;
 }) {
   return (
-    <div className="border border-border bg-white p-[20px]">
+    <div className={framed ? "border border-border bg-white p-[20px]" : ""}>
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
@@ -66,7 +70,7 @@ export function PerformanceChart({
               formatter={(value, name) => [yFormat(Number(value)), name]}
               labelFormatter={(d) => fmtDate(String(d))}
             />
-            <Legend verticalAlign="top" height={28} />
+            {showLegend && <Legend verticalAlign="top" height={28} />}
             {series.map((s) => (
               <Line
                 key={s.key}

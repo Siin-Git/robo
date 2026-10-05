@@ -20,6 +20,7 @@ from src.forward.frozen import load_frozen_benchmark
 from src.forward.ledger import nav_series, valuate
 from src.forward.portfolio import build_personalized
 from src.forward.prices import price_series
+from src.forward.competition import guarded_batch
 from src.forward.risk import build_cov_asof
 
 
@@ -42,7 +43,13 @@ def latch_first_execution(con, model_version: str) -> str | None:
     from src.forward.state import get_state as _gs, set_state_once as _ss
     from src.forward.db import log_event as _le
     if _gs(con, "first_execution_at") is None:
-        gfirst = con.execute("SELECT MIN(execution_at) m FROM trades").fetchone()["m"]
+        from .replay import connection_directory
+        if connection_directory(con):
+            floor = _gs(con, "forward_test_inception_at")
+            gfirst = con.execute("SELECT MIN(execution_at) m FROM trades WHERE execution_at>=?",
+                                 (floor[:10],)).fetchone()["m"] if floor else None
+        else:
+            gfirst = con.execute("SELECT MIN(execution_at) m FROM trades").fetchone()["m"]
         if gfirst is not None:
             _ss(con, "first_execution_at", gfirst)
             _le(con, "FIRST_EXECUTION_RECORDED", model_version,
@@ -152,6 +159,12 @@ def refresh_payload(con, rep: dict, stale_days: int) -> dict:
 
 def _dry_run_daily(con, cfg, today) -> int:
     """Read-only plan: zero writes, zero job records."""
+    from .competition import policy
+    competition = policy(con)
+    import json
+    print("Competition read-only readiness: " + json.dumps({
+        key: competition.get(key) for key in
+        ("managed", "status", "reason", "ready", "required", "start_date")}))
     ft = cfg["forward_test"]
     n_assets = con.execute("SELECT COUNT(DISTINCT asset_id) c FROM prices_daily").fetchone()["c"]
     stale_assets = [r["asset_id"] for r in con.execute(
@@ -166,7 +179,12 @@ def _dry_run_daily(con, cfg, today) -> int:
     return 0
 
 
+@guarded_batch
 def _execute_daily(con, cfg, today):
+    from src.forward.competition import policy
+    current = policy(con)
+    if current.get("reason") == "REPLAY_SCOPED_EXECUTION_REQUIRED":
+        return 0, {"status": "COMPETITION_WAIT", "reason": current["reason"], "valuated": 0}
     from src.forward.prices import refresh_live
     ft = cfg["forward_test"]
     frozen_w, frozen_meta = load_frozen_benchmark(resolve(cfg["frozen_dir"]))
@@ -189,9 +207,24 @@ def _execute_daily(con, cfg, today):
     if price_report["stale_assets"]:
         print(f"WARNING: stale prices ({stale_days}d+): {price_report['stale_assets']}")
 
+    from src.forward.competition import policy, initial_decision
+    competition = policy(con)
+    if competition["managed"] and competition["blocked"]:
+        pending = con.execute("SELECT COUNT(*) c FROM orders WHERE status='pending'").fetchone()["c"]
+        print(f"Competition waiting: {competition.get('reason')}; "
+              f"READY {competition.get('ready', 0)}/{competition.get('required', 0)}; no orders, fills or NAV.")
+        return 0, {"status": "COMPETITION_WAIT", "reason": competition.get("reason"),
+            "ready": competition.get("ready", 0), "required": competition.get("required", 0),
+            "start_date": competition.get("start_date"), "asof": asof,
+            "new_points": price_report["new_points"], "pending": pending, "valuated": 0,
+            "fetch_failed": price_report["fetch_failed"], "stale_assets": price_report["stale_assets"]}
+
     from src.forward.decision_policy import awaiting_confirmation, latest_decision, weights as decision_weights
     accounts = [dict(r) for r in con.execute("SELECT * FROM accounts WHERE status='active'").fetchall()]
     accounts = [a for a in accounts if not awaiting_confirmation(con, a)]
+    if competition["managed"]:
+        enrolled = {a for m in competition["schedule"]["members"] for a in m["account_ids"]}
+        accounts = [a for a in accounts if a["account_id"] in enrolled]
     # Initial orders for accounts that hold targets but never traded: submitted
     # now, effective today -> first execution at then-available prices (never retroactive).
     # Blocked entirely while live pre-launch (inception NULL).
@@ -205,6 +238,9 @@ def _execute_daily(con, cfg, today):
         for a in accounts:
             con.execute("UPDATE accounts SET status=status WHERE account_id=?", (a["account_id"],))
             decision = latest_decision(con, a["account_id"])
+            if competition["managed"] and not con.execute(
+                    "SELECT 1 FROM trades WHERE account_id=? LIMIT 1", (a["account_id"],)).fetchone():
+                decision = initial_decision(con, a["account_id"]) or decision
             if decision:
                 if str(decision["effective_date"])[:10] > asof:
                     con.commit()
@@ -231,11 +267,15 @@ def _execute_daily(con, cfg, today):
                 continue
             from src.forward.execution import create_orders as _co
             floor = today
+            if competition["managed"]:
+                floor = max(floor, competition["start_date"])
             if a["participant_id"]:
                 pa = con.execute("SELECT account_id FROM accounts WHERE participant_id=? AND account_type='personal'", (a["participant_id"],)).fetchone()
                 pd = latest_decision(con, pa["account_id"]) if pa else None
+                if competition["managed"] and pa:
+                    pd = initial_decision(con, pa["account_id"]) or pd
                 if pd:
-                    floor = max(today, str(pd["effective_date"])[:10])
+                    floor = max(floor, str(pd["effective_date"])[:10])
             _co(con, a["account_id"], _json.loads(t["weights_json"]), now_iso(), floor,
                 ft["benchmark_version"], a["participant_id"], kind="INITIAL_BENCHMARK_ORDER")
             log_event(con, "INITIAL_BENCHMARK_ORDER_CREATED", ft["benchmark_version"],
@@ -266,7 +306,9 @@ def _execute_daily(con, cfg, today):
     # ---- guardrails ----
     fails, partials = [], []
     for aid, r in results.items():
-        if r["status"] == "NAV_INCOMPLETE" and r.get("reason") == "no executions yet":
+        if r["status"] == "NAV_INCOMPLETE" and r.get("reason") == "competition not started for this valuation":
+            partials.append(f"{aid}: awaiting prices on/after competition T0 (no NAV yet)")
+        elif r["status"] == "NAV_INCOMPLETE" and r.get("reason") == "no executions yet":
             partials.append(f"{aid}: awaiting first execution (no NAV yet)")
         elif r["status"] == "NAV_INCOMPLETE":
             fails.append(f"{aid}: {r.get('reason', r.get('missing', 'nav incomplete'))}")

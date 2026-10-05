@@ -75,7 +75,7 @@ export function PortfolioRace({data,participantId}:{data:Analytics;participantId
   </section>;
 }
 
-export function ThemeComparison({data}:{data:Analytics}) {
+export function ThemeComparison({data,ledger=false}:{data:{comparable:number;theme_selectors:{theme_id:string;count:number;cumulative_return:number|null;excess_return:number|null;mdd:number|null;measured?:Record<string,number>}[]};ledger?:boolean}) {
   const [sort, setSort] = useState("count");
   const rows = [...data.theme_selectors].sort((a, b) => {
     const field = sort === "return" ? "cumulative_return" : sort === "excess" ? "excess_return" : sort === "mdd" ? "mdd" : "count";
@@ -85,19 +85,19 @@ export function ThemeComparison({data}:{data:Analytics}) {
   const metrics = [
     { key: "cumulative_return", label: "평균 수익률", format: fmtReturn },
     { key: "excess_return", label: "평균 기준 대비", format: fmtActivePp },
-    { key: "mdd", label: "평균 최대낙폭", format: fmtPct },
+    { key: "mdd", label: ledger ? "평균 관측 최대낙폭" : "평균 최대낙폭", format: fmtPct },
   ] as const;
   return <section className="analytics-panel" aria-label="Theme 선택자 비교">
-    <div className="theme-count-header"><div><h2>테마별 선택과 성과</h2><p className="caption">선택 인원과 테마별 참여자들의 평균 성과를 비교하세요.</p></div>
+    <div className="theme-count-header"><div><h2>{ledger ? "편입 테마별 성과" : "테마별 선택과 성과"}</h2><p className="caption">{ledger ? "같은 기간에 해당 테마를 보유한 참여자들의 포트폴리오 평균입니다." : "선택 인원과 테마별 참여자들의 평균 성과를 비교하세요."}</p></div>
       <label>정렬 기준<select className="input" value={sort} onChange={e => setSort(e.target.value)}>
         <option value="count">많이 선택한 순</option><option value="return">평균 수익률 높은 순</option><option value="excess">기준 대비 수익률 높은 순</option><option value="mdd">최대낙폭 작은 순</option>
       </select></label>
     </div>
-    <div className="theme-count-scroll">
+    <div className="theme-count-scroll" tabIndex={0} aria-label="좌우로 이동 가능한 테마 성과 표">
       <table className="theme-count-table"><caption className="sr-only">테마별 선택 인원과 포트폴리오 평균 성과 막대그래프</caption>
         <thead><tr><th scope="col">테마</th>{rows.map(t=><th scope="col" key={t.theme_id}>{themeLabel(t.theme_id)}</th>)}</tr></thead>
         <tbody>
-          <tr className="theme-selection-count"><th scope="row">선택 인원</th>{rows.map(t=><td key={t.theme_id}><strong>{t.count}</strong><small>명</small></td>)}</tr>
+          <tr className="theme-selection-count"><th scope="row">{ledger ? "편입 인원" : "선택 인원"}</th>{rows.map(t=><td key={t.theme_id}><strong>{t.count}</strong><small>명</small></td>)}</tr>
           {metrics.map(metric => {
             const values = rows.map(t => t[metric.key]).filter((v): v is number => v != null && Number.isFinite(v));
             const low = Math.min(0, ...values), high = Math.max(0, ...values);
@@ -116,6 +116,7 @@ export function ThemeComparison({data}:{data:Analytics}) {
                     {valid && <span className="theme-metric-bar" data-negative={value < 0} data-risk={metric.key === "mdd"} style={{top:`${top}%`,height:`${height}%`}}/>}
                   </div>
                   <strong className="theme-metric-value">{metric.format(value)}</strong>
+                  {ledger && <small className="caption" style={{display:"block"}}>관측 {t.measured?.[metric.key] ?? 0}명</small>}
                 </td>;
               })}
             </tr>;
@@ -123,7 +124,7 @@ export function ThemeComparison({data}:{data:Analytics}) {
         </tbody>
       </table>
     </div>
-    <p className="caption">같은 행의 막대끼리 비교하세요. 행마다 눈금이 다르며 가로선은 0입니다. 테마 자체 수익률이 아닌 선택자들의 포트폴리오 평균입니다. 두 테마 선택자는 양쪽에 포함됩니다. · {data.comparable}명 기준</p>
+    <p className="caption">같은 행의 막대끼리 비교하세요. 행마다 눈금이 다르며 가로선은 0입니다. 테마 자체 수익률이 아닌 {ledger ? "기간 내 편입자" : "선택자"}들의 포트폴리오 평균입니다. 두 테마 {ledger ? "편입자" : "선택자"}는 양쪽에 포함됩니다. · {data.comparable}명 기준{ledger && " · 최대낙폭은 관측값이며 위험 순위를 뜻하지 않습니다."}</p>
   </section>;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader, SectionHeader } from "@/components/layout/AppHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/ui";
@@ -48,6 +49,7 @@ export default function AdminPage() {
   return (
     <AppShell headerTitle="Admin">
       <PageHeader title="Admin" description="Operational overview. Admin role only." />
+      <p><Link href="/admin/tracking">내부 판단 추적 · 자산별 관측과 revision 검토</Link></p>
       <div className="flex flex-col gap-[32px]">
         <section>
           <SectionHeader title="System Status" />

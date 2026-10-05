@@ -1,7 +1,8 @@
-import type {Report, Period} from "@/app/(app)/dashboard/performance-data";
+import type {Report, Period, ReplayContext} from "@/app/(app)/dashboard/performance-data";
 
 export type LedgerBasis="return"|"excess"|"mdd"|"volatility";
 export interface LedgerPeer {
+  themes?:string[];return_rank?:number|null;
   participant_id:string;display_name:string;rank:number|null;reason:string|null;
   metrics:Report["metrics"];observations:number;observed_start:string|null;observed_end:string|null;
   start:string|null;end:string|null;
@@ -10,9 +11,17 @@ export interface LedgerPeer {
   series:{date:string;personal_index100:number|null;core_index100:number|null}[];
 }
 export interface LedgerComparison {
+  replay_context?:ReplayContext|null;
+  return_ranked?:number;theme_basis?:string;
+  theme_selectors?:LedgerThemeSummary[];
   data_source:"ACCOUNT_LEDGER";data_kind:string;period:Period;basis:LedgerBasis;
   status:string;reason:string|null;start:string|null;end:string|null;dates:string[];
   registered:number;ranked:number;items:LedgerPeer[];
+}
+export interface LedgerThemeSummary {
+  theme_id:string;count:number;
+  cumulative_return:number|null;excess_return:number|null;mdd:number|null;
+  measured:{cumulative_return:number;excess_return:number;mdd:number};
 }
 export const ledgerReason=(reason:string|null)=>({
   NO_CONFIRMED_DECISION:"포트폴리오 확정 기록 없음",AWAITING_EFFECTIVE_DATE:"목표 효력일 대기",
@@ -23,5 +32,6 @@ export const ledgerReason=(reason:string|null)=>({
   MDD_HISTORY_INSUFFICIENT:"MDD 산출에 필요한 유효 평가 2건 미만",
   OBSERVATION_GAPS:"평가 기록 공백 · 위험 순위 보류",STALE_VALUATIONS:"오래된 가격 평가 포함 · 위험 순위 보류",
   INSUFFICIENT_COMPARABLE_METRIC:"이 지표로 비교 가능한 참여자가 2명 미만입니다.",
-  NOT_COMPARABLE_COHORT:"현재 참여자 비교 대상에 포함되지 않습니다."
+  NOT_COMPARABLE_COHORT:"현재 참여자 비교 대상에 포함되지 않습니다.",
+  REPLAY_INCOMPLETE:"15명 전체 재생이 완료되지 않아 순위를 보류합니다."
 }[reason??""]??reason??"");

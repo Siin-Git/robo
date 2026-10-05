@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.forward.accounts import place_target_orders, record_target, versions_from_cfg
 from src.forward.config import load_forward_config, resolve
+from src.forward.competition import guarded_batch
 from src.forward.db import connect, log_event
 from src.forward.runtime import get_database_path, print_banner
 from src.forward.frozen import load_frozen_benchmark
@@ -108,6 +109,7 @@ def _dry_run_weekly(con, cfg, friday) -> int:
     return 0
 
 
+@guarded_batch
 def _execute_weekly(con, cfg, friday):
     ft = cfg["forward_test"]
     from src.forward.frozen import load_frozen_benchmark as _lf
@@ -116,6 +118,9 @@ def _execute_weekly(con, cfg, friday):
     from src.forward.state import live_orders_blocked
     blocked, reason = live_orders_blocked(con)
     if blocked:
+        from src.forward.competition import policy
+        if policy(con)["managed"]:
+            return 0, {"status": "COMPETITION_WAIT", "reason": reason}
         print(f"ERROR:\nWeekly rebalance refused: {reason}.")
         return 2, {"status": "REFUSED"}
     frozen_w, _ = _lf(_rs(cfg["frozen_dir"]))

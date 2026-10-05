@@ -51,6 +51,8 @@ def test_real_pg_split_immutability_ownership_choices_batch_and_dedup(monkeypatc
         with af() as s:assert s.scalar(select(func.count()).select_from(PortfolioDecision))==0
         with bf() as s:
             snap=s.get(PortfolioDecision,d['decision_id']);assert snap.confirmed_at.tzinfo and isinstance(snap.weights_json,dict)
+            assert snap.provenance_json['internal_tracking']['capture']=='AT_CONFIRMATION'
+            assert 'internal_tracking' not in d['provenance']
             with pytest.raises(DatabaseError):s.execute(text('UPDATE portfolio_decisions SET version=999 WHERE decision_id=:id'),{'id':d['decision_id']})
             s.rollback()
             with pytest.raises(DatabaseError):s.execute(text('DELETE FROM portfolio_decisions WHERE decision_id=:id'),{'id':d['decision_id']})
@@ -59,6 +61,19 @@ def test_real_pg_split_immutability_ownership_choices_batch_and_dedup(monkeypatc
             with bf() as s:
                 result=decision_service.choose(s,users[0][0],d['decision_id'],d['target_id'],'KEEP','same request',f'pg-keep-{suffix}');s.commit();return result['choice_id']
         with ThreadPoolExecutor(max_workers=4) as pool:assert len(set(pool.map(repeat,range(4))))==1
+        # Internal audit notes serialize on the same account without modifying
+        # the immutable decision or allocating customer orders/choices.
+        from src.api.services import internal_tracking_service as tracking
+        def review_repeat(_):
+            with bf() as s:
+                note=tracking.record_review(s,'ISOLATED_ADMIN',d['decision_id'],'theme:ai',
+                    'KEEP_OBSERVING','PG fixture observations only',f'pg-review-{suffix}')
+                s.commit();return note['review_id']
+        with ThreadPoolExecutor(max_workers=4) as pool:assert len(set(pool.map(review_repeat,range(4))))==1
+        with bf() as s:
+            report=tracking.report(s,d['decision_id'])
+            assert len(report['reviews'])==1 and report['visibility']=='ADMIN_ONLY'
+            assert report['reviews'][0]['changes_model_or_orders'] is False
         # API, stdlib-like engine and job registry resolve exactly the design DB.
         from src.forward.db import connect
         from src.forward.decision_policy import latest_decision, weights

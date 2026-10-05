@@ -124,9 +124,12 @@ def ledger(session, participant_id: str, start: str | None = None,
         })
 
     order_counts = Counter(row.status for row in orders)
+    from ...forward.replay import read_metadata
+    replay = read_metadata(session)
     return {
         "contract_version": "ledger-read-v2",
-        "data_kind": "TEST_FIXTURE" if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)) is not None else "FORWARD_SIMULATION",
+        "data_kind": "HISTORICAL_REPLAY" if replay else "TEST_FIXTURE" if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)) is not None else "FORWARD_SIMULATION",
+        "replay_context": replay,
         "units": {"nav": "KRW", "cash_balance": "KRW", "market_value": "KRW", "nav_base100": "index_100", "returns": "fraction", "weight": "fraction"},
         "participant_id": participant_id,
         "account": {

@@ -15,6 +15,8 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
     if period not in PERIODS:
         raise ApiError("INVALID_PERIOD", "period must be 1M, 3M, 6M, 1Y or ALL", 400)
     personal, core = _accounts(session, participant_id)
+    from ...forward.replay import read_metadata
+    replay = read_metadata(session)
     # Keep the keyword for historical callers, but anchor to the current
     # KST-effective decision rather than the newest (possibly future) one.
     context = None
@@ -23,7 +25,12 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
         context = operation_context(session, personal.account_id if personal else None)
         active = context["active_decision"]
         pending = context["pending_decision"]
-        if active or pending:
+        if replay:
+            start = max(C.as_date(start), C.as_date(replay["start"])) if start else C.as_date(replay["start"])
+            cutoff = C.as_date(replay["end"]) + timedelta(days=1)
+            end_exclusive = min(C.as_date(end_exclusive), cutoff) if end_exclusive else cutoff
+            context["selection_basis"] = "CURRENT_CONFIGURATION_HISTORICAL_REPLAY"
+        elif active or pending:
             effective = C.as_date((active or pending)["target_effective_date"])
             start = max(C.as_date(start), effective) if start else effective
             cutoff = C.as_date(context["as_of"]) + timedelta(days=1)
@@ -37,10 +44,12 @@ def dashboard(session, participant_id, period="ALL", start=None, end_exclusive=N
                  "cash": float(r.cash_balance), "status": r.nav_status}
                 for r in session.scalars(select(NavDaily).where(NavDaily.account_id == account.account_id).order_by(NavDaily.date))
                 if (start is None or C.as_date(r.date) >= start) and (end_exclusive is None or C.as_date(r.date) < end_exclusive)]
-    kind = "TEST_FIXTURE" if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)) else "FORWARD_SIMULATION"
+    kind = "HISTORICAL_REPLAY" if replay else "TEST_FIXTURE" if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)) else "FORWARD_SIMULATION"
     def calculate(*args):
         result = calculate_report(*args)
         result["data_kind"] = kind
+        if replay:
+            result["replay_context"] = replay
         if context is not None:
             result["decision_context"] = context
         return result
@@ -100,5 +109,7 @@ def cumulative_contributions(session, participant_id, period="ALL", report=None)
         },
         "quality": report["quality"],
         "comparison_window": report.get("comparison_window"),
+        "data_kind": report["data_kind"],
+        "replay_context": report.get("replay_context"),
         "method": "linked_asset_pnl_over_opening_nav",
     }

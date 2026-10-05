@@ -40,3 +40,6 @@ data/archive/
 web/.next-monday-demo/
 .local/
 web/.next-local-operation/
+
+web/.next-competition-replay*/
+web/.next-session-build/
