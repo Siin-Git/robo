@@ -1,0 +1,150 @@
+{
+  "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/069500.KS?period1=1789430400&period2=1790208000&interval=1d&includeAdjustedClose=true",
+  "captured_at": "2026-10-04T16:31:12.863545+00:00",
+  "requested_start": "2026-09-16",
+  "requested_end": "2026-09-22",
+  "response": {
+    "chart": {
+      "result": [
+        {
+          "meta": {
+            "currency": "KRW",
+            "symbol": "069500.KS",
+            "exchangeName": "KSC",
+            "fullExchangeName": "KSE",
+            "instrumentType": "ETF",
+            "firstTradeDate": 1170028800,
+            "regularMarketTime": 1790922624,
+            "hasPrePostMarketData": false,
+            "gmtoffset": 32400,
+            "timezone": "KST",
+            "exchangeTimezoneName": "Asia/Seoul",
+            "regularMarketPrice": 112060.0,
+            "regularMarketChangePercent": 0.484,
+            "fulldayPrice": 112060.0,
+            "fulldayChange": 540.0,
+            "fulldayChangePercent": 0.484,
+            "fiftyTwoWeekHigh": 152455.0,
+            "fiftyTwoWeekLow": 49395.0,
+            "regularMarketDayHigh": 112265.0,
+            "regularMarketDayLow": 110600.0,
+            "regularMarketVolume": 26144725,
+            "longName": "KODEX 200",
+            "shortName": "KODEX 200",
+            "chartPreviousClose": 104275.0,
+            "priceHint": 2,
+            "currentTradingPeriod": {
+              "pre": {
+                "timezone": "KST",
+                "start": 1790893800,
+                "end": 1790899200,
+                "gmtoffset": 32400
+              },
+              "regular": {
+                "timezone": "KST",
+                "start": 1790899200,
+                "end": 1790920800,
+                "gmtoffset": 32400
+              },
+              "post": {
+                "timezone": "KST",
+                "start": 1790920800,
+                "end": 1790931600,
+                "gmtoffset": 32400
+              }
+            },
+            "dataGranularity": "1d",
+            "range": "",
+            "validRanges": [
+              "1d",
+              "5d",
+              "1mo",
+              "3mo",
+              "6mo",
+              "1y",
+              "2y",
+              "5y",
+              "10y",
+              "ytd",
+              "max"
+            ]
+          },
+          "timestamp": [
+            1789430400,
+            1789516800,
+            1789603200,
+            1789689600,
+            1789948800,
+            1790035200,
+            1790121600
+          ],
+          "indicators": {
+            "quote": [
+              {
+                "open": [
+                  104770.0,
+                  104345.0,
+                  107430.0,
+                  109150.0,
+                  110185.0,
+                  114345.0,
+                  114290.0
+                ],
+                "low": [
+                  103800.0,
+                  104025.0,
+                  105980.0,
+                  108285.0,
+                  110095.0,
+                  111400.0,
+                  111945.0
+                ],
+                "volume": [
+                  26503621,
+                  22839754,
+                  25623002,
+                  20895190,
+                  20877625,
+                  25168267,
+                  21157647
+                ],
+                "high": [
+                  106165.0,
+                  106390.0,
+                  107915.0,
+                  109895.0,
+                  112135.0,
+                  114635.0,
+                  114305.0
+                ],
+                "close": [
+                  104275.0,
+                  106365.0,
+                  106280.0,
+                  109285.0,
+                  111700.0,
+                  111880.0,
+                  113145.0
+                ]
+              }
+            ],
+            "adjclose": [
+              {
+                "adjclose": [
+                  104275.0,
+                  106365.0,
+                  106280.0,
+                  109285.0,
+                  111700.0,
+                  111880.0,
+                  113145.0
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "error": null
+    }
+  }
+}
