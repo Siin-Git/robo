@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from src.data.provider import _fetch_yahoo_chart, _to_unix_ts, _yahoo_daily_series
+from src.data.provider import NoPriceData
 
 FIXTURES = Path(__file__).parent / "data" / "yahoo"
 
@@ -33,7 +34,8 @@ def test_original_september_18_fx_bar_keeps_its_london_session():
     assert actual.loc["2026-09-18"] == node["indicators"]["quote"][0]["close"][position]
     assert actual.loc["2026-09-18"] == pytest.approx(1379.530029296875)
     assert "2026-09-20" not in actual.index
-    assert actual.attrs == {"date_basis":"EXCHANGE_SESSION_DATE_V1", "session_timezone":"Europe/London"}
+    assert actual.attrs['date_basis'] == 'EXCHANGE_SESSION_DATE_V1'
+    assert actual.attrs['session_timezone'] == 'Europe/London'
 
 
 @pytest.mark.parametrize("fixture,before,after,offset_before,offset_after", [
@@ -86,3 +88,36 @@ def test_missing_timezone_fails_instead_of_guessing_fixed_offset(timezone):
     node["meta"]["exchangeTimezoneName"] = timezone
     with pytest.raises(RuntimeError, match="session timezone"):
         _yahoo_daily_series(node, "KRW=X", _to_unix_ts(fixture["requested_start"]), _to_unix_ts(fixture["requested_end"]))
+
+
+def test_successful_empty_interval_does_not_retry_as_transport_failure(monkeypatch):
+    calls = []
+    payload = {"chart":{"result":[{"meta":{"exchangeTimezoneName":"Asia/Seoul"},
+                                    "timestamp":[],"indicators":{}}],"error":None}}
+    def empty_response(request, **kwargs):
+        calls.append(request)
+        return io.BytesIO(json.dumps(payload).encode())
+    monkeypatch.setattr("urllib.request.urlopen", empty_response)
+    with pytest.raises(NoPriceData):
+        _fetch_yahoo_chart("KR", "2026-10-05", "2026-10-05")
+    assert len(calls) == 1
+
+
+def test_real_chart_error_retries_and_never_becomes_normal_empty(monkeypatch):
+    calls = []
+    def failed_response(request, **kwargs):
+        calls.append(request)
+        return io.BytesIO(json.dumps({"chart":{"result":None,"error":{"code":"Unavailable"}}}).encode())
+    monkeypatch.setattr("urllib.request.urlopen", failed_response)
+    monkeypatch.setattr("time.sleep", lambda seconds: None)
+    with pytest.raises(RuntimeError, match="Failed to fetch") as error:
+        _fetch_yahoo_chart("KR", "2026-10-05", "2026-10-05", retries=2)
+    assert not isinstance(error.value, NoPriceData) and len(calls) == 4
+
+
+def test_duplicate_source_bars_resolve_to_one_session():
+    stamp = _to_unix_ts("2026-10-05")
+    node = {"meta":{"exchangeTimezoneName":"Asia/Seoul"}, "timestamp":[stamp,stamp],
+            "indicators":{"quote":[{"close":[100,101]}]}}
+    result = _yahoo_daily_series(node,"KR",stamp,stamp)
+    assert list(result) == [101] and result.index.is_unique

@@ -16,7 +16,7 @@ def test_actions_use_capstone_design_db_and_owner_gate():
         workflow=yaml.safe_load((Path('.github/workflows')/file).read_text())
         job=next(iter(workflow['jobs'].values()))
         assert "vars.FORWARD_EXECUTOR == 'actions'" in job['if']
-        env=job['steps'][-1]['env']
+        env=next(step['env'] for step in job['steps'] if 'run' in step and 'env' in step)
         assert env['APP_PROFILE']=='local' and env['CAPSTONE_DEMO']=='1'
         assert env['CAPSTONE_DESIGN_DATABASE_URL']=='${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}'
         assert env['DATABASE_BACKEND']=='postgres' and env['TZ']=='Asia/Seoul'
