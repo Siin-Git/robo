@@ -6,7 +6,8 @@ on:
     # Price-only collector filters actual completed sessions even when delayed.
     - cron: "30 22 * * *"
     # 09:17/17:17 KST retry after FX date rollover and Korean close.
-    - cron: "17 0,8 * * *"
+    - cron: "17 0 * * *"
+    - cron: "17 8 * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -52,6 +53,30 @@ jobs:
           if [ -n "$SCHEDULED_FOR" ]; then args+=(--scheduled-for "$SCHEDULED_FOR"); fi
           if [ "$READ_ONLY" = "true" ]; then args+=(--dry-run); fi
           python -m src.forward.run_prices "${args[@]}"
+      # Restore the former Daily forward run as a dry-run by default.
+      # A daily-only opt-in does not activate weekly/monthly trading workflows.
+      - name: Daily forward run
+        if: >-
+          ${{ success() && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 8 * * *') }}
+        env:
+          APP_PROFILE: local
+          CAPSTONE_DEMO: "1"
+          FORWARD_EXECUTOR: actions
+          DATABASE_BACKEND: postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          TZ: Asia/Seoul
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          DAILY_ENABLED: ${{ vars.FORWARD_DAILY_ENABLED }}
+          REQUESTED_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=(--use-stored-prices)
+          if [ "$DAILY_ENABLED" != "true" ] || [ "$REQUESTED_DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          # Current KST scheduling slot; dispatch date remains a price audit label.
+          # Keep market guards; never use another job DB/slot to bypass a prior run.
+          python -m src.forward.run_daily "${args[@]}"
       - name: Preserve price collection report
         if: ${{ always() }}
         uses: actions/upload-artifact@v4

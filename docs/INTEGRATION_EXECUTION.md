@@ -551,3 +551,20 @@ See [PRICE_TRACKING_AUTOMATION.md](PRICE_TRACKING_AUTOMATION.md). Reused session
 User requested one GitHub review for all implemented work. Preserved existing focused commits and merged operating release `efc67649` and local tracking `2ed955d` into the ranking presentation branch. The resulting head updates Draft PR #1, targeting `release/public-operation`; no operating release merge or deployment is included. Operating price-only workflows and backup code are preserved exactly. Root/web Vercel configuration continues to disable deployment of `feat/competition-replay`.
 
 The later user request connects graphs across confirmed holidays. Only empty `MARKET_CLOSED` dates are omitted from chart display; actual observations and unknown missing dates remain. Backend/API figures and risk quality rules are unchanged. Full backend 682 passed with disposable PostgreSQL/restore checks, frontend 86 passed, build/types passed, and six Chrome desktop/mobile flows passed. See [CAPSTONE_UNIFIED_HANDOFF.md](CAPSTONE_UNIFIED_HANDOFF.md) for current verification, source commits, local preview, operational limits and remaining team definitions. Earlier sections retain their original milestone status.
+
+
+## 2026-10-05: Actions 일간 운용 dry-run → 승인 실행 준비
+
+- 개인 기본 브랜치 `release/public-operation` / `6f94193` 기준 별도
+  `fix/actions-stored-forward` worktree에서 수정. 제공된 dry-run 성공 링크는
+  `b6add63` 버전이고 최신 가격 전용 workflow와 구분했다.
+- 최신 `run_prices`를 보존하고 `Daily forward run` 하나를 복원했다.
+  기본 dry-run이며 repository variable `FORWARD_DAILY_ENABLED=true`일 때만 실제 실행.
+  17:17 KST/수동 실행에 한정하며 기존 주간·월간 승인 변수는 사용하지 않는다.
+- 저장 가격 옵션, 계좌별 주문/처리 표시/체결/평가 원자성, 실패 격리,
+  PARTIAL 당일 재시도를 구현했다. 금융 계산기·가격 collector·T0 정책·DB 스키마는 유지.
+- 폐기용 PostgreSQL 18.6 포함 CI 동일 백엔드 검사 **684 passed, 0 failed, 0 skipped**.
+  기존 가격 전용 계약 검사는 collector 격리 + 일간 전용 승인까지 확장했고,
+  PARTIAL을 success로 기대하던 로컬 테스트는 가격 도착 후 같은 슬롯 완료까지 검증한다.
+- 운영 DB/기존 앱/예약/백업은 변경하지 않았다. 푸시·병합·배포·실제 운용 실행 없음.
+- 상세 실행 승인·검증·복구 한계: [ACTIONS_STORED_FORWARD.md](ACTIONS_STORED_FORWARD.md).

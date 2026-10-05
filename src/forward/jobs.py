@@ -183,12 +183,14 @@ def wait_job(db_url: str | None, job_id: str, stats: dict, sqlite_path=None) -> 
             status="skipped", completed_at=_now(), stats_json=dict(stats)))
 
 
-def fail_job(db_url: str | None, job_id: str, error: str, sqlite_path=None) -> None:
+def fail_job(db_url: str | None, job_id: str, error: str, sqlite_path=None,
+             stats: dict | None = None) -> None:
     engine = _engine_for(db_url, sqlite_path)
     table = _table()
     with engine.begin() as conn:
         conn.execute(update(table).where(table.c.job_id == job_id).values(
-            status="failed", completed_at=_now(), error_message=str(error)[:2048]))
+            status="failed", completed_at=_now(), error_message=str(error)[:2048],
+            stats_json=dict(stats or {})))
 
 
 def recent_jobs(db_url: str | None, limit: int = 20, sqlite_path=None) -> list[dict]:

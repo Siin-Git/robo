@@ -179,9 +179,17 @@ def test_operating_target_requires_design_postgres_and_never_falls_back(monkeypa
 def test_workflow_price_only_and_trading_requires_separate_explicit_enable():
     workflows = Path(".github/workflows")
     daily = (workflows/"daily_forward.yml").read_text()
-    assert "src.forward.run_prices" in daily and "src.forward.run_daily" not in daily
+    steps = yaml.safe_load(daily)['jobs']['daily']['steps']
+    collector = next(step for step in steps if step.get('name') == 'Collect completed prices only')
+    assert "src.forward.run_prices" in collector['run'] and "src.forward.run_daily" not in collector['run']
+    # Price capability remains isolated; the restored engine has a daily-only opt-in.
+    engine = [step for step in steps if step.get('name') == 'Daily forward run']
+    assert len(engine) == 1
+    assert engine[0]['env']['DAILY_ENABLED'] == '${{ vars.FORWARD_DAILY_ENABLED }}'
+    assert '--dry-run' in engine[0]['run'] and '--use-stored-prices' in engine[0]['run']
+    assert "github.event.schedule == '17 8 * * *'" in engine[0]['if']
     assert "--force" not in daily and "--start 2026-10-05" in daily
-    assert 'cron: "30 22 * * *"' in daily and 'cron: "17 0,8 * * *"' in daily
+    assert all('cron: "'+cron+'"' in daily for cron in ('30 22 * * *', '17 0 * * *', '17 8 * * *'))
     assert "group: forward-jobs" in daily
     assert "ref:" not in daily  # schedule uses repository default branch; dispatch uses selected ref
     for name in ("weekly_views.yml","monthly_rebalance.yml"):

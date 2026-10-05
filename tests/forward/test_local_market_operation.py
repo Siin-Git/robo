@@ -58,6 +58,8 @@ def test_disposable_api_daily_same_db_preserves_records_and_skips_duplicate(tmp_
             return pd.Series([100.,102.],index=pd.to_datetime(['2026-10-01','2026-10-02']))
     monkeypatch.setattr('src.forward.prices.get_default_provider',lambda:Provider())
     monkeypatch.setattr('src.forward.market_hours.guard_message',lambda:None)
+    from datetime import date
+    monkeypatch.setattr('src.forward.runtime.kst_today',lambda:date(2026,10,5))
     try:
         with TestClient(app) as client:
             assert client.post('/api/v1/auth/login',json={k:account[k] for k in ('email','password')}).status_code==200
@@ -96,8 +98,24 @@ def test_disposable_api_daily_same_db_preserves_records_and_skips_duplicate(tmp_
             assert main([])==0
             with sqlite3.connect(tmp_path/'portfolio_design.db') as db:
                 assert counts==[db.execute('SELECT COUNT(*) FROM '+t).fetchone()[0] for t in ('orders','trades','nav_daily','prices_daily')]
+                # Personal fills exist, but CORE initial orders dated 10/5 still
+                # wait for a post-effective close. PARTIAL must not consume the slot.
+                assert db.execute("SELECT COUNT(*) FROM scheduled_jobs WHERE status='success'").fetchone()[0]==0
+                assert db.execute("SELECT COUNT(*) FROM scheduled_jobs WHERE status='skipped'").fetchone()[0]==3
+                latest=json.loads(db.execute("SELECT stats_json FROM scheduled_jobs ORDER BY started_at DESC LIMIT 1").fetchone()[0])
+                assert latest['outcome']=='PARTIAL' and latest['retryable']
+                # A newly available close belongs ONLY to this disposable fixture.
+                for asset,price in db.execute("SELECT asset_id,price FROM prices_daily WHERE date='2026-10-02'").fetchall():
+                    db.execute("INSERT INTO prices_daily VALUES (?,'2026-10-05',?,'SYNTHETIC_TEST')",(asset,price))
+            assert main(['--use-stored-prices'])==0
+            with sqlite3.connect(tmp_path/'portfolio_design.db') as db:
                 assert db.execute("SELECT COUNT(*) FROM scheduled_jobs WHERE status='success'").fetchone()[0]==1
-                assert db.execute("SELECT COUNT(*) FROM scheduled_jobs WHERE status='skipped'").fetchone()[0]==2
+                counts=[db.execute('SELECT COUNT(*) FROM '+t).fetchone()[0] for t in ('orders','trades','nav_daily','prices_daily')]
+            assert main(['--use-stored-prices'])==0
+            with sqlite3.connect(tmp_path/'portfolio_design.db') as db:
+                assert counts==[db.execute('SELECT COUNT(*) FROM '+t).fetchone()[0] for t in ('orders','trades','nav_daily','prices_daily')]
+                assert db.execute("SELECT COUNT(*) FROM scheduled_jobs WHERE status='skipped'").fetchone()[0]==4
+            ledger=client.get('/api/v1/me/performance/ledger').json()
             with sqlite3.connect(tmp_path/'capstone_demo.db') as db:
                 assert db.execute('SELECT COUNT(*) FROM scheduled_jobs').fetchone()[0]==0
         initialize(tmp_path)
