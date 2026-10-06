@@ -613,3 +613,24 @@ The later user request connects graphs across confirmed holidays. Only empty `MA
 Render 내부 환경변수로 활성 cohort를 읽고 dry-run만 실행하는 정확한 명령과
 Free 플랜 제약, 빌드 갱신·시작 migration의 별도 영향은 bootstrap 문서에 기록했다.
 운영 secret 로컬 복사, Render 배포, 운영 dry-run/apply, 승인 변수·T0·예약 변경은 하지 않았다.
+
+## 2026-10-06: 수동 bootstrap Actions workflow
+
+- PR #4의 release 병합 `8033c17`에서 별도 `feat/bootstrap-unready-actions` worktree로
+  작업했다. 기존 bootstrap 서비스·daily/weekly/monthly·백업 workflow는 변경하지 않았다.
+- `bootstrap_unready_portfolios.yml`은 `workflow_dispatch` 전용이며
+  `release/public-operation`에서만 job을 허용한다. 기본 `apply=false`는 `--dry-run`,
+  `apply=true`와 `APPLY_UNREADY_PORTFOLIOS` 확인값이 함께 있을 때만 `--apply`이다.
+  활성 cohort는 기존 읽기 전용 `read_cohort()`로 조회하고 `--max-new 10`을 전달한다.
+- 기존 인증/운용 Secrets 이름만 사용하며 원시 오류·URL을 출력하지 않는다.
+  forward 작업과 같은 `forward-jobs` concurrency를 사용하고 실행 중 작업을 취소하지 않는다.
+  migration 및 Render/Actions 신규 환경 설정·승인 변수 변경은 없다.
+- 실제 workflow heredoc을 폐기용 stub 서비스로 실행한 신규 테스트 **14 passed**:
+  모드 전달, 확인 없는 apply의 조회 전 차단, 잘못된 설정, cohort 누락,
+  서비스 실패/비정상 결과의 실패 처리, 자격값 미출력을 확인했다.
+- 기존 CI 동일 명령 `python -m pytest tests --ignore=tests/backup -q`:
+  **718 passed, 0 failed, 0 skipped**, 폐기용 PostgreSQL **18.6** 포함.
+  기존 bootstrap dry-run 무쓰기/15명 준비 회귀도 포함한다. 프론트 코드는 변경하지 않았다.
+- 운영 dry-run/apply를 dispatch하지 않았다. GitHub Secrets의 **이름 존재만** 확인했고,
+  실제 대상의 Render 일치 여부·운영 READY 수는 이번 테스트로 확인하지 않았다.
+  사용법은 [BOOTSTRAP_UNREADY_PORTFOLIOS.md](BOOTSTRAP_UNREADY_PORTFOLIOS.md)의 Actions 절을 따른다.

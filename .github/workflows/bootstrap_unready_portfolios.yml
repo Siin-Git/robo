@@ -1,0 +1,75 @@
+name: Bootstrap unready portfolios
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Write initial professor-demo portfolios for up to 10 unready participants"
+        type: boolean
+        required: false
+        default: false
+      confirmation:
+        description: "Apply only: enter APPLY_UNREADY_PORTFOLIOS (leave empty for dry-run)"
+        type: string
+        required: false
+        default: ""
+
+# Shared with daily/weekly/monthly forward jobs; never cancel an active writer.
+concurrency:
+  group: forward-jobs
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/release/public-operation' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Bootstrap plan or explicitly confirmed apply
+        env:
+          APP_PROFILE: local
+          CAPSTONE_DEMO: "1"
+          DATABASE_BACKEND: postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          TZ: Asia/Seoul
+          REQUESTED_APPLY: ${{ inputs.apply }}
+          APPLY_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          requested = os.environ.get("REQUESTED_APPLY", "false")
+          if requested not in ("true", "false"):
+              sys.exit("INVALID_APPLY_INPUT")
+          if requested == "true" and os.environ.get("APPLY_CONFIRMATION") != "APPLY_UNREADY_PORTFOLIOS":
+              sys.exit("APPLY_CONFIRMATION_REQUIRED")
+          expected = {"APP_PROFILE": "local", "CAPSTONE_DEMO": "1", "DATABASE_BACKEND": "postgres"}
+          if any(os.environ.get(k) != v for k, v in expected.items()):
+              sys.exit("ENVIRONMENT_MISMATCH")
+          if any(not os.environ.get(k) for k in ("DATABASE_URL", "CAPSTONE_DESIGN_DATABASE_URL")):
+              sys.exit("DB_ENVIRONMENT_MISSING")
+          try:
+              from src.forward.competition import read_cohort
+              from scripts.bootstrap_unready_portfolios import main
+              cohort = read_cohort()
+              if not cohort:
+                  sys.exit("ACTIVE_COHORT_REQUIRED")
+              mode = "--apply" if requested == "true" else "--dry-run"
+              result = main([mode, "--expected-cohort", cohort["cohort_id"], "--max-new", "10"])
+          except Exception as error:
+              # Do not expose raw exceptions containing connection URLs or passwords.
+              print("FAILED:", type(error).__name__)
+              sys.exit(1)
+          sys.exit(result)
+          PY

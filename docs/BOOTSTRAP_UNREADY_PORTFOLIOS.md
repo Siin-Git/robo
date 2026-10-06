@@ -65,6 +65,28 @@ python scripts/bootstrap_unready_portfolios.py --apply --expected-cohort COHORT_
 T0 예약, forward 활성화 변수, 배치·주문·체결·NAV·가격·과거 기록·백업 workflow·Vercel/Render 설정은 변경하지 않는다.
 15/15 READY는 운용 시작이나 성과 생성의 증거가 아니다.
 
+## GitHub Actions 수동 실행 (Render Free 대안)
+
+Actions의 **Bootstrap unready portfolios**에서 **Run workflow**를 선택한다.
+브랜치는 `release/public-operation`, `apply`는 기본 **false**, `confirmation`은
+빈칸으로 유지하면 **dry-run만** 실행한다. 활성 cohort는 읽기 전용 `read_cohort()`로
+자동 조회하고 `--expected-cohort`에 전달하며, `--max-new 10`을 고정한다.
+계획과 실제 READY 수를 검토한 뒤 별도 승인한 경우에만 `apply=true`와 정확한
+`confirmation=APPLY_UNREADY_PORTFOLIOS`를 함께 입력한다. 확인이 없으면 DB 조회 전 거부한다.
+
+필요한 저장소 Secrets는 기존 `DATABASE_URL`(인증),
+`CAPSTONE_DESIGN_DATABASE_URL`(운용)이다. **GitHub의 대상이 Render의 대상과 같은지**
+소유자가 비공개로 확인해야 하며, 값은 입력 옵션·명령행·로그에 넣지 않는다.
+프로필은 workflow가 `APP_PROFILE=local`, `CAPSTONE_DEMO=1`,
+`DATABASE_BACKEND=postgres`로 지정한다. 수동 dispatch 외의 자동 실행은 없고,
+다른 브랜치를 선택하면 job은 실행되지 않는다. `FORWARD_DAILY_ENABLED`나
+`FORWARD_TRADING_ENABLED`의 변경·활성화는 필요하지 않으며 이 workflow가 변경하지 않는다.
+
+daily/weekly/monthly forward와 동일한 `forward-jobs` concurrency 그룹을 사용하고
+실행 중 작업을 취소하지 않는다. 이 보호는 **같은 저장소의 Actions 작업 간** 적용되며,
+별도 로컬 배치/API 요청까지 잠그지는 않는다. 기존 참가자별 재확인·슬롯/계좌 잠금은 유지한다.
+이 작업에서는 workflow의 구현·격리 테스트만 수행하며 운영 dry-run/apply를 dispatch하지 않는다.
+
 ## Render에서 secret을 복사하지 않고 dry-run
 
 운영 URL은 로컬로 복사하지 않는다. 아래 명령은 스크립트가 포함된 Render 빌드의
