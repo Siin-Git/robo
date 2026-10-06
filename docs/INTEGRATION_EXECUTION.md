@@ -568,3 +568,48 @@ The later user request connects graphs across confirmed holidays. Only empty `MA
   PARTIAL을 success로 기대하던 로컬 테스트는 가격 도착 후 같은 슬롯 완료까지 검증한다.
 - 운영 DB/기존 앱/예약/백업은 변경하지 않았다. 푸시·병합·배포·실제 운용 실행 없음.
 - 상세 실행 승인·검증·복구 한계: [ACTIONS_STORED_FORWARD.md](ACTIONS_STORED_FORWARD.md).
+
+## 2026-10-06: 미설정 참가자 교수 시연용 one-off bootstrap
+
+- `MinchoLover/robo`의 `release/public-operation` / PR #3 병합 커밋
+  `6c9ecf38690e2eb3c303027140ddc01c164e8982`에서 별도
+  `feat/demo-unready-bootstrap` worktree로 작업했다. 원래 체크아웃·앱·DB·예약은 보존했다.
+- `scripts/bootstrap_unready_portfolios.py`: 활성 cohort의 실제 daily READY 판정을
+  재사용한다. 기존 READY/판단/선택 구성/테마 선택/초안/운용 기록은 건너뛴다.
+  15명 roster와 명시한 cohort를 확인하고 최대 10명만 결정적으로 배정한다.
+- 실제 Frontier 점·기존 onboarding preview/complete 및 enrollment 저장 함수를
+  사용한다. CLI에 직접 DB 삽입은 없다. dry-run은 읽기 전용이며 `--apply`만 저장한다.
+  새 schema, migration, API endpoint, T0 예약, 주문·체결·NAV 생성은 없다.
+- 폐기용 SQLite 및 PostgreSQL **18.6**: 신규 검증 **20개 통과**.
+  5명 전체 기존 행 보존 → 10개 실제 첫 판단 → 15/15 READY, 서로 다른 테마 조합과
+  세 위험대, dry-run 무쓰기, 재실행 무변경, 기존 초안·테마 선택 보호,
+  첫 workspace 준비, 부분 실패 rollback/재개, 두 DB commit 실패의 대조 필요 상태를 검증했다.
+- 최종 코드 기준 기존 CI 백엔드 명령
+  `python -m pytest tests --ignore=tests/backup -q`: **702 passed, 2 failed, 0 skipped**.
+  실패는 `tests/forward/test_inception.py::test4_launch_sets_inception` 및
+  `test5_double_launch_fails`: 고정 가격의 마지막 날짜 `2026-09-14`가 현재 날짜의
+  신선도 검사에 걸린다. 수정 전 `6c9ecf3`를 별도 복사한 환경에서도 같은 두 실패를
+  재현했다. 이번 작업은 기존 날짜 의존 테스트를 수정·삭제·skip하지 않았다.
+  프론트 변경이 없어 프론트 빌드·브라우저 검증은 대상이 아니다.
+- 운영 DB에는 dry-run/apply 모두 실행하지 않았다. 사용자가 제공한 운영 5/15는
+  원격 재조회 결과가 아니다. 실제 DB에 초안/기존 설정이 남아 있으면 해당 사람은
+  보존되므로 자동으로 15/15를 보장하지 않는다. 운영 계획 확인과 별도 적용이 남아 있다.
+- 두 DB의 분산 transaction은 만들지 않았다. 운용 판단 commit 후 인증 commit
+  실패는 저장된 판단 ID와 `requires_reconciliation`을 보고한다. 다음 실행에서
+  덮어쓰지 않고 건너뛴다. 강제 종료를 포함한 이 구간은 대조 후 별도 복구가 필요하다.
+- 운영 DB·기존 앱·예약·Actions 승인 변수·백업 PR #12·배포 설정을 변경하지 않았다.
+  GitHub 푸시·PR·병합·배포·운영 실행 없음.
+- 사용법과 제한: [BOOTSTRAP_UNREADY_PORTFOLIOS.md](BOOTSTRAP_UNREADY_PORTFOLIOS.md).
+
+## 2026-10-06: bootstrap release 반영 검증
+
+사용자가 원래 bootstrap 커밋 `41e209c`의 `release/public-operation` 반영을 승인했다.
+위 초기 로컬 검증의 실패 2개는 운영 신선도 기준이나 assertion을 바꾸지 않고,
+해당 launch 테스트 가격 fixture만 현재 날짜까지의 10개 평일로 수정해 해결했다.
+원래 bootstrap 구현 커밋은 보존하고 이 테스트/운영 안내 수정을 별도 커밋으로 남긴다.
+
+최종 로컬 CI 동일 백엔드: **704 passed, 0 failed, 0 skipped** (폐기용 PostgreSQL 18.6 포함).
+시작 회귀 파일은 **11 passed**. GitHub PR에서는 백엔드/프론트 CI도 확인한다.
+Render 내부 환경변수로 활성 cohort를 읽고 dry-run만 실행하는 정확한 명령과
+Free 플랜 제약, 빌드 갱신·시작 migration의 별도 영향은 bootstrap 문서에 기록했다.
+운영 secret 로컬 복사, Render 배포, 운영 dry-run/apply, 승인 변수·T0·예약 변경은 하지 않았다.

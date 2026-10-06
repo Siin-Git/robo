@@ -145,19 +145,7 @@ def get_design_db(auth_db=Depends(get_db), user=Depends(get_current_user)):
         with factory() as db:
             from .design_prices import load_reference_prices
             load_reference_prices(db)
-            if db.get(User, user.user_id) is None:
-                for theme in auth_db.scalars(select(Theme)):
-                    if db.get(Theme, theme.theme_id) is None:
-                        db.add(Theme(**{col.name: getattr(theme, col.name)
-                                        for col in Theme.__table__.columns}))
-                participant_service.create(db, user.participant.display_name,
-                                           participant_id=user.participant_id)
-                now = C.now_utc()
-                # Identity reference for existing foreign keys, never a login account.
-                db.add(User(user_id=user.user_id, participant_id=user.participant_id,
-                            email=user.email, email_normalized=user.email_normalized,
-                            password_hash="!identity-reference-only", status="disabled",
-                            role="user", created_at=now, updated_at=now))
+            ensure_design_identity(db, auth_db, user)
             _apply_portfolio_reset(db, auth_db, user)
             db.commit()
     with factory() as db:
@@ -167,6 +155,28 @@ def get_design_db(auth_db=Depends(get_db), user=Depends(get_current_user)):
         except Exception:
             db.rollback()
             raise
+
+
+def ensure_design_identity(db, auth_db, user):
+    """Existing first-use setup, without schema/price imports or a commit.
+
+    Both the API and explicit one-off setup use the same account creation rules.
+    The caller owns the transaction; this does not copy any operating history.
+    """
+    if db.get(User, user.user_id) is not None:
+        return
+    for theme in auth_db.scalars(select(Theme)):
+        if db.get(Theme, theme.theme_id) is None:
+            db.add(Theme(**{col.name: getattr(theme, col.name)
+                            for col in Theme.__table__.columns}))
+    participant_service.create(db, user.participant.display_name,
+                               participant_id=user.participant_id)
+    now = C.now_utc()
+    db.add(User(user_id=user.user_id, participant_id=user.participant_id,
+                email=user.email, email_normalized=user.email_normalized,
+                password_hash="!identity-reference-only", status="disabled",
+                role="user", created_at=now, updated_at=now))
+    db.flush()
 
 
 def require_design_csrf(user=Depends(require_authenticated_csrf), db=Depends(get_design_db), auth_db=Depends(get_db)):
