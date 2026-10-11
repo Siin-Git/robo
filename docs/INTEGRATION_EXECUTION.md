@@ -694,3 +694,8 @@ repair SQL are stored outside Git in the task workspace under
 Validation includes owner isolation, anonymous rejection, unchanged live ledger,
 archived-configuration labeling, price collection and replay regression tests,
 frontend tests and production build.
+
+
+### Prototype performance presentation — 2026-10-12
+
+The saved historical performance card now uses “모의운용 성과” and a report-derived baseline date. Calculation details retain retrospective provenance, decision confirmation date, costs, and market price dates. This is a presentation-only change: no collection timestamps, archived results, live NAV, ranking calculations, or shared-start policy are changed.
