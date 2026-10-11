@@ -3,10 +3,12 @@ import {useQuery} from '@tanstack/react-query';
 import {get} from '@/lib/api/client';
 import {fmtReturn,fmtActivePp} from '@/lib/format';
 import s from './HistoricalPreview.module.css';
+import type { ForwardLedger } from '@/lib/api/ledger';
 type Point={date:string;personal_index:number;core_index:number};
-type History={available:boolean;report?:{start:string;end:string;decision_confirmed_at:string;is_current_configuration:boolean;series:Point[];summary:{personal_return:number;core_return:number;observations:number};price_dates:Record<string,Record<string,string>>;cost_bps:number}};
+export type History={available:boolean;report?:{start:string;end:string;decision_confirmed_at:string;is_current_configuration:boolean;series:Point[];summary:{personal_return:number;core_return:number;observations:number};price_dates:Record<string,Record<string,string>>;cost_bps:number;ledger?:ForwardLedger;weights:Record<string,number>;ledger_archived_at?:string}};
+export function useHistoricalPreview(){return useQuery({queryKey:['own-historical-preview'],queryFn:()=>get<History>('/api/v1/me/performance/history'),staleTime:60_000,retry:1});}
 export function HistoricalPreview(){
- const q=useQuery({queryKey:['own-historical-preview'],queryFn:()=>get<History>('/api/v1/me/performance/history'),staleTime:60_000,retry:1});
+ const q=useHistoricalPreview();
  if(q.isError)return <section className={s.card} role="alert">모의운용 결과를 불러오지 못했습니다. <button className="btn-secondary" onClick={()=>q.refetch()}>다시 조회</button></section>;
  const r=q.data?.report;
  if(!q.data?.available||!r||r.series.length<2)return null;

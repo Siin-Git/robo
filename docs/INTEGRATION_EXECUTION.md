@@ -699,3 +699,10 @@ frontend tests and production build.
 ### Prototype performance presentation — 2026-10-12
 
 The saved historical performance card now uses “모의운용 성과” and a report-derived baseline date. Calculation details retain retrospective provenance, decision confirmation date, costs, and market price dates. This is a presentation-only change: no collection timestamps, archived results, live NAV, ranking calculations, or shared-start policy are changed.
+
+
+### Saved simulation ledger details — 2026-10-12
+
+The dashboard now defaults to the saved simulation when forward performance is absent, with explicit archive/forward selection. Saved holdings, cash, valuation snapshots, orders and fills use the existing LedgerHistory component. Historical order times are labeled simulation times. No forward rebalance recommendations or future dates are fabricated.
+
+Existing immutable replay backups are exported with `ledger_read_service.ledger` in read-only mode, restricted to each participant's personal account, and appended as a new HISTORICAL_REPLAY_ARCHIVED revision including ledger details. Cohort-wide replay context is excluded. Guarded SQL requires exact parent archive, owner/decision/weights match, and conflict-free event IDs; no live orders, holdings, trades, NAV, start date or old events are updated. Fifteen personal accounts: 90 valuations, 155 orders, 155 fills and 930 daily holding rows. Every NAV agrees with cash plus holdings and its existing chart point.
