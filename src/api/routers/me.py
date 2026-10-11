@@ -126,9 +126,10 @@ def me_performance_dashboard(period: str = Query(default="ALL"),
 
 @router.get("/performance/comparison", summary="Public common-period recorded-ledger rankings and index100 graphs")
 def me_ledger_comparison(period: str = Query(default="ALL"), basis: str = Query(default="return"),
+                         source: str = Query(default="forward"), design_db=Depends(get_design_db),
                          db=Depends(get_performance_db), auth_db=Depends(get_db), user=Depends(get_current_user)):
-    from ..services.ledger_comparison_service import overview
-    result = overview(auth_db, db, period, basis)
+    from ..services.archived_comparison_service import comparison
+    result = comparison(auth_db, db, design_db, user, period, basis, source)
     result.pop("own_report")
     return result
 

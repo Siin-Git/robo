@@ -1,8 +1,8 @@
 import {render,screen,fireEvent,cleanup,within} from '@testing-library/react';
 import {afterEach,it,expect,vi} from 'vitest';
 import {LedgerComparison} from '@/components/performance/LedgerComparison';
-const state=vi.hoisted(()=>({data:null as any,chart:null as any}));
-vi.mock('@tanstack/react-query',()=>({useQuery:({queryKey}:{queryKey:string[]})=>({data:queryKey[0]==='comparison-identity'?{participant_id:'A'}:state.data})}));
+const state=vi.hoisted(()=>({data:null as any,chart:null as any,key:[] as string[]}));
+vi.mock('@tanstack/react-query',()=>({useQuery:({queryKey}:{queryKey:string[]})=>{if(queryKey[0]==='ledger-comparison')state.key=queryKey;return ({data:queryKey[0]==='comparison-identity'?{participant_id:'A'}:state.data});}}));
 vi.mock('@/components/layout/AppShell',()=>({AppShell:({children}:{children:React.ReactNode})=><div>{children}</div>}));
 vi.mock('@/components/dashboard/PerformanceChart',()=>({CORE_LINE:{color:'grey',width:1},MY_LINE:{color:'blue',width:2},PerformanceChart:(props:unknown)=>{state.chart=props;return <div>기준 100 차트</div>;}}));
 afterEach(()=>{cleanup();state.chart=null;state.data=null;vi.unstubAllGlobals();});
@@ -25,7 +25,7 @@ it('uses server index100 data and the selected peers CORE, without filling a mis
  expect(state.chart.data[1]).toEqual({date:'2026-10-05',A:110,B:120,core:null});
  fireEvent.click(screen.getByRole('button',{name:'B'}));
  expect(state.chart.data[1].core).toBe(101);
- expect(screen.getByRole('link',{name:'공통 기간의 내 성과·기여도'})).toHaveAttribute('href','/dashboard?comparison=common&period=ALL');
+ expect(screen.getByRole('link',{name:'공통 기간의 내 성과·기여도'})).toHaveAttribute('href','/dashboard?comparison=common&period=ALL&source=forward');
  fireEvent.click(screen.getByText('비교 기준 보기'));
  expect(within(screen.getByRole('region',{name:'선택 참여자 성과'})).getByText(/연율 변동성 —/)).toBeInTheDocument();
 });
@@ -99,4 +99,15 @@ it('shows risk comparison controls only for participants passing the server vola
  expect(within(risk).queryByRole('button',{name:'C 비교'})).not.toBeInTheDocument();
  fireEvent.click(within(risk).getByRole('button',{name:'B 비교'}));
  expect(screen.getByRole('region',{name:'투자 성과 비교'})).toHaveTextContent('B 수익률');
+});
+
+it('selects the archive source and keeps forward records independently selectable',()=>{
+ state.data={items:[peer('A'),peer('B')],dates:[],ranked:0,registered:2,selected_source:'archive',archive_available:true};
+ render(<LedgerComparison/>);
+ expect(screen.getByRole('button',{name:'저장된 모의운용'})).toHaveAttribute('aria-pressed','true');
+ expect(screen.getByRole('link',{name:'공통 기간의 내 성과·기여도'})).toHaveAttribute('href','/dashboard?source=archive');
+ fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
+ expect(state.key[3]).toBe('forward');
+ fireEvent.click(screen.getByRole('button',{name:'저장된 모의운용'}));
+ expect(state.key[3]).toBe('archive');
 });

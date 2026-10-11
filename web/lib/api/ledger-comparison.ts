@@ -11,6 +11,7 @@ export interface LedgerPeer {
   series:{date:string;personal_index100:number|null;core_index100:number|null}[];
 }
 export interface LedgerComparison {
+ selected_source?:"archive"|"forward"; archive_available?:boolean; archive_start?:string|null;
   replay_context?:ReplayContext|null;
   return_ranked?:number;theme_basis?:string;
   theme_selectors?:LedgerThemeSummary[];

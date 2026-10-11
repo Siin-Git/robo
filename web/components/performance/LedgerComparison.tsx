@@ -1,5 +1,5 @@
 "use client";
-import {useState,useRef} from "react";
+import {useState,useRef,useEffect} from "react";
 import Link from "next/link";
 import {useQuery} from "@tanstack/react-query";
 import {ArrowUpRight,ChevronDown,ChartNoAxesCombined} from "lucide-react";
@@ -42,14 +42,18 @@ function RiskMap({items,focus,select}:{items:LedgerPeer[];focus?:string;select:(
 }
 
 export function LedgerComparison({participantId}:{participantId?:string}) {
+  const [source,setSource]=useState<"auto"|"archive"|"forward">("auto");
+  const [hasArchive,setHasArchive]=useState(false);
   const [period,setPeriod]=useState<Period>("ALL");
   const [basis,setBasis]=useState<LedgerBasis>("return");
   const [selected,setSelected]=useState<string|null>(participantId??null);
   const [filter,setFilter]=useState<Filter>("all");
   const summaryRef=useRef<HTMLElement>(null);
   const me=useQuery({queryKey:["comparison-identity"],queryFn:()=>get<{participant_id:string}>("/api/v1/me")});
-  const q=useQuery({queryKey:["ledger-comparison",period,basis],queryFn:()=>get<Contract>(`/api/v1/me/performance/comparison?period=${period}&basis=${basis}`),refetchInterval:15_000});
+  const q=useQuery({queryKey:["ledger-comparison",period,basis,source],queryFn:()=>get<Contract>(`/api/v1/me/performance/comparison?period=${period}&basis=${basis}&source=${source}`),refetchInterval:15_000});
   const data=q.data;
+  useEffect(()=>{if(data?.archive_available)setHasArchive(true);},[data?.archive_available]);
+  const archived=data?.selected_source==="archive";
   const focus=(filter==="mine" ? me.data?.participant_id : selected??me.data?.participant_id);
   const person=data?.items.find(p=>p.participant_id===focus);
   const own=focus===me.data?.participant_id;
@@ -72,8 +76,9 @@ export function LedgerComparison({participantId}:{participantId?:string}) {
     {key:riskBasis?"volatility":"excess",header:riskBasis?"연율 변동성":"CORE 대비",numeric:true,render:r=><strong className={`${s.secondaryMetric} ${basis==="excess"||basis==="volatility"?s.selectedMetric:""}`}>{riskBasis?fmtPct(r.metrics.volatility):fmtActivePp(r.metrics.difference_pp)}</strong>},
   ];
   return <AppShell headerTitle="참여자 성과 비교" softBackground><div className={`${s.page} ${ui.page}`}>
-    <header className={s.header}><div><h1>참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link className="btn-secondary" href={`/dashboard?comparison=common&period=${period}`}>공통 기간의 내 성과·기여도</Link></header>
-    <div className={ui.context}><div className={ui.contextText}><span className={ui.sourceBadge}>{!data?"기록 확인 중":data?.data_kind==="HISTORICAL_REPLAY"?"과거 가격 모의실험":data?.data_kind==="TEST_FIXTURE"?"검증용 합성 데이터":"실제 시장 가격 모의운용"}</span><span>{fmtDate(data?.start)} — {fmtDate(data?.end)}</span><span>{data?.registered??"—"}명 비교</span></div><label className={ui.period}>조회 기간<select aria-label="조회 기간" className="input" value={period} onChange={e=>setPeriod(e.target.value as Period)}>{PERIODS.map(p=><option key={p.key} value={p.key}>{p.label}</option>)}</select></label></div>
+    <header className={s.header}><div><h1>참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link className="btn-secondary" href={archived?"/dashboard?source=archive":`/dashboard?comparison=common&period=${period}&source=forward`}>공통 기간의 내 성과·기여도</Link></header>
+    {(hasArchive||data?.archive_available)&&<div className="race-filters" role="group" aria-label="비교 기록 선택"><button aria-pressed={archived} onClick={()=>setSource("archive")}>저장된 모의운용</button><button aria-pressed={!archived} onClick={()=>setSource("forward")}>자동운용</button></div>}
+    <div className={ui.context}><div className={ui.contextText}><span className={ui.sourceBadge}>{!data?"기록 확인 중":archived?"모의운용 성과":data?.data_kind==="HISTORICAL_REPLAY"?"과거 가격 모의실험":data?.data_kind==="TEST_FIXTURE"?"검증용 합성 데이터":"실제 시장 가격 모의운용"}</span><span>{fmtDate(data?.start)} — {fmtDate(data?.end)}</span><span>{data?.registered??"—"}명 비교</span></div><label className={ui.period}>조회 기간<select aria-label="조회 기간" className="input" value={period} onChange={e=>setPeriod(e.target.value as Period)}>{PERIODS.map(p=><option key={p.key} value={p.key}>{p.label}</option>)}</select></label></div>
     {q.isLoading?<LoadingSkeleton rows={5}/>:q.isError?<ErrorState message="운용 원장 비교를 불러오지 못했습니다." onRetry={()=>q.refetch()}/>:data&&<>
       {data.reason&&<p className={ui.notice} role="status">순위 대기 · {ledgerReason(data.reason)}</p>}
       <section ref={summaryRef} className="analytics-panel race-panel" aria-label="투자 성과 비교">

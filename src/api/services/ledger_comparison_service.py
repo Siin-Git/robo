@@ -91,20 +91,21 @@ def members(auth_db):
     return list(auth_db.scalars(query.order_by(Participant.participant_id)))
 
 
-def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
+def overview(auth_db, db, period="ALL", basis="return", own_pid=None, *, report_loader=None):
     if period not in PERIODS:
         raise ApiError("INVALID_PERIOD", "period must be 1M, 3M, 6M, 1Y or ALL", 400)
     if basis not in BASES:
         raise ApiError("INVALID_BASIS", "Unknown ledger ranking metric.", 400)
     people = members(auth_db)
     from ...forward.replay import read_metadata
-    replay = read_metadata(db)
+    replay = None if report_loader else read_metadata(db)
+    load = report_loader or (lambda pid, period, start=None, end=None: reports.dashboard(db, pid, period, start, end))
     individual = {}
     reasons = {}
     for person in people:
         pid = person.participant_id
         account = db.scalar(select(Account).where(Account.participant_id == pid, Account.account_type == "personal"))
-        report = reports.dashboard(db, pid, period) if account else calculate_report([], [], [], [], period)
+        report = load(pid, period) if account else calculate_report([], [], [], [], period)
         individual[pid] = report
         context = report.get("decision_context", {})
         reasons[pid] = ("NO_CONFIRMED_DECISION" if not account or context.get("status") == "LEGACY_UNRECORDED"
@@ -121,7 +122,7 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
     bounded = {}
     if endpoints:
         for pid in eligible:
-            report = reports.dashboard(db, pid, "ALL", C.as_date(endpoints[0]),
+            report = load(pid, "ALL", C.as_date(endpoints[0]),
                 C.as_date(endpoints[-1]) + timedelta(days=1))
             report["period"] = period
             bounded[pid] = report
@@ -168,7 +169,7 @@ def overview(auth_db, db, period="ALL", basis="return", own_pid=None):
         reason = "INSUFFICIENT_COMPARABLE_METRIC"
         for row in ranked:
             row["reason"] = reason
-    return {"data_source": "ACCOUNT_LEDGER", "replay_context": replay, "data_kind": "HISTORICAL_REPLAY" if replay else "TEST_FIXTURE" if any(
+    return {"data_source": "ACCOUNT_LEDGER", "replay_context": replay, "data_kind": "HISTORICAL_REPLAY" if replay or report_loader else "TEST_FIXTURE" if any(
         r.get("data_kind") == "TEST_FIXTURE" for r in individual.values()) else "FORWARD_SIMULATION",
         "period": period, "basis": basis, "status": "AVAILABLE" if reason is None else "UNAVAILABLE",
         "reason": reason, "start": endpoints[0] if endpoints else None, "end": endpoints[-1] if endpoints else None,

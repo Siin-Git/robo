@@ -44,7 +44,7 @@ function LegacyDashboardPage() {
   const [period,setPeriod]=useState<Period>(PERIODS.some(p=>p.key===initialPeriod)?initialPeriod as Period:"ALL");
   const common=params.get("comparison")==="common";
   const [example,setExample]=useState(false);
-  const [view,setView]=useState<"auto"|"archive"|"forward">("auto");
+  const [view,setView]=useState<"auto"|"archive"|"forward">(params.get("source")==="archive"?"archive":params.get("source")==="forward"?"forward":"auto");
   const history=useHistoricalPreview();
   const [operationsOpen,setOperationsOpen]=useState(false);
   const [mode,setMode]=useState<"groups"|"assets">("groups");

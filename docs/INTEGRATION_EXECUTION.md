@@ -706,3 +706,10 @@ The saved historical performance card now uses “모의운용 성과” and a r
 The dashboard now defaults to the saved simulation when forward performance is absent, with explicit archive/forward selection. Saved holdings, cash, valuation snapshots, orders and fills use the existing LedgerHistory component. Historical order times are labeled simulation times. No forward rebalance recommendations or future dates are fabricated.
 
 Existing immutable replay backups are exported with `ledger_read_service.ledger` in read-only mode, restricted to each participant's personal account, and appended as a new HISTORICAL_REPLAY_ARCHIVED revision including ledger details. Cohort-wide replay context is excluded. Guarded SQL requires exact parent archive, owner/decision/weights match, and conflict-free event IDs; no live orders, holdings, trades, NAV, start date or old events are updated. Fifteen personal accounts: 90 valuations, 155 orders, 155 fills and 930 daily holding rows. Every NAV agrees with cash plus holdings and its existing chart point.
+
+### 2026-10-12: saved simulation cohort comparison
+- Ranking now supports explicit `archive` / `forward` and `auto` sources. Auto uses saved simulations only while fewer than two participants have comparable forward returns.
+- Match the owner's archive run, price-source checksum, period and execution assumptions; validate every archive's decision ownership. Reuse recorded-NAV report calculation and existing common-window ranking, themes, ties and risk-quality gates.
+- Public responses contain normalized peer series and aggregate metrics only. Saved balances, orders, holdings and decision identifiers remain private. No ledger writes or changes to common start / daily-forward configuration.
+- Dashboard links retain the selected source; users can switch independently to automatic operation.
+- Verification: 22 relevant backend tests and 90 frontend tests passed. Tests cover source isolation, common-period rebasing, missing CORE, drawdown, cohort mismatch and public-response privacy.
