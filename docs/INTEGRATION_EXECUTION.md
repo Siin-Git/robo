@@ -655,3 +655,42 @@ and verify a retryable COMPETITION_WAIT before T0. First fills/NAV require actua
 post-T0 prices. No backfill or synthetic performance is introduced. Weekly and
 monthly trading remain separately gated. Render/Vercel application deployment
 is not required for this workflow-only change.
+
+## Archived historical performance (2026-10-11)
+
+The production collector already contained 110 observations for Oct 2–9.
+External-source reconciliation found 30 differences: FX on Oct 2 and Oct 9,
+plus fourteen unhedged asset conversions on each date. Independent refetch
+with a wider date window confirmed the FX values. A compare-and-swap,
+price-only transaction corrected these and preserved old/new values in
+`PRICE_HISTORY_RECONCILED`; it refused to run if operating NAV or trades existed.
+This is a source reconciliation, not proof of why Yahoo revised a value.
+Ordinary collection remains append-only and never silently rewrites used prices.
+
+The latest fifteen confirmed decisions were exported read-only, with no login
+credentials, and evaluated in a separate marked SQLite replay ledger using
+`create_orders`, `execute_pending`, and `valuate` under the existing local
+replay scope. Six evaluation dates (Oct 2, 5, 6, 7, 8, 9), 30 accounts,
+275 simulated fills, 1,650 holding rows and 180 NAV rows reconciled.
+Initial buy-and-hold uses existing transaction costs and the existing
+last-observed-price valuation rule. Every asset's price date is retained.
+Current decisions postdate the replay start: these are counterfactual results,
+not contemporaneous decisions or forward observations.
+
+Fifteen `HISTORICAL_REPLAY_ARCHIVED` events store separate result payloads.
+No historical fills/holdings/NAV were inserted into the operating ledger,
+and no shared start was scheduled. The new authenticated read endpoint
+`/api/v1/me/performance/history` verifies both the account and decision owner.
+The dashboard shows an independent historical graph with a collapsed date/value
+and methodology table. It never splices the archive into live returns, rankings,
+or decision review observations. A subsequent configuration change is labeled.
+No migrations or new secrets are required. Archives are optional; absent data
+produces no preview. Removing the UI/API restores the prior presentation while
+retaining the audit events.
+
+Evidence, source comparisons, original exports, the one-off replay driver and
+repair SQL are stored outside Git in the task workspace under
+`work/price-history-repair-20261011/`. Do not commit account-level exports.
+Validation includes owner isolation, anonymous rejection, unchanged live ledger,
+archived-configuration labeling, price collection and replay regression tests,
+frontend tests and production build.

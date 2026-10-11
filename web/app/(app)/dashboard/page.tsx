@@ -16,6 +16,7 @@ import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerfor
 import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 import { LedgerHistory } from "@/components/dashboard/LedgerHistory";
 import { DashboardDecisionContext } from "@/components/dashboard/DashboardDecisionContext";
+import { HistoricalPreview } from "@/components/dashboard/HistoricalPreview";
 import { ForwardOperations } from "@/components/dashboard/ForwardOperations";
 import { ledgerReason } from "@/lib/api/ledger-comparison";
 import { BenchmarkOptions } from '@/components/strategies/BenchmarkOptions';
@@ -55,6 +56,7 @@ function LegacyDashboardPage() {
   const portfolioHref = "/portfolio";
   return <AppShell headerTitle="포트폴리오 운용 성과" softBackground><div className={s.page}>
     <header className={s.header}><div><span className={s.eyebrow}>MY PORTFOLIO</span><h1>내 투자 성과</h1><p>{report?.replay_context?"선택한 투자 구성이 과거 시장에서 어떻게 움직였는지 살펴보세요.":"내 투자 구성의 변화와 수익에 기여한 자산을 살펴보세요."}</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link><Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
+    {!example && <HistoricalPreview/>}
     <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시 · 가상 데이터":report?.replay_context?"과거 가격 모의실험":"모의운용 성과"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
     {!example && report?.valuation && <div className={s.balanceSummary} aria-label="계좌 요약"><span>총 평가액 <strong>{report.valuation.nav_krw.toLocaleString("ko-KR",{maximumFractionDigits:0})}원</strong></span><span>현금 <strong>{report.valuation.cash_krw?.toLocaleString("ko-KR",{maximumFractionDigits:0})??"—"}원</strong></span><a href="#operation-details" onClick={()=>setOperationsOpen(true)}>보유·운용 내역 보기 <ArrowRight size={13}/></a></div>}
     {example&&<div className={s.exampleBanner} role="status"><Info size={19}/><div><strong>DEMO / EXAMPLE · 가상 데이터</strong><span>확정한 포트폴리오의 성과가 아닙니다. 시연용 가상 데이터이며 랭킹에 반영되지 않습니다.</span></div><button onClick={()=>{setExample(false);setSelected(null);}}>내 모의운용 기록으로 돌아가기</button></div>}

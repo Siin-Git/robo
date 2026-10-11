@@ -19,6 +19,12 @@ from ..services import view_service as views
 router = APIRouter(prefix="/me", tags=["me"])
 
 
+@router.get("/performance/history", summary="Own archived historical simulation; separate from forward records")
+def me_historical_preview(db=Depends(get_design_db), user=Depends(get_current_user)):
+    from ..services.historical_preview_service import own
+    return own(db, _pid(user), user.user_id)
+
+
 @router.get("/performance/replay", summary="Local-only counterfactual run provenance and completion")
 def me_replay(db=Depends(get_performance_db), user=Depends(get_current_user)):
     import os
