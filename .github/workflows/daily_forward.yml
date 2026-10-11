@@ -17,6 +17,11 @@ on:
         description: "Database-enforced read-only price preflight; zero writes"
         type: boolean
         default: false
+      competition_start_date:
+        description: "Optional one-time shared start YYYY-MM-DD (future KST date); blank preserves current start"
+        type: string
+        required: false
+        default: ""
 
 concurrency:
   group: forward-jobs
@@ -53,6 +58,25 @@ jobs:
           if [ -n "$SCHEDULED_FOR" ]; then args+=(--scheduled-for "$SCHEDULED_FOR"); fi
           if [ "$READ_ONLY" = "true" ]; then args+=(--dry-run); fi
           python -m src.forward.run_prices "${args[@]}"
+      - name: Schedule explicitly requested shared start
+        if: >-
+          ${{ success() && github.event_name == 'workflow_dispatch' &&
+              github.ref == 'refs/heads/release/public-operation' &&
+              inputs.dry_run != true && inputs.competition_start_date != '' }}
+        env:
+          APP_PROFILE: local
+          CAPSTONE_DEMO: "1"
+          FORWARD_EXECUTOR: actions
+          DATABASE_BACKEND: postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          TZ: Asia/Seoul
+          SHARED_START_DATE: ${{ inputs.competition_start_date }}
+        run: |
+          # Existing command validates all 15 decisions, equal capital, pending
+          # compatibility and empty operating history before one atomic write.
+          # Never interpolate an operator input directly into shell source.
+          python -m src.forward.competition --start-date "$SHARED_START_DATE"
       # Restore the former Daily forward run as a dry-run by default.
       # A daily-only opt-in does not activate weekly/monthly trading workflows.
       - name: Daily forward run

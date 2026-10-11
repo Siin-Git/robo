@@ -634,3 +634,24 @@ Free 플랜 제약, 빌드 갱신·시작 migration의 별도 영향은 bootstra
 - 운영 dry-run/apply를 dispatch하지 않았다. GitHub Secrets의 **이름 존재만** 확인했고,
   실제 대상의 Render 일치 여부·운영 READY 수는 이번 테스트로 확인하지 않았다.
   사용법은 [BOOTSTRAP_UNREADY_PORTFOLIOS.md](BOOTSTRAP_UNREADY_PORTFOLIOS.md)의 Actions 절을 따른다.
+
+## 2026-10-11 — Enable the shared forward start through Actions
+
+The production cohort was READY 15/15 but had no shared T0; daily valuation was
+still a dry run because `FORWARD_DAILY_ENABLED` was unset. Prices were collecting
+successfully while trades, holdings and NAV remained empty.
+
+`daily-forward` now accepts an optional `competition_start_date` on a manual
+production-branch dispatch. A non-empty date on a non-dry-run dispatch invokes the
+existing atomic `competition.schedule_start` command after the price collector's
+DB identity checks. It validates readiness, initial capital, pending orders and
+empty operating history. Scheduled runs, blank input and dry runs never schedule
+a start. Date input is passed through an environment variable and quoted shell
+argument. Existing immutable-start and future-KST-date rules remain in force.
+
+Activation procedure: dispatch a future shared date, verify AWAITING_T0 and all
+15 captured decisions, set `FORWARD_DAILY_ENABLED=true`, then dispatch normally
+and verify a retryable COMPETITION_WAIT before T0. First fills/NAV require actual
+post-T0 prices. No backfill or synthetic performance is introduced. Weekly and
+monthly trading remain separately gated. Render/Vercel application deployment
+is not required for this workflow-only change.
