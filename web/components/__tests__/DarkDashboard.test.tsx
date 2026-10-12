@@ -10,7 +10,7 @@ vi.mock('@tanstack/react-query',()=>({useQuery:({queryKey}:any)=>queryKey[0]==='
 vi.mock('../dashboard/HistoricalLedger',()=>({HistoricalLedger:()=> <div>Saved ledger</div>}));
 vi.mock('../dashboard/LedgerHistory',()=>({LedgerHistory:()=> <div>Forward ledger</div>}));
 vi.mock('../dashboard/ForwardOperations',()=>({ForwardOperations:()=> <div>Forward status</div>}));
-vi.mock('recharts',()=>({ResponsiveContainer:()=>null,LineChart:()=>null,Line:()=>null,XAxis:()=>null,YAxis:()=>null,CartesianGrid:()=>null,Tooltip:()=>null,PieChart:()=>null,Pie:()=>null,Cell:()=>null,ReferenceLine:()=>null}));
+vi.mock('recharts',()=>({ResponsiveContainer:()=>null,LineChart:()=>null,Line:()=>null,XAxis:()=>null,YAxis:()=>null,CartesianGrid:()=>null,Tooltip:()=>null,PieChart:()=>null,Pie:()=>null,Cell:()=>null,ReferenceLine:()=>null,AreaChart:()=>null,Area:()=>null}));
 afterEach(cleanup);
 beforeEach(()=>{
  state.source=null;
@@ -46,4 +46,27 @@ it('honors an explicit forward link when archived results exist',()=>{
  state.source='forward';render(<DarkDashboard/>);
  expect(screen.getByRole('button',{name:'자동운용',exact:true})).toHaveAttribute('aria-pressed','true');
  expect(screen.queryByText('99,100,000원')).not.toBeInTheDocument();
+});
+
+it('shows archived server attribution and toggles asset groups without mixing forward records',()=>{
+ state.history.data.report.performance_report={
+  start:'2026-10-02',end:'2026-10-09',period:'ALL',observations:2,
+  metrics:{cumulative_return:.08,benchmark_return:.02,mdd:0},
+  series:[{date:'2026-10-02',personal:0,benchmark:0,drawdown:0},{date:'2026-10-09',personal:.08,benchmark:.02,drawdown:0}],
+  assets:[{asset_id:'us_equity',group:'equity',contribution:.06},{asset_id:'korea_equity',group:'equity',contribution:.03},{asset_id:'costs',group:'costs',contribution:-.01}],
+  attribution:[{date:'2026-10-02',total:0,values:{us_equity:0,korea_equity:0,costs:0}},{date:'2026-10-09',total:.08,values:{us_equity:.06,korea_equity:.03,costs:-.01}}],
+  quality:{unresolved_intervals:0,benchmark_complete:true}
+ };
+ render(<DarkDashboard/>);
+ expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/일반 주식 \+9.00%p/);
+ expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/거래비용 -1.00%p/);
+ fireEvent.click(screen.getByRole('button',{name:'개별 자산',exact:true}));
+ expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/미국주식 \+6.00%p/);
+ expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/한국주식 \+3.00%p/);
+ fireEvent.click(screen.getByRole('button',{name:'자동운용',exact:true}));
+ expect(screen.queryByRole('img',{name:/누적 기여도:/})).not.toBeInTheDocument();
+});
+it('does not fabricate archived contribution when only summary NAV exists',()=>{
+ render(<DarkDashboard/>);
+ expect(screen.queryByRole('img',{name:/누적 기여도:/})).not.toBeInTheDocument();
 });

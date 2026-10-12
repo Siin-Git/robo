@@ -9,6 +9,7 @@ import {ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Toolt
 import {AppShell} from "@/components/layout/AppShell";
 import {useCurrentUser} from "@/components/layout/AppSidebar";
 import {useHistoricalPreview} from "./HistoricalPreview";
+import {ReturnContribution} from "./ReturnContribution";
 import {HistoricalLedger} from "./HistoricalLedger";
 import {LedgerHistory} from "./LedgerHistory";
 import {ForwardOperations} from "./ForwardOperations";
@@ -78,6 +79,7 @@ export function DarkDashboard(){
       <a className={s.detailLink} href="#dark-records" onClick={()=>{const d=document.getElementById("dark-records");if(d instanceof HTMLDetailsElement)d.open=true;}}>보유·운용 내역 <ArrowRight size={15}/></a>
      </section>
     </div>
+    <ReturnContribution report={archive?saved?.performance_report:report}/>
     <div className={s.actions}>
      <div className={s.action}><span className={s.icon}><Activity size={20}/></span><div><h3>{archive?"기록으로 확인하는 모의운용":"자동운용 기록"}</h3><p>{archive?`평가 ${observations??0}회 · 모의 체결 ${ledger?.trades.length??0}건`:`평가 ${observations??0}회 · ${end?`마지막 평가 ${fmtDate(end)}`:"첫 평가 대기 중"}`}</p></div></div>
      <Link className={s.action} href={`/ranking?source=${source}`}><span className={s.icon}><Layers3 size={20}/></span><div><h3>다른 참여자와 비교</h3><p>같은 기간의 성과와 순위를 확인하세요</p></div><ArrowUpRight size={18}/></Link>

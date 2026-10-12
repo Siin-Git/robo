@@ -3,9 +3,10 @@ import {useQuery} from '@tanstack/react-query';
 import {get} from '@/lib/api/client';
 import {fmtReturn,fmtActivePp} from '@/lib/format';
 import s from './HistoricalPreview.module.css';
+import type {Report} from '@/app/(app)/dashboard/performance-data';
 import type { ForwardLedger } from '@/lib/api/ledger';
 type Point={date:string;personal_index:number;core_index:number};
-export type History={available:boolean;report?:{start:string;end:string;decision_confirmed_at:string;is_current_configuration:boolean;series:Point[];summary:{personal_return:number;core_return:number;observations:number};price_dates:Record<string,Record<string,string>>;cost_bps:number;ledger?:ForwardLedger;weights:Record<string,number>;ledger_archived_at?:string}};
+export type History={available:boolean;report?:{start:string;end:string;decision_confirmed_at:string;is_current_configuration:boolean;series:Point[];summary:{personal_return:number;core_return:number;observations:number};price_dates:Record<string,Record<string,string>>;cost_bps:number;ledger?:ForwardLedger;performance_report?:Report;weights:Record<string,number>;ledger_archived_at?:string}};
 export function useHistoricalPreview(){return useQuery({queryKey:['own-historical-preview'],queryFn:()=>get<History>('/api/v1/me/performance/history'),staleTime:60_000,retry:1});}
 export function HistoricalPreview(){
  const q=useHistoricalPreview();
