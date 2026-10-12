@@ -1,5 +1,6 @@
 "use client";
 
+import { THEME_LABELS } from "@/lib/constants";
 import { Check } from "lucide-react";
 import type { Theme } from "@/lib/api/types";
 
@@ -13,16 +14,17 @@ export function ThemeCard({
   onToggle: () => void;
 }) {
   const disabled = !theme.active;
+  const name = THEME_LABELS[theme.theme_id] ?? theme.display_name;
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onToggle}
       aria-pressed={selected}
-      aria-label={`${theme.display_name}${disabled ? " (준비 중)" : ""}`}
+      aria-label={`${name}${disabled ? " (준비 중)" : ""}`}
       className={`relative h-[118px] min-h-[44px] p-[16px] text-left ${
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-      } border bg-white ${
+      } border bg-surface ${
         selected ? "border-brand bg-brand-soft" : "border-border"
       }`}
       style={{ borderRadius: 8 }}
@@ -32,7 +34,7 @@ export function ThemeCard({
           <Check size={18} />
         </span>
       )}
-      <div className="text-[14px] font-semibold leading-[20px]">{theme.display_name}</div>
+      <div className="text-[14px] font-semibold leading-[20px]">{name}</div>
       <div className="caption mt-[4px]">{theme.ticker ?? "—"}</div>
       <div className="mt-[8px]">
         {disabled ? (
@@ -40,7 +42,7 @@ export function ThemeCard({
             준비 중
           </span>
         ) : (
-          <span className="caption">{theme.theme_type}</span>
+          <span className="caption">{theme.theme_type === "sector" ? "산업" : "테마"}</span>
         )}
       </div>
     </button>

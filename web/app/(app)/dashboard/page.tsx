@@ -1,6 +1,8 @@
 "use client";
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+const DarkDashboard = dynamic(() => import("@/components/dashboard/DarkDashboard").then(m => m.DarkDashboard), {ssr:false});
+import { useSearchParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowRight, ChartNoAxesCombined, Info } from "lucide-react";
@@ -28,6 +30,8 @@ export default function DashboardPage() {
 
 function DashboardRoute() {
   const params = useSearchParams();
+  const details = usePathname() === "/performance";
+  if (!details && !params.has("period") && params.get("view") !== "details" && params.get("comparison") !== "common" && params.get("source") !== "demo") return <DarkDashboard/>;
   return DEMO_MODE && params.get("source") === "demo" ? <DemoDashboardPage/> : <LegacyDashboardPage/>;
 }
 

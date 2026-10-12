@@ -13,7 +13,7 @@ import { ReviewData, reviewRows } from "./review-data";
 import { useSetupStyles } from "../style-context";
 import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
-const THEME_COLORS = ["#7654c8", "#aa74d6"];
+const THEME_COLORS = ["#baa0f3", "#aa74d6"];
 const GROUPS = [
   { key: "broad_equity", base: "equity", name: "일반 주식", color: "#3b72e8" },
   { key: "themes", base: "themes", name: "선택 테마", color: "#8560cd" },
@@ -44,7 +44,7 @@ export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComple
   const selected = allocations.find(r => r.id === activeId);
   const color = (id: string) => {
     const index = p.themes.findIndex(t => t.theme_id === id);
-    return index >= 0 ? THEME_COLORS[index % THEME_COLORS.length] : ASSET_COLORS[id] ?? "#8292a9";
+    return index >= 0 ? THEME_COLORS[index % THEME_COLORS.length] : ASSET_COLORS[id] ?? "var(--text-secondary)";
   };
   const themeName = (id: string) => THEME_INFO[id]?.name ?? p.themes.find(t => t.theme_id === id)?.display_name ?? id;
   const themeTotal = rows.filter(r => r.isTheme).reduce((sum, r) => sum + r.final, 0);

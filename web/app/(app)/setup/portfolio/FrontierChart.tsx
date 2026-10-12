@@ -73,7 +73,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
     <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="group" aria-label="위험과 기대수익률 차트. 자산 점에 마우스를 올리거나 키보드로 선택하면 상세 정보가 표시됩니다.">
       {Array.from({ length: 4 }, (_, i) => {
         const v = minY + (maxY - minY) * i / 3;
-        return <g key={`y${i}`}><line x1={left} x2={right} y1={y(v)} y2={y(v)} stroke="#cbd5e1" strokeDasharray="3 4" /><text x={left - 7} y={y(v) + 4} textAnchor="end" className={styles.axisText}>{(v * 100).toFixed(1)}%</text></g>;
+        return <g key={`y${i}`}><line x1={left} x2={right} y1={y(v)} y2={y(v)} stroke="var(--border)" strokeDasharray="3 4" /><text x={left - 7} y={y(v) + 4} textAnchor="end" className={styles.axisText}>{(v * 100).toFixed(1)}%</text></g>;
       })}
       {Array.from({ length: 4 }, (_, i) => {
         const v = minX + (maxX - minX) * i / 3;
@@ -81,7 +81,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
       })}
       <text x={(left + right) / 2} y={height - 3} textAnchor="middle" className={styles.axisText}>예상 변동성</text>
       <text transform={`translate(11 ${(top + bottom) / 2}) rotate(-90)`} textAnchor="middle" className={styles.axisText}>기대수익률</text>
-      <polyline points={points.map(p => `${x(p.volatility)},${y(p.expected_return)}`).join(" ")} fill="none" stroke="#2563eb" strokeWidth={2.5} strokeLinejoin="round" />
+      <polyline points={points.map(p => `${x(p.volatility)},${y(p.expected_return)}`).join(" ")} fill="none" stroke="#74a8ff" strokeWidth={2.5} strokeLinejoin="round" />
       {coords.map(a => {
         const label = labels.get(a.asset_id)!;
         const active = inspectedId === a.asset_id;
@@ -91,17 +91,17 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
           aria-describedby={active ? "asset-point-tooltip" : undefined}
           onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onInspect(a.asset_id); } if (e.key === "Escape") onInspect(null); }}>
           <circle cx={a.x} cy={a.y} r={13} fill="transparent" />
-          <circle className={styles.assetPointDot} cx={a.x} cy={a.y} r={5} fill={color} stroke="white" strokeWidth={1} />
+          <circle className={styles.assetPointDot} cx={a.x} cy={a.y} r={5} fill={color} stroke="var(--surface)" strokeWidth={1} />
           {active && <circle cx={a.x} cy={a.y} r={9} fill="none" stroke={color} strokeWidth={1.5} />}
           <text x={label.x} y={label.y} textAnchor="middle" className={styles.pointLabel}>{a.name}</text>
         </g>;
       })}
-      <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="white" stroke="#2563eb" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#2563eb" /></g>
-      {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#7654c8" stroke="white" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="white" /></g>}
+      <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff" /></g>
+      {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)" /></g>}
     </svg>
-    <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:12,color:"#435a75",padding:"0 8px 5px"}} aria-label="포트폴리오 위치 범례">
-      <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #2563eb",marginRight:6}}/>테마 적용 전</span>
-      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#7654c8",marginRight:6}}/>테마 적용 후</span>}
+    <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:12,color:"var(--text-secondary)",padding:"0 8px 5px"}} aria-label="포트폴리오 위치 범례">
+      <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>테마 적용 전</span>
+      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>테마 적용 후</span>}
     </div>
     {inspected && inspectedLabel && <div id="asset-point-tooltip" role="tooltip" aria-label={`${inspected.name} 수익률과 변동성`} className={styles.pointTooltip}
       style={{ left: Math.max(4, Math.min(width - 204, inspectedLabel.x - 100)), top: inspectedLabel.y + 10 }}>

@@ -116,7 +116,7 @@ function LegacyPerformancePage() {
                 className={`h-[32px] px-[12px] text-[13px] font-semibold leading-[20px] ${
                   period.key === p.key
                     ? "bg-text-primary text-white"
-                    : "bg-white text-text-secondary border border-border"
+                    : "bg-surface text-text-secondary border border-border"
                 }`}
                 style={{ borderRadius: 6 }}
               >

@@ -224,7 +224,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
                   onChange={(e) => setIdx(Number(e.target.value))} aria-label="위험 수준"
                   aria-valuetext={`${riskLabel(selected.volatility)}, 예상 변동성 ${fmtPct(selected.volatility)}`}
                   className={styles.slider}
-                  style={{ background: `linear-gradient(to right, var(--brand) ${points.length > 1 ? curIdx / (points.length - 1) * 100 : 0}%, #e5e9ef 0%)` }} />
+                  style={{ background: `linear-gradient(to right, var(--brand) ${points.length > 1 ? curIdx / (points.length - 1) * 100 : 0}%, var(--border) 0%)` }} />
                 <div className={styles.rangeLabels}><span>안정적으로</span><span>적극적으로</span></div>
                 <p>파란 선 위의 선택 지점과 오른쪽 요약을 함께 확인하세요. 다음 단계에서는 이 기본 구성에 투자 인사이트를 반영합니다.</p>
               </div>
@@ -271,7 +271,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
                   <PieChart><Pie data={assetWeights.filter(w => w.weight > 0)} dataKey="weight" nameKey="asset_id" cx="50%" cy="50%" outerRadius="90%" startAngle={90} endAngle={-270} stroke="#ffffff" strokeWidth={2} isAnimationActive={false}>
                     {assetWeights.filter(w => w.weight > 0).map(w => <Cell key={w.asset_id}
                       fill={ASSET_COLORS[w.asset_id] ?? GROUP_COLORS.현금}
-                      stroke={pieAssetId === w.asset_id ? "#172b46" : "#ffffff"} strokeWidth={pieAssetId === w.asset_id ? 3 : 2}
+                      stroke={pieAssetId === w.asset_id ? "var(--text-primary)" : "#ffffff"} strokeWidth={pieAssetId === w.asset_id ? 3 : 2}
                       onMouseEnter={() => setPieAssetId(w.asset_id)} onFocus={() => setPieAssetId(w.asset_id)} onBlur={() => setPieAssetId(null)}
                       onClick={() => setPieAssetId(w.asset_id)} tabIndex={0} role="button"
                       aria-label={`${ASSET_META[w.asset_id]?.name ?? w.asset_id} ${fmtPct(w.weight)}`} />)}

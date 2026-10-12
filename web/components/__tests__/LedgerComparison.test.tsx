@@ -105,7 +105,7 @@ it('selects the archive source and keeps forward records independently selectabl
  state.data={items:[peer('A'),peer('B')],dates:[],ranked:0,registered:2,selected_source:'archive',archive_available:true};
  render(<LedgerComparison/>);
  expect(screen.getByRole('button',{name:'저장된 모의운용'})).toHaveAttribute('aria-pressed','true');
- expect(screen.getByRole('link',{name:'공통 기간의 내 성과·기여도'})).toHaveAttribute('href','/dashboard?source=archive');
+ expect(screen.getByRole('link',{name:'공통 기간의 내 성과·기여도'})).toHaveAttribute('href','/dashboard?view=details&source=archive');
  fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
  expect(state.key[3]).toBe('forward');
  fireEvent.click(screen.getByRole('button',{name:'저장된 모의운용'}));

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ApiError, post } from "@/lib/api/client";
 import { DEMO_MODE } from "@/lib/api/comparison";
+import { AuthFrame } from "@/components/auth/AuthFrame";
 import { APP_NAME } from "@/lib/constants";
 
 export default function SignupPage() {
@@ -50,8 +51,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
+    <AuthFrame>
         <p className="ui-eyebrow">{APP_NAME}</p>
         <h1 className="page-title mt-[8px]">계정 만들기</h1>
         <p className="page-desc mt-[4px]">나만의 포트폴리오를 설정하고 성과를 추적해보세요.</p>
@@ -82,7 +82,6 @@ export default function SignupPage() {
         <p className="caption mt-[16px] text-center">
           이미 계정이 있으신가요? <Link href="/login" className="font-semibold text-brand">로그인</Link>
         </p>
-      </div>
-    </div>
+    </AuthFrame>
   );
 }

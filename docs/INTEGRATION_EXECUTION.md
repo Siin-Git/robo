@@ -713,3 +713,26 @@ Existing immutable replay backups are exported with `ledger_read_service.ledger`
 - Public responses contain normalized peer series and aggregate metrics only. Saved balances, orders, holdings and decision identifiers remain private. No ledger writes or changes to common start / daily-forward configuration.
 - Dashboard links retain the selected source; users can switch independently to automatic operation.
 - Verification: 22 relevant backend tests and 90 frontend tests passed. Tests cover source isolation, common-period rebasing, missing CORE, drawdown, cohort mismatch and public-response privacy.
+
+## 2026-10-12 — opt-in dark dashboard preview
+
+- Added `/dashboard?design=dark`, a single-page dark dashboard preview. Default routes retain their existing presentation.
+- Reuses authenticated historical performance, forward performance, and ledger read APIs. Server-returned NAV/returns are unchanged; no database, collection, execution, or rebalance code changes.
+- Saved simulation and forward records remain separate. Source dates and retrospective calculation provenance remain available in disclosures. Missing forward records remain empty.
+- Large performance chart, actual holding mix, balance/cash summary, and links to existing portfolio/ranking/review and detailed records.
+- 95 frontend tests and production build passed. Authenticated preview verified against the same deployed account values: NAV 99,099,642 KRW, return -0.85%, CORE -0.90%, cash 100,000 KRW, 6 archived evaluations and 11 mock trades. Source switching, empty forward state, and expanded ledger checked in browser. Desktop (1325px) and mobile (390px) have no horizontal overflow; mobile menu contrast corrected. Production deployment is intentionally deferred for design review.
+
+### 2026-10-12 — unified dark workspace preview
+- Extended the approved dashboard design to shared navigation, auth, setup, portfolio, performance/comparison, review, account and admin surfaces using central dark semantic tokens.
+- Kept all API/mutation and financial calculation contracts intact. Dashboard overview links to existing detailed analysis with `view=details`; common/demo views remain routed to their existing implementations.
+- Added a distinct administrator navigation group and direct judgment/strategy navigation. Replaced light chart axes and tooltip surfaces with readable dark presentation colors.
+- Frontend regression suite: 95/95 pass. Production frontend build: pass. Browser QA will be appended after preview verification. Preview branch only; no production promotion or DB writes.
+- Scope/decisions: docs/DARK_REDESIGN.md.
+
+### Unified workspace — verification and final polish
+- 100 frontend tests across 22 files passed; production build passed. Added route coverage for default overview, explicit details, performance, common comparison and period links.
+- Authenticated preview checked with the existing participant account: login, dashboard overview/detail, risk slider (changed then restored without saving), themes, confirmation, portfolio, ranking filter, review, weekly opinions and account. Existing account metrics agreed across overview/detail; no portfolio confirmation, opinion submission or ledger write was performed.
+- Narrow 390px viewport: menu navigation, portfolio and theme layouts verified without document overflow. Corrected summary number wrapping. Desktop checks at 1280px+.
+- Standard-user access to admin tracking remained denied. Corrected the header badge to depend on the actual admin role instead of URL. Privileged administrator data screens were not browser-validated because no administrator session was available; existing internal tracking regression tests passed.
+- Review now emphasizes saved estimates and collapses provenance/calculation detail. Strategy catalog now has an explicit selection state backed by the real catalog, plus loading/empty states. Weekly opinion labels are Korean; original selection limits and submission behavior are preserved.
+- Only frontend presentation, route preservation, tests and documentation changed. Preview branch/Draft PR only; production and database untouched.

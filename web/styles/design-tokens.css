@@ -1,34 +1,30 @@
-/** Design tokens — single source of truth (§14). No ad-hoc colors elsewhere. */
+/** Shared presentation tokens. Financial series retain their own category colors. */
 :root {
-  --background: #edf1f6;
-  --surface: #ffffff;
-  --surface-subtle: #f9fafb;
-
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
-
-  --text-primary: #1c314d;
-  --text-secondary: #536a85;
-  --text-muted: #9ca3af;
-
-  --brand: #2563eb;
-  --brand-hover: #1d4ed8;
-  --brand-soft: #eff6ff;
-
-  --positive: #15803d;
-  --positive-soft: #f0fdf4;
-
-  --negative: #b91c1c;
-  --negative-soft: #fef2f2;
-
-  --warning: #b45309;
-  --warning-soft: #fffbeb;
+  color-scheme: dark;
+  --background: #0c1421;
+  --surface: #141f30;
+  --surface-subtle: #1a283c;
+  --border: #2a394f;
+  --border-strong: #485e7a;
+  --text-primary: #edf3fc;
+  --text-secondary: #a9bad0;
+  --text-muted: #95a8c1;
+  --brand: #82b0ff;
+  --action: #2864d6;
+  --brand-hover: #3474ea;
+  --brand-soft: #1c3354;
+  --positive: #78d9bb;
+  --positive-soft: #173a36;
+  --negative: #f1a0aa;
+  --negative-soft: #3d2634;
+  --warning: #edc486;
+  --warning-soft: #352e24;
   --radius-card: 16px;
-  --radius-control: 8px;
+  --radius-control: 10px;
   --space-section: 24px;
   --page-title-size: clamp(26px, 2.4vw, 32px);
-  --panel-border: #c6d2e0;
+  --panel-border: #2a394f;
   --panel-padding: 28px;
-  --insight: #7654c8;
-  --insight-soft: #f7f3fc;
+  --insight: #c0aaf7;
+  --insight-soft: #2a2441;
 }

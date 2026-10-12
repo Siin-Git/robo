@@ -2,7 +2,7 @@ import { render,screen,fireEvent,cleanup,within } from "@testing-library/react";
 import { afterEach,describe,expect,it,vi } from "vitest";
 import DashboardPage from "@/app/(app)/dashboard/page";
 import { exampleReport,contributionView,PERIODS,reportChartPoints } from "@/app/(app)/dashboard/performance-data";
-vi.mock("next/navigation",()=>({useSearchParams:()=>new URLSearchParams()}));
+vi.mock("next/navigation",()=>({usePathname:()=>"/dashboard",useSearchParams:()=>new URLSearchParams("view=details")}));
 const baseState = vi.hoisted(()=>({status:"selected",isError:false, archive:null as any, report:null as any}));
 vi.mock("@tanstack/react-query",()=>({useQuery:({queryKey}:{queryKey:string[]})=>queryKey[0]==="base-portfolio"?{data:baseState.isError?undefined:{status:baseState.status},isError:baseState.isError}:
   queryKey[0]==="own-historical-preview"?{data:baseState.archive??{available:false},isLoading:false,isError:false}:

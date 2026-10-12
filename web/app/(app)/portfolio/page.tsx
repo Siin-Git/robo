@@ -29,7 +29,7 @@ export interface PortfolioSummary {
   themes: { theme_id: string; display_name?: string; ticker?: string | null; weight: number }[];
   risk_comparison?: { base_volatility: number | null; personalized_volatility: number | null; as_of: string | null; method: string | null } | null;
 }
-const THEME_COLORS = ["#7654c8", "#aa74d6"];
+const THEME_COLORS = ["#baa0f3", "#aa74d6"];
 const GROUPS = [
   { key: "broad_equity", base: "equity", name: "일반 주식", color: "#3b72e8" },
   { key: "themes", base: "themes", name: "선택 테마", color: "#8560cd" },
@@ -71,7 +71,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
   const themes = p.themes.filter(t => allocations.some(r => r.id === t.theme_id && r.isTheme));
   const themeTotal = allocations.filter(r => r.isTheme).reduce((sum, r) => sum + r.final, 0);
   const name = (id: string) => THEME_INFO[id]?.name ?? p.themes.find(t => t.theme_id === id)?.display_name ?? id;
-  const color = (id: string) => { const i = themes.findIndex(t => t.theme_id === id); return i >= 0 ? THEME_COLORS[i % THEME_COLORS.length] : ASSET_COLORS[id] ?? "#8292a9"; };
+  const color = (id: string) => { const i = themes.findIndex(t => t.theme_id === id); return i >= 0 ? THEME_COLORS[i % THEME_COLORS.length] : ASSET_COLORS[id] ?? "var(--text-secondary)"; };
   const selected = allocations.find(r => r.id === activeId);
   const before = p.risk_comparison?.base_volatility;
   const after = p.risk_comparison?.personalized_volatility;

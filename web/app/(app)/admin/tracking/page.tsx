@@ -32,7 +32,7 @@ export default function InternalTrackingPage() {
     return saveTrackingReview(id!, { asset_id: asset!.asset_id, action, reason: reason.trim(), request_key: request.current.key });
   }, onSuccess: () => cache.invalidateQueries({ queryKey: ["internal-tracking", id] }) });
   const denied = (decisions.error as { status?: number })?.status === 403 || (report.error as { status?: number })?.status === 403;
-  return <AppShell headerTitle="내부 판단 추적" softBackground><main className={s.page}>
+  return <AppShell headerTitle="내부 판단 추적" softBackground><div className={`${s.page} review-workspace`}>
     <header className={s.header}><div><h1>내부 판단 추적</h1><p>관리자 전용 · 최초 판단과 이후 관측을 자산별로 검토합니다.</p></div><Link href="/admin">관리 화면으로</Link></header>
     {denied ? <p role="alert">관리자 권한이 필요합니다. 내부 추적 자료를 조회할 수 없습니다.</p> : <>
       {decisions.isLoading && <p role="status">판단 목록을 확인하고 있습니다.</p>}
@@ -98,5 +98,5 @@ export default function InternalTrackingPage() {
         </li>)}</ul> : <p>저장된 내부 검토 기록이 없습니다.</p>}</section>
       </>}
     </>}
-  </main></AppShell>;
+  </div></AppShell>;
 }

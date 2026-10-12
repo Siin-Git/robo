@@ -9,6 +9,7 @@ import { ThemeSelector } from "@/components/views/ThemeSelector";
 import { ApiError, post } from "@/lib/api/client";
 import { get } from "@/lib/api/client";
 import type { Theme, View } from "@/lib/api/types";
+import { THEME_LABELS } from "@/lib/constants";
 import { fmtDate } from "@/lib/format";
 
 export default function ViewsPage() {
@@ -63,13 +64,13 @@ export default function ViewsPage() {
   }
 
   return (
-    <AppShell headerTitle="Weekly View">
+    <AppShell headerTitle="주간 투자 의견">
       <PageHeader
-        title="Weekly View"
+        title="주간 투자 의견"
         description="이번 주 유망하다고 생각하는 산업을 선택하세요. 최대 2개까지 선택할 수 있습니다."
         right={
           <span className="caption">
-            이번 Cycle 마감
+            이번 주 제출 마감
             <br />
             금요일 18:00 KST
           </span>
@@ -85,14 +86,14 @@ export default function ViewsPage() {
             <>
               <ThemeSelector themes={themes.data.items} selected={selected} onToggle={toggle} />
               {selected.length > 0 && (
-                <div className="mt-[16px] rounded-card border border-border bg-white p-[16px]">
-                  <div className="card-heading mb-[8px]">선택한 View</div>
+                <div className="mt-[16px] rounded-card border border-border bg-surface p-[16px]">
+                  <div className="card-heading mb-[8px]">선택한 투자 의견</div>
                   <div className="flex gap-[12px]">
                     {selected.map((id) => {
                       const t = themes.data!.items.find((x) => x.theme_id === id);
                       return (
                         <div key={id} className="flex-1 rounded-[6px] border border-border bg-surface-subtle p-[12px] text-center">
-                          <div className="text-[14px] font-semibold leading-[20px]">{t?.display_name ?? id}</div>
+                          <div className="text-[14px] font-semibold leading-[20px]">{THEME_LABELS[id] ?? t?.display_name ?? id}</div>
                           <div className="caption">{t?.ticker ?? ""}</div>
                           <div className="caption mt-[4px]">{selected.length === 1 ? "10%" : "7.5%"}</div>
                         </div>
@@ -111,11 +112,11 @@ export default function ViewsPage() {
               <div className="mt-[20px] flex items-center gap-[12px]">
                 <span className="text-[13px] leading-[20px] text-text-secondary" aria-live="polite">선택 {selected.length}/2</span>
                 <button className="btn-secondary" onClick={() => { setSelected([]); setReason(""); }} disabled={busy}>변경 취소</button>
-                <button className="btn-primary btn-cta" onClick={submit} disabled={busy || selected.length === 0}>{busy ? "제출 중…" : "View 제출"}</button>
+                <button className="btn-primary btn-cta" onClick={submit} disabled={busy || selected.length === 0}>{busy ? "제출 중…" : "투자 의견 제출"}</button>
               </div>
               {error ? <p role="alert" className="mt-[12px] text-[13px] leading-[20px] text-negative">{error}</p> : null}
               {result ? (
-                <div className="mt-[20px] border border-border bg-white p-[20px]" style={{ borderRadius: 8 }} role="status">
+                <div className="mt-[20px] border border-border bg-surface p-[20px]" style={{ borderRadius: 8 }} role="status">
                   <h3 className="card-heading mb-[12px]">제출 완료</h3>
                   {result.map((v) => (
                     <p key={v.view_id} className="text-[13px] leading-[20px]">{v.theme_id} · cycle {fmtDate(v.cycle_date)} · effective {fmtDate(v.effective_at)} · {v.execution_status}</p>
@@ -126,29 +127,29 @@ export default function ViewsPage() {
           )}
         </div>
         <div>
-          <div className="rounded-card border border-border bg-white p-[20px]">
+          <div className="rounded-card border border-border bg-surface p-[20px]">
             <div className="card-heading mb-[12px]">적용 규칙</div>
             <ul className="flex flex-col gap-[8px] text-[13px] leading-[20px]">
-              <li>• 최대 2개 Theme</li>
-              <li>• 총 Active Budget 최대 15%</li>
-              <li>• 단일 Theme 최대 10%</li>
-              <li>• Equity Sleeve 내에서 조달</li>
-              <li>• 위험 한도 초과 시 Theme 비중 자동 조정</li>
+              <li>• 최대 2개 테마 선택</li>
+              <li>• 테마에 반영할 비중 합계 최대 15%</li>
+              <li>• 테마 하나의 비중 최대 10%</li>
+              <li>• 기본 주식 비중 안에서 반영</li>
+              <li>• 위험 한도 초과 시 테마 비중 자동 조정</li>
               <li>• 선택 이유 저장</li>
             </ul>
           </div>
         </div>
       </div>
       <div className="mt-[32px]">
-        <SectionHeader title="Current Views" />
+        <SectionHeader title="저장된 투자 의견" />
         {current.isLoading ? (
           <LoadingSkeleton rows={2} />
         ) : !current.data || current.data.items.length === 0 ? (
-          <EmptyState title="현재 선택된 View가 없습니다." />
+          <EmptyState title="아직 저장된 투자 의견이 없습니다." />
         ) : (
           <ul className="flex flex-col gap-[8px]">
             {current.data.items.map((v) => (
-              <li key={v.view_id} className="border border-border bg-white px-[20px] py-[12px] text-[13px] leading-[20px]" style={{ borderRadius: 8 }}>
+              <li key={v.view_id} className="border border-border bg-surface px-[20px] py-[12px] text-[13px] leading-[20px]" style={{ borderRadius: 8 }}>
                 {v.theme_id} · {v.status} · effective {fmtDate(v.effective_at)}
               </li>
             ))}
