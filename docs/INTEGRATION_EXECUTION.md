@@ -753,3 +753,9 @@ The 38287688560 scheduled collector completed successfully but its delayed valua
 Read-only Neon SQL audit: 10/12 four prices stored, zero duplicate asset/date keys, zero operating NAV/trades. Last daily attempts remain START_NOT_SCHEDULED (15/15 ready, shared T0 null). Do not claim valuation is operationally active until a separately scheduled shared start and a new recorded evaluation are observed.
 
 Validation: backend 701 passed / 61 skipped (Postgres integration unavailable locally), frontend 103 passed; production build passed. Production source comparison and deployments are recorded in the task evidence outside the repository.
+
+### 2026-10-14 — presentation Frontier visibility
+
+The curve-only focus view hid the nine asset markers, while putting the historical model estimates on the main scale compressed the curve. Show the existing Frontier and asset estimates in the main plot, with the full leader/export comparison in a separate overview beside it. The overview remains visible during optional curve focus; both plots retain the server coordinates and selection. Explicitly disclose the different axis ranges and historical versus BL return bases. Stack plots on smaller screens. No optimizer, API, account, stored price, decision or execution changes.
+
+Validation: 103 frontend tests and the production build passed. In an isolated SQLite fixture, risk selection, quarterly frequency, AI theme, Base/Personalized comparison and portfolio confirmation remained connected. Desktop asset labels and model markers were checked in browser; deployment evidence is recorded separately.
