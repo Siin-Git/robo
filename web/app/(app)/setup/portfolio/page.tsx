@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { FrontierChart, GROUP_COLORS, ASSET_COLORS, type FrontierData } from "./FrontierChart";
+import { StrategyFrontierChart as FrontierChart, GROUP_COLORS, ASSET_COLORS, type FrontierData } from "./FrontierChart";
 import { useSetupStyles } from "../style-context";
 import { ThemesStep } from "./ThemeSelection";
 import { ReviewStep } from "./ReviewStep";

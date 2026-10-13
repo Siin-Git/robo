@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/ui";
 import { post } from "@/lib/api/client";
 import { fmtActivePp, fmtPct } from "@/lib/format";
-import { ASSET_COLORS, FrontierChart, type FrontierData } from "./FrontierChart";
+import { ASSET_COLORS, StrategyFrontierChart as FrontierChart, type FrontierData } from "./FrontierChart";
 import { ASSET_META } from "./asset-meta";
 import { THEME_INFO } from "./theme-content";
 import { ReviewData, reviewRows } from "./review-data";

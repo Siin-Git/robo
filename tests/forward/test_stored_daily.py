@@ -326,3 +326,18 @@ def test_workflow_command_defaults_readonly_and_respects_manual_dry_run(approved
     assert args[:3] == ['-m', 'src.forward.run_daily', '--use-stored-prices']
     assert ('--dry-run' in args) == readonly
     assert '--force' not in args and '--scheduled-for' not in args
+
+
+def test_delayed_scheduler_stored_valuation_during_open_market_fetches_nothing(build, monkeypatch):
+    x = ready(build)
+    monkeypatch.setattr('src.forward.runtime.kst_today', lambda: x.clock['now'].date())
+    monkeypatch.setattr('src.forward.market_hours.guard_message', lambda: 'US market open')
+    monkeypatch.setattr('src.forward.prices.refresh_live', lambda *a: pytest.fail('stored valuation must not collect intraday bars'))
+    assert daily.main(['--use-stored-prices']) == 0
+    initial = counts(x.con)
+    assert initial['nav_daily'] == 4
+    assert daily.main(['--use-stored-prices']) == 0
+    assert counts(x.con) == initial
+    # The legacy refresh path still refuses an open market, before any write.
+    assert daily.main([]) == 2
+    assert counts(x.con) == initial

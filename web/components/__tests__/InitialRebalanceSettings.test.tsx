@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({ useSearchParams:()=>new URLSearchParams(state.search), useRouter:()=>({push:vi.fn()}) }));
 vi.mock("@/components/layout/AppShell", () => ({AppShell:({children}:{children:React.ReactNode})=><>{children}</>}));
-vi.mock("@/app/(app)/setup/portfolio/FrontierChart", () => ({FrontierChart:()=> <div>Frontier</div>,GROUP_COLORS:{},ASSET_COLORS:{}}));
+vi.mock("@/app/(app)/setup/portfolio/FrontierChart", () => ({StrategyFrontierChart:()=> <div>Frontier</div>,GROUP_COLORS:{},ASSET_COLORS:{}}));
 vi.mock("recharts", () => ({PieChart:()=>null,Pie:()=>null,Cell:()=>null,ResponsiveContainer:()=>null}));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient:()=>({invalidateQueries:vi.fn()}),
