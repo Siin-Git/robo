@@ -14,6 +14,7 @@ export const ASSET_COLORS: Record<string, string> = {
 export type FrontierCoordinate = { volatility: number; expected_return: number };
 type Point = FrontierCoordinate;
 type Asset = Point & { asset_id: string; name: string; cat: string };
+const strategyColor = (id: string) => id === "v8_surge" ? "#62cbe7" : id === "leader_stock" ? "#5dd5bc" : "#f0bd6c";
 export interface FrontierData {
   frontier_version: string;
   benchmark_frontier_id: string;
@@ -33,6 +34,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   const { risk: styles } = useSetupStyles();
   const host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 680, height: 300 });
+  const [inspectedStrategyId, setInspectedStrategyId] = useState<string | null>(null);
   useEffect(() => {
     if (!host.current) return;
     const observer = new ResizeObserver(([entry]) => {
@@ -76,7 +78,8 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   }
   const inspected = coords.find(a => a.asset_id === inspectedId);
   const inspectedLabel = inspected ? labels.get(inspected.asset_id) : undefined;
-  return <><div ref={host} className={`${styles.chart} ${className}`} onMouseLeave={() => onInspect(null)}>
+  const inspectedStrategy = comparisons.find(p => p.id === inspectedStrategyId && p.validation_status);
+  return <><div ref={host} className={`${styles.chart} ${className}`} onMouseLeave={() => { onInspect(null); setInspectedStrategyId(null); }}>
     <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="group" aria-label={chartLabel ?? "위험과 기대수익률 차트. 자산 점에 마우스를 올리거나 키보드로 선택하면 상세 정보가 표시됩니다."}>
       {Array.from({ length: 4 }, (_, i) => {
         const v = minY + (maxY - minY) * i / 3;
@@ -104,9 +107,14 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
           <text x={label.x} y={label.y} textAnchor="middle" className={styles.pointLabel} style={{fontSize:labelSize}}>{a.name}</text>
         </g>;
       })}
-      {comparisons.map(p => <g key={p.id} role="img" aria-label={`${p.label}: 과거 수익률 추정 ${(p.expected_return*100).toFixed(2)}%, 변동성 ${(p.volatility*100).toFixed(2)}%`}>
-        <title>{p.label} · 과거 구성 추정치</title>
-        <path d={`M ${x(p.volatility)} ${y(p.expected_return)-8} l 8 8 l -8 8 l -8 -8 Z`} fill={p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"} stroke="var(--surface)" strokeWidth={2}/>
+      {comparisons.map(p => <g key={p.id} role="img" aria-label={`${p.label}: 과거 수익률 추정 ${(p.expected_return*100).toFixed(2)}%, 변동성 ${(p.volatility*100).toFixed(2)}%${p.validation_status ? `, ${p.currency} 기준 검증 전 백테스트 ${p.validation_status}` : ""}`}
+        tabIndex={p.validation_status ? 0 : undefined}
+        aria-describedby={inspectedStrategy?.id === p.id ? "strategy-point-tooltip" : undefined}
+        onMouseEnter={() => p.validation_status && setInspectedStrategyId(p.id)} onMouseLeave={() => setInspectedStrategyId(null)}
+        onFocus={() => p.validation_status && setInspectedStrategyId(p.id)} onBlur={() => setInspectedStrategyId(null)}
+        onKeyDown={e => { if (p.validation_status && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setInspectedStrategyId(p.id); } if (e.key === "Escape") setInspectedStrategyId(null); }}>
+        <title>{p.validation_status ? `${p.label} · ${p.currency} · ${p.validation_status} · 검증 전 백테스트` : `${p.label} · 과거 구성 추정치`}</title>
+        <path d={`M ${x(p.volatility)} ${y(p.expected_return)-8} l 8 8 l -8 8 l -8 -8 Z`} fill={strategyColor(p.id)} stroke="var(--surface)" strokeWidth={2}/>
         <text x={x(p.volatility)-12} y={Math.max(16, y(p.expected_return)-14)} textAnchor="end" className={styles.pointLabel}>{p.label}</text>
       </g>)}
       <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff" /></g>
@@ -119,10 +127,21 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
         <div><dt>예상 변동성</dt><dd>{(inspected.volatility * 100).toFixed(2)}%</dd></div>
       </dl>
     </div>}
+    {inspectedStrategy && <div id="strategy-point-tooltip" role="tooltip" aria-label={`${inspectedStrategy.label} 검증 상태와 계산값`} className={presentation.comparisonTooltip}
+      style={{left:Math.max(4,Math.min(width-296,x(inspectedStrategy.volatility)-146)),top:Math.max(4,Math.min(height-220,y(inspectedStrategy.expected_return)+14))}}>
+      <strong>{inspectedStrategy.label}</strong>
+      <p>{inspectedStrategy.currency} 기준 · 검증 전 백테스트<br/><b>{inspectedStrategy.validation_status}</b></p>
+      <dl>
+        <div><dt>과거 수익률 추정 · 연율</dt><dd>{(inspectedStrategy.expected_return*100).toFixed(2)}%</dd></div>
+        <div><dt>변동성 · 연율</dt><dd>{(inspectedStrategy.volatility*100).toFixed(2)}%</dd></div>
+        <div><dt>샤프</dt><dd>{inspectedStrategy.sharpe.toFixed(2)}</dd></div>
+      </dl>
+      <p>{inspectedStrategy.period?.start}~{inspectedStrategy.period?.end}<br/>주간 평균×52 기준 · CAGR 아님</p>
+    </div>}
   </div>
     <div className={presentation.legend} aria-label="포트폴리오 위치 범례">
       <span><i style={{display:"inline-block",width:18,borderTop:"2px solid #74a8ff",marginRight:6,verticalAlign:"middle"}}/>Efficient Frontier</span>
-      {comparisons.map(p=><span key={p.id} style={{color:p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>◆ {p.label} · 과거 추정</span>)}
+      {comparisons.map(p=><span key={p.id} style={{color:strategyColor(p.id)}}>◆ {p.label} · {p.validation_status ? `${p.currency} · 검증 전` : "과거 추정"}</span>)}
       <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>테마 적용 전</span>
       {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>테마 적용 후</span>}
     </div>
@@ -132,8 +151,9 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
 // One authenticated contract for setup, review and saved portfolio views.
 export function StrategyFrontierChart(props: Parameters<typeof FrontierChart>[0]) {
   const comparison = useQuery({queryKey:["strategy-frontier"], queryFn:()=>get<StrategyComparison>("/api/v1/strategies/frontier-comparison"), staleTime:60*60*1000, retry:1});
+  const v8 = useQuery({queryKey:["v8-frontier"], queryFn:()=>get<StrategyPoint>("/api/v1/strategies/v8-frontier-comparison"), staleTime:60*60*1000, retry:1});
   const [focus, setFocus] = useState(true);
-  const items = comparison.data?.items ?? [];
+  const items = [...(comparison.data?.items ?? []), ...(v8.data ? [v8.data] : [])];
   const showModels = items.length > 0 && !focus;
   return <>
     <div className={presentation.controls} aria-label="Frontier 표시 범위">
@@ -146,19 +166,21 @@ export function StrategyFrontierChart(props: Parameters<typeof FrontierChart>[0]
           returnAxisLabel={showModels ? "연율 수익률" : "기대수익률"}/>
       </section>
     </div>
-    {focus && <p className={presentation.note}>기본 자산 {props.assets.length}개와 내 포트폴리오를 표시합니다. 주도주·수출주는 ‘전체 비교’에서 확인하세요.</p>}
+    {focus && <p className={presentation.note}>기본 자산 {props.assets.length}개와 내 포트폴리오를 표시합니다. 전략 비교점은 ‘전체 비교’에서 확인하세요.</p>}
     {!focus && comparison.isLoading && <p style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오는 중입니다.</p>}
     {!focus && comparison.isError && <p role="status" style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오지 못했습니다. <button type="button" className="btn-secondary" onClick={()=>comparison.refetch()}>다시 시도</button></p>}
-    {!focus && comparison.data && <div style={{marginTop:24}}>
-      <p className={presentation.note}>원형은 기본 자산의 기대수익률, 마름모는 두 모델의 과거 구성 추정치입니다. 계산 기준이 달라 점의 높이로 우열을 판단하지 않습니다.</p>
+    {!focus && v8.isLoading && <p className={presentation.note}>V8 백테스트 비교값을 불러오는 중입니다.</p>}
+    {!focus && v8.isError && <p role="status" className={presentation.note}>V8 비교 자료를 불러오지 못했습니다. <button type="button" className="btn-secondary" onClick={()=>v8.refetch()}>V8 다시 시도</button></p>}
+    {!focus && items.length > 0 && <div style={{marginTop:24}}>
+      <p className={presentation.note}>원형은 기본 자산의 기대수익률, 마름모는 과거 자료로 계산한 전략 비교점입니다. 통화·계산 기준이 달라 점의 높이로 우열을 판단하지 않습니다.</p>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:12}}>
         {items.map(item=><article key={item.id} style={{padding:16,border:"1px solid var(--border)",borderRadius:14,background:"var(--surface-subtle)"}} aria-label={`${item.label} 비교 지표`}>
-          <strong style={{color:item.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>{item.label}</strong>
-          <p style={{fontSize:12,color:"var(--text-secondary)",margin:"6px 0"}}>{item.snapshot_date} 구성 · {item.weights.length}개 자산</p>
+          <strong style={{color:strategyColor(item.id)}}>{item.label}</strong>
+          <p style={{fontSize:12,color:"var(--text-secondary)",margin:"6px 0"}}>{item.validation_status ? `${item.currency} 백테스트 · 검증 전 (${item.validation_status})` : `${item.snapshot_date} 구성 · ${item.weights.length}개 자산`}</p>
           <p style={{fontSize:14,lineHeight:1.8,color:"var(--text-primary)"}}>과거 수익률 추정 · 연율 <b>{(item.expected_return*100).toFixed(2)}%</b><br/>변동성 · 연율 <b>{(item.volatility*100).toFixed(2)}%</b> · 샤프 <b>{item.sharpe.toFixed(2)}</b></p>
-          <details style={{fontSize:12,color:"var(--text-secondary)",lineHeight:1.7}}><summary>종목·비중과 계산 기준</summary>
-            <p>{comparison.data.period.start}~{comparison.data.period.end} · 공통 주간 수익률 {comparison.data.period.observations}개 · 현금 수익 0% · 무위험 수익률 연 3% · 거래 비용 제외</p>
-            <ul>{item.weights.map(w=><li key={w.ticker}>{w.company} · {(w.weight*100).toFixed(2)}%</li>)}</ul>
+          <details style={{fontSize:12,color:"var(--text-secondary)",lineHeight:1.7}}><summary>{item.validation_status ? "백테스트 계산 기준" : "종목·비중과 계산 기준"}</summary>
+            <p>{(item.period??comparison.data?.period)?.start}~{(item.period??comparison.data?.period)?.end} · 공통 주간 수익률 {(item.period??comparison.data?.period)?.observations}개 · 무위험 수익률 연 3%{item.validation_status ? " · 주간 평균 수익률×52 · USD 기준" : " · 현금 수익 0% · 거래 비용 제외"}</p>
+            {item.validation_status ? <p>{item.note}</p> : <ul>{item.weights.map(w=><li key={w.ticker}>{w.company} · {(w.weight*100).toFixed(2)}%</li>)}</ul>}
           </details>
         </article>)}
       </div>
@@ -166,5 +188,6 @@ export function StrategyFrontierChart(props: Parameters<typeof FrontierChart>[0]
   </>;
 }
 
-type StrategyPoint = FrontierCoordinate & { id:string; label:string; sharpe:number; snapshot_date:string; weights:{ticker:string; company:string; weight:number}[] };
-type StrategyComparison = { items:StrategyPoint[]; period:{start:string;end:string;observations:number} };
+type StrategyPeriod = {start:string;end:string;observations:number};
+type StrategyPoint = FrontierCoordinate & { id:string; label:string; sharpe:number; snapshot_date:string; weights:{ticker:string; company:string; weight:number}[]; validation_status?:string; currency?:string; period?:StrategyPeriod; note?:string };
+type StrategyComparison = { items:StrategyPoint[]; period:StrategyPeriod };

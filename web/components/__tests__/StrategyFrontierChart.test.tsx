@@ -1,15 +1,16 @@
-import { render,screen,fireEvent,within } from '@testing-library/react';
+import { render,screen,fireEvent,within,cleanup } from '@testing-library/react';
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
-import { vi,expect,it,beforeEach } from 'vitest';
+import { vi,expect,it,beforeEach,afterEach } from 'vitest';
 import { StrategyFrontierChart } from '@/app/(app)/setup/portfolio/FrontierChart';
 import { SetupStyleProvider } from '@/app/(app)/setup/SetupStyleProvider';
 import { get } from '@/lib/api/client';
 vi.mock('@/lib/api/client',()=>({get:vi.fn()}));
-beforeEach(()=>{vi.stubGlobal('ResizeObserver',class {observe(){} disconnect(){}});});
+beforeEach(()=>{vi.stubGlobal('ResizeObserver',class {observe(){} disconnect(){}});vi.mocked(get).mockReset();});
+afterEach(cleanup);
 it('defaults to one readable asset chart and adds only research models when whole comparison is selected',async()=>{
  const selection={expected_return:.05,volatility:.08};
  const personalized={expected_return:.06,volatility:.09};
- vi.mocked(get).mockResolvedValue({period:{start:'2024-11-08',end:'2026-09-11',observations:97},items:[
+ vi.mocked(get).mockImplementation(async path=>path.includes('v8-frontier') ? Promise.reject(new Error('V8 unavailable')) : {period:{start:'2024-11-08',end:'2026-09-11',observations:97},items:[
   {id:'leader_stock',label:'주도주 모델',expected_return:.66,volatility:.29,sharpe:2.17,snapshot_date:'2026-10-01',weights:[{ticker:'069500',company:'KODEX 200',weight:1}]},
   {id:'export_stock',label:'수출주 모델',expected_return:.36,volatility:.30,sharpe:1.1,snapshot_date:'2026-09-03',weights:[{ticker:'005930',company:'삼성전자',weight:1}]}]});
  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
@@ -45,4 +46,33 @@ it('defaults to one readable asset chart and adds only research models when whol
  expect(screen.getByRole('button',{name:'전체 비교'}).getAttribute('aria-pressed')).toBe('true');
  expect(selection).toEqual({expected_return:.05,volatility:.08});
  expect(personalized).toEqual({expected_return:.06,volatility:.09});
+});
+
+it('shows a USD provisional V8 point and tooltip without changing existing coordinates or selection',async()=>{
+ const selection={expected_return:.05,volatility:.08};
+ const v8={id:'v8_surge',label:'V8 급등주 전략',expected_return:.437011498,volatility:.212648879,sharpe:1.914,snapshot_date:'2026-10-06',weights:[],currency:'USD',validation_status:'PROVISIONAL',period:{start:'2024-11-08',end:'2026-09-11',observations:97}};
+ const base={period:v8.period,items:[{id:'leader_stock',label:'주도주 모델',expected_return:.66,volatility:.29,sharpe:2.17,snapshot_date:'2026-10-01',weights:[]},{id:'export_stock',label:'수출주 모델',expected_return:.36,volatility:.30,sharpe:1.1,snapshot_date:'2026-09-03',weights:[]}]};
+ let releaseV8:(value:typeof v8)=>void=()=>{};
+ vi.mocked(get).mockImplementation(async path=>path.includes('v8-frontier') ? new Promise(resolve=>{releaseV8=resolve;}) : base);
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ render(<QueryClientProvider client={client}><SetupStyleProvider><StrategyFrontierChart points={[selection]} assets={[{asset_id:'us_equity',name:'미국주식',cat:'주식',expected_return:.08,volatility:.22}]} selected={selection} inspectedId={null} onInspect={()=>{}}/></SetupStyleProvider></QueryClientProvider>);
+ fireEvent.click(screen.getByRole('button',{name:'전체 비교'}));
+ const leader=await screen.findByRole('img',{name:/주도주 모델: 과거 수익률 추정/});
+ const leaderCoordinate=leader.querySelector('path')?.getAttribute('d');
+ const exporterCoordinate=screen.getByRole('img',{name:/수출주 모델: 과거 수익률 추정/}).querySelector('path')?.getAttribute('d');
+ const baseCoordinate=screen.getByRole('img',{name:'테마 적용 전 Base Portfolio'}).querySelector('circle')?.getAttribute('cy');
+ releaseV8(v8);
+ const point=await screen.findByRole('img',{name:/V8 급등주 전략: 과거 수익률 추정 43.70%, 변동성 21.26%, USD 기준 검증 전 백테스트 PROVISIONAL/});
+ expect(leader.querySelector('path')?.getAttribute('d')).toBe(leaderCoordinate);
+ expect(screen.getByRole('img',{name:/수출주 모델: 과거 수익률 추정/}).querySelector('path')?.getAttribute('d')).toBe(exporterCoordinate);
+ expect(screen.getByRole('img',{name:'테마 적용 전 Base Portfolio'}).querySelector('circle')?.getAttribute('cy')).toBe(baseCoordinate);
+ fireEvent.focus(point);
+ const tooltip=screen.getByRole('tooltip',{name:'V8 급등주 전략 검증 상태와 계산값'});
+ expect(tooltip.textContent).toContain('USD 기준 · 검증 전 백테스트');
+ expect(tooltip.textContent).toContain('PROVISIONAL');
+ expect(tooltip.textContent).toContain('CAGR 아님');
+ fireEvent.keyDown(point,{key:'Escape'});
+ expect(screen.queryByRole('tooltip')).toBeNull();
+ expect(screen.getByRole('button',{name:'미국주식 자산 정보 보기'})).toBeTruthy();
+ expect(selection).toEqual({expected_return:.05,volatility:.08});
 });

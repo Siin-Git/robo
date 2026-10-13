@@ -4,6 +4,11 @@
 .singlePlot .panel .plot { position: relative; height: 360px; margin: 0 0 14px; }
 .legend { display: flex; gap: 10px 20px; flex-wrap: wrap; font-size: 13px; line-height: 1.6; color: var(--text-primary); padding: 0 8px 4px; }
 .note { color: var(--text-secondary); font-size: 13px; line-height: 1.7; margin-top: 10px; }
+.comparisonTooltip { position: absolute; z-index: 2; width: min(292px, calc(100% - 8px)); padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); color: var(--text-primary); box-shadow: 0 5px 20px #0004; font-size: 13px; line-height: 1.5; pointer-events: none; }
+.comparisonTooltip p { color: var(--text-secondary); margin-top: 6px; }
+.comparisonTooltip dl { margin-top: 8px; }
+.comparisonTooltip dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.comparisonTooltip dd { font-weight: 600; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
   .singlePlot .panel .plot { height: 340px; }
   .legend { gap: 8px 14px; font-size: 12px; }
