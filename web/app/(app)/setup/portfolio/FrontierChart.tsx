@@ -75,7 +75,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   }
   const inspected = coords.find(a => a.asset_id === inspectedId);
   const inspectedLabel = inspected ? labels.get(inspected.asset_id) : undefined;
-  return <div ref={host} className={`${styles.chart} ${className}`} onMouseLeave={() => onInspect(null)}>
+  return <><div ref={host} className={`${styles.chart} ${className}`} onMouseLeave={() => onInspect(null)}>
     <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="group" aria-label={chartLabel ?? "위험과 기대수익률 차트. 자산 점에 마우스를 올리거나 키보드로 선택하면 상세 정보가 표시됩니다."}>
       {Array.from({ length: 4 }, (_, i) => {
         const v = minY + (maxY - minY) * i / 3;
@@ -110,11 +110,6 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
       <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff" /></g>
       {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)" /></g>}
     </svg>
-    <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:12,color:"var(--text-secondary)",padding:"0 8px 5px"}} aria-label="포트폴리오 위치 범례">
-      {comparisons.map(p=><span key={p.id} style={{color:p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>◆ {p.label} · 과거 추정</span>)}
-      <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>테마 적용 전</span>
-      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>테마 적용 후</span>}
-    </div>
     {inspected && inspectedLabel && <div id="asset-point-tooltip" role="tooltip" aria-label={`${inspected.name} 수익률과 변동성`} className={styles.pointTooltip}
       style={{ left: Math.max(4, Math.min(width - 204, inspectedLabel.x - 100)), top: inspectedLabel.y + 10 }}>
       <dl>
@@ -122,7 +117,13 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
         <div><dt>예상 변동성</dt><dd>{(inspected.volatility * 100).toFixed(2)}%</dd></div>
       </dl>
     </div>}
-  </div>;
+  </div>
+    <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:12,color:"var(--text-secondary)",padding:"0 8px 5px"}} aria-label="포트폴리오 위치 범례">
+      {comparisons.map(p=><span key={p.id} style={{color:p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>◆ {p.label} · 과거 추정</span>)}
+      <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>테마 적용 전</span>
+      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>테마 적용 후</span>}
+    </div>
+  </>;
 }
 
 // One authenticated contract for setup, review and saved portfolio views.
