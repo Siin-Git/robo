@@ -15,7 +15,7 @@ import { fmtActivePp, fmtDate, fmtPct } from "@/lib/format";
 import { reviewRows, Weight } from "../setup/portfolio/review-data";
 import { THEME_INFO } from "../setup/portfolio/theme-content";
 import { ASSET_COLORS } from "../setup/portfolio/FrontierChart";
-import { FrontierChart, type FrontierData } from "../setup/portfolio/FrontierChart";
+import { StrategyFrontierChart as FrontierChart, type FrontierData } from "../setup/portfolio/FrontierChart";
 import { SetupStyleProvider } from "../setup/SetupStyleProvider";
 import { ASSET_META } from "../setup/portfolio/asset-meta";
 import s from "./portfolio.module.css";

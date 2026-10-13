@@ -743,3 +743,13 @@ Validation: 5 relevant backend tests pass, covering ownership, no live NAV/trade
 
 ### Chart tooltip contrast — 2026-10-12
 The shared contribution/performance tooltip retained a translucent white background while dark-mode text tokens made its contents nearly invisible. Use an opaque dark surface, stronger border and readable label/value colors; slightly increase desktop/mobile type sizes. Presentation-only CSS; financial values and chart interaction remain unchanged. Verify existing frontend tests/build and the actual hovered production tooltip after rollout.
+
+### 2026-10-13: strategy composition comparison and delayed daily valuation
+
+Production had no leader/export marker wiring. Added an authenticated research comparison endpoint, reused portfolio_stats and weekly Ledoit-Wolf covariance on real observed adjusted closes for the supplied 10/1 leader target and 9/3 export post-fill composition. 44 observed stock/ETF histories, common 97 weekly returns (2024-11-08–2026-09-11); no Korean-equity return proxy, synthetic coordinates, interpolation, trading or account writes. Snapshot dates, holdings, annualization, cash/risk-free assumptions and differing historical/BL return bases remain visible. Setup, confirmation and saved portfolio use the same contract; whole-chart comparison and Frontier focus preserve exact coordinates.
+
+The 38287688560 scheduled collector completed successfully but its delayed valuation started at 02:58 KST during US hours and failed in the legacy refresh guard. Stored-price valuation does not fetch bars, so only that path no longer uses the wall-clock collection guard. Live-refresh guard, completed-session provider, effective-date rules, jobs/transactions and duplicate prevention remain unchanged. Runtime regression exercises delayed open-market valuation, zero refresh, repeat idempotency and continued refusal of live-refresh during open hours.
+
+Read-only Neon SQL audit: 10/12 four prices stored, zero duplicate asset/date keys, zero operating NAV/trades. Last daily attempts remain START_NOT_SCHEDULED (15/15 ready, shared T0 null). Do not claim valuation is operationally active until a separately scheduled shared start and a new recorded evaluation are observed.
+
+Validation: backend 701 passed / 61 skipped (Postgres integration unavailable locally), frontend 103 passed; production build passed. Production source comparison and deployments are recorded in the task evidence outside the repository.

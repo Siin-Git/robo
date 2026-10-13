@@ -103,8 +103,9 @@ def main(argv=None) -> int:
                     help="Reuse collected prices; skip refresh_live without changing execution rules")
     args = ap.parse_args(argv)
     # 장중에는 수집하지 않는다. 가격을 받은 뒤 거르는 것이 아니라 시작을 막는다.
-    # dry-run 은 가격을 받지 않으므로 언제든 허용한다.
-    if not args.force and not args.dry_run:
+    # dry-run and stored-price valuation fetch no prices. Only refresh_live needs
+    # the wall-clock guard; completed-session collection has its own per-bar filter.
+    if not args.force and not args.dry_run and not args.use_stored_prices:
         from src.forward.market_hours import guard_message
         msg = guard_message()
         if msg:

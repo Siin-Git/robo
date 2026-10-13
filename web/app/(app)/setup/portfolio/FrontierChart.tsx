@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { get } from "@/lib/api/client";
 import { useSetupStyles } from "../style-context";
 
 export const GROUP_COLORS: Record<string, string> = { 주식: "#3b72e8", 채권: "#8ba5ad", 대체: "#c6ae88", 현금: "#d6dce5" };
@@ -20,9 +22,10 @@ export interface FrontierData {
   assets: { asset_id: string; display_name: string; expected_return: number; volatility: number }[];
 }
 
-export function FrontierChart({ points, assets, benchmark, selected, personalized, inspectedId, onInspect }: {
+export function FrontierChart({ points, assets, benchmark, selected, personalized, inspectedId, onInspect, comparisons = [], focus = false }: {
   points: Point[]; assets: Asset[]; benchmark?: Point; selected: Point;
   personalized?: { expected_return?: number | null; volatility?: number | null } | null;
+  comparisons?: StrategyPoint[]; focus?: boolean;
   inspectedId: string | null; onInspect: (id: string | null) => void;
 }) {
   const { risk: styles } = useSetupStyles();
@@ -41,7 +44,8 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   const after = personalized?.expected_return != null && personalized?.volatility != null
     && Number.isFinite(personalized.expected_return) && Number.isFinite(personalized.volatility)
     ? { expected_return: personalized.expected_return, volatility: personalized.volatility } : null;
-  const all = [...points, ...assets, selected, ...(benchmark ? [benchmark] : []), ...(after ? [after] : [])];
+  const visibleAssets = focus ? [] : assets;
+  const all = [...points, ...visibleAssets, ...comparisons, selected, ...(benchmark ? [benchmark] : []), ...(after ? [after] : [])];
   const minX = Math.max(0, Math.min(...all.map(p => p.volatility)) - .015);
   const maxX = Math.max(...all.map(p => p.volatility)) + .015;
   const minY = Math.min(...all.map(p => p.expected_return)) - .012;
@@ -49,7 +53,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   const left = 46, right = width - 30, top = 12, bottom = height - 40;
   const x = (v: number) => left + (v - minX) / (maxX - minX) * (right - left);
   const y = (v: number) => bottom - (v - minY) / (maxY - minY) * (bottom - top);
-  const coords = assets.map(a => ({ ...a, x: x(a.volatility), y: y(a.expected_return) }));
+  const coords = visibleAssets.map(a => ({ ...a, x: x(a.volatility), y: y(a.expected_return) }));
   const boxes: { x: number; y: number; width: number }[] = [];
   const labels = new Map<string, { x: number; y: number }>();
   for (const a of [...coords].sort((a, b) => b.y - a.y)) {
@@ -96,10 +100,16 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
           <text x={label.x} y={label.y} textAnchor="middle" className={styles.pointLabel}>{a.name}</text>
         </g>;
       })}
+      {comparisons.map(p => <g key={p.id} role="img" aria-label={`${p.label}: 과거 수익률 추정 ${(p.expected_return*100).toFixed(2)}%, 변동성 ${(p.volatility*100).toFixed(2)}%`}>
+        <title>{p.label} · 과거 구성 추정치</title>
+        <path d={`M ${x(p.volatility)} ${y(p.expected_return)-8} l 8 8 l -8 8 l -8 -8 Z`} fill={p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"} stroke="var(--surface)" strokeWidth={2}/>
+        <text x={x(p.volatility)-12} y={y(p.expected_return)-14} textAnchor="end" className={styles.pointLabel}>{p.label}</text>
+      </g>)}
       <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff" /></g>
       {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)" /></g>}
     </svg>
     <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:12,color:"var(--text-secondary)",padding:"0 8px 5px"}} aria-label="포트폴리오 위치 범례">
+      {comparisons.map(p=><span key={p.id} style={{color:p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>◆ {p.label} · 과거 추정</span>)}
       <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>테마 적용 전</span>
       {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>테마 적용 후</span>}
     </div>
@@ -112,3 +122,36 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
     </div>}
   </div>;
 }
+
+// One authenticated contract for setup, review and saved portfolio views.
+export function StrategyFrontierChart(props: Parameters<typeof FrontierChart>[0]) {
+  const comparison = useQuery({queryKey:["strategy-frontier"], queryFn:()=>get<StrategyComparison>("/api/v1/strategies/frontier-comparison"), staleTime:60*60*1000, retry:1});
+  const [focus, setFocus] = useState(false);
+  const items = comparison.data?.items ?? [];
+  return <>
+    {items.length > 0 && <div style={{display:"flex",gap:8,marginBottom:14}} aria-label="Frontier 표시 범위">
+      <button type="button" className="btn-secondary" aria-pressed={!focus} onClick={()=>setFocus(false)}>전체 비교</button>
+      <button type="button" className="btn-secondary" aria-pressed={focus} onClick={()=>setFocus(true)}>Frontier 확대</button>
+    </div>}
+    <FrontierChart {...props} comparisons={focus ? [] : items} focus={focus}/>
+    {comparison.isLoading && <p style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오는 중입니다.</p>}
+    {comparison.isError && <p role="status" style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오지 못했습니다. <button type="button" className="btn-secondary" onClick={()=>comparison.refetch()}>다시 시도</button></p>}
+    {comparison.data && <div style={{marginTop:24}}>
+      <p style={{color:"var(--text-secondary)",fontSize:13,lineHeight:1.7}}>두 마름모는 실제 종목·비중으로 계산한 과거 구성 추정치입니다. {focus && "전체 비교를 누르면 같은 축에서 두 모델의 위치를 볼 수 있습니다."}<br/>기본 Frontier의 기대수익률과 산출 기준이 달라 점의 높이로 우열을 판단하지 않습니다.</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:12}}>
+        {items.map(item=><article key={item.id} style={{padding:16,border:"1px solid var(--border)",borderRadius:14,background:"var(--surface-subtle)"}} aria-label={`${item.label} 비교 지표`}>
+          <strong style={{color:item.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>{item.label}</strong>
+          <p style={{fontSize:12,color:"var(--text-secondary)",margin:"6px 0"}}>{item.snapshot_date} 구성 · {item.weights.length}개 자산</p>
+          <p style={{fontSize:14,lineHeight:1.8,color:"var(--text-primary)"}}>과거 수익률 추정 · 연율 <b>{(item.expected_return*100).toFixed(2)}%</b><br/>변동성 · 연율 <b>{(item.volatility*100).toFixed(2)}%</b> · 샤프 <b>{item.sharpe.toFixed(2)}</b></p>
+          <details style={{fontSize:12,color:"var(--text-secondary)",lineHeight:1.7}}><summary>종목·비중과 계산 기준</summary>
+            <p>{comparison.data.period.start}~{comparison.data.period.end} · 공통 주간 수익률 {comparison.data.period.observations}개 · 현금 수익 0% · 무위험 수익률 연 3% · 거래 비용 제외</p>
+            <ul>{item.weights.map(w=><li key={w.ticker}>{w.company} · {(w.weight*100).toFixed(2)}%</li>)}</ul>
+          </details>
+        </article>)}
+      </div>
+    </div>}
+  </>;
+}
+
+type StrategyPoint = FrontierCoordinate & { id:string; label:string; sharpe:number; snapshot_date:string; weights:{ticker:string; company:string; weight:number}[] };
+type StrategyComparison = { items:StrategyPoint[]; period:{start:string;end:string;observations:number} };
