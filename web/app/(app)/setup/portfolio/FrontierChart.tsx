@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api/client";
 import { useSetupStyles } from "../style-context";
+import presentation from "./frontier-presentation.module.css";
 
 export const GROUP_COLORS: Record<string, string> = { 주식: "#3b72e8", 채권: "#8ba5ad", 대체: "#c6ae88", 현금: "#d6dce5" };
 export const ASSET_COLORS: Record<string, string> = {
@@ -22,10 +23,11 @@ export interface FrontierData {
   assets: { asset_id: string; display_name: string; expected_return: number; volatility: number }[];
 }
 
-export function FrontierChart({ points, assets, benchmark, selected, personalized, inspectedId, onInspect, comparisons = [], focus = false }: {
+export function FrontierChart({ points, assets, benchmark, selected, personalized, inspectedId, onInspect, comparisons = [], focus = false, className = "", chartLabel, returnAxisLabel = "기대수익률" }: {
   points: Point[]; assets: Asset[]; benchmark?: Point; selected: Point;
   personalized?: { expected_return?: number | null; volatility?: number | null } | null;
   comparisons?: StrategyPoint[]; focus?: boolean;
+  className?: string; chartLabel?: string; returnAxisLabel?: string;
   inspectedId: string | null; onInspect: (id: string | null) => void;
 }) {
   const { risk: styles } = useSetupStyles();
@@ -73,8 +75,8 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   }
   const inspected = coords.find(a => a.asset_id === inspectedId);
   const inspectedLabel = inspected ? labels.get(inspected.asset_id) : undefined;
-  return <div ref={host} className={styles.chart} onMouseLeave={() => onInspect(null)}>
-    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="group" aria-label="위험과 기대수익률 차트. 자산 점에 마우스를 올리거나 키보드로 선택하면 상세 정보가 표시됩니다.">
+  return <div ref={host} className={`${styles.chart} ${className}`} onMouseLeave={() => onInspect(null)}>
+    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="group" aria-label={chartLabel ?? "위험과 기대수익률 차트. 자산 점에 마우스를 올리거나 키보드로 선택하면 상세 정보가 표시됩니다."}>
       {Array.from({ length: 4 }, (_, i) => {
         const v = minY + (maxY - minY) * i / 3;
         return <g key={`y${i}`}><line x1={left} x2={right} y1={y(v)} y2={y(v)} stroke="var(--border)" strokeDasharray="3 4" /><text x={left - 7} y={y(v) + 4} textAnchor="end" className={styles.axisText}>{(v * 100).toFixed(1)}%</text></g>;
@@ -84,7 +86,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
         return <text key={`x${i}`} x={x(v)} y={bottom + 17} textAnchor="middle" className={styles.axisText}>{(v * 100).toFixed(1)}%</text>;
       })}
       <text x={(left + right) / 2} y={height - 3} textAnchor="middle" className={styles.axisText}>예상 변동성</text>
-      <text transform={`translate(11 ${(top + bottom) / 2}) rotate(-90)`} textAnchor="middle" className={styles.axisText}>기대수익률</text>
+      <text transform={`translate(11 ${(top + bottom) / 2}) rotate(-90)`} textAnchor="middle" className={styles.axisText}>{returnAxisLabel}</text>
       <polyline points={points.map(p => `${x(p.volatility)},${y(p.expected_return)}`).join(" ")} fill="none" stroke="#74a8ff" strokeWidth={2.5} strokeLinejoin="round" />
       {coords.map(a => {
         const label = labels.get(a.asset_id)!;
@@ -129,15 +131,25 @@ export function StrategyFrontierChart(props: Parameters<typeof FrontierChart>[0]
   const [focus, setFocus] = useState(false);
   const items = comparison.data?.items ?? [];
   return <>
-    {items.length > 0 && <div style={{display:"flex",gap:8,marginBottom:14}} aria-label="Frontier 표시 범위">
+    <div className={presentation.controls} aria-label="Frontier 표시 범위">
       <button type="button" className="btn-secondary" aria-pressed={!focus} onClick={()=>setFocus(false)}>전체 비교</button>
       <button type="button" className="btn-secondary" aria-pressed={focus} onClick={()=>setFocus(true)}>Frontier 확대</button>
-    </div>}
-    <FrontierChart {...props} comparisons={focus ? [] : items} focus={focus}/>
+    </div>
+    <div className={items.length ? presentation.plots : presentation.singlePlot}>
+      <section className={presentation.panel} aria-label="기본 Frontier와 자산 비교">
+        <div className={presentation.heading}><h3>기본 Frontier와 자산</h3><p>{focus ? "선택한 곡선 자세히 보기" : `${props.assets.length}개 자산 · 기대수익률 기준`}</p></div>
+        <FrontierChart {...props} comparisons={[]} focus={focus} className={presentation.plot}/>
+      </section>
+      {items.length > 0 && <section className={presentation.panel} aria-label="주도주·수출주 모델 전체 비교">
+        <div className={presentation.heading}><h3>모델 비교 위치</h3><p>두 모델의 과거 구성 추정치</p></div>
+        <FrontierChart {...props} assets={[]} comparisons={items} focus className={presentation.plot}
+          inspectedId={null} onInspect={()=>{}} returnAxisLabel="연율 수익률 · 기준 다름" chartLabel="기본 Frontier와 주도주·수출주 모델 위치. 과거 추정치와 기대수익률은 계산 기준이 다릅니다."/>
+      </section>}
+    </div>
     {comparison.isLoading && <p style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오는 중입니다.</p>}
     {comparison.isError && <p role="status" style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오지 못했습니다. <button type="button" className="btn-secondary" onClick={()=>comparison.refetch()}>다시 시도</button></p>}
     {comparison.data && <div style={{marginTop:24}}>
-      <p style={{color:"var(--text-secondary)",fontSize:13,lineHeight:1.7}}>두 마름모는 실제 종목·비중으로 계산한 과거 구성 추정치입니다. {focus && "전체 비교를 누르면 같은 축에서 두 모델의 위치를 볼 수 있습니다."}<br/>기본 Frontier의 기대수익률과 산출 기준이 달라 점의 높이로 우열을 판단하지 않습니다.</p>
+      <p className={presentation.note}>기본 자산과 모델이 모두 보이도록 두 그래프의 축 범위를 따로 표시합니다.<br/>마름모는 과거 구성 추정치입니다. 기본 Frontier의 기대수익률과 계산 기준이 달라 점의 높이로 우열을 판단하지 않습니다.</p>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:12}}>
         {items.map(item=><article key={item.id} style={{padding:16,border:"1px solid var(--border)",borderRadius:14,background:"var(--surface-subtle)"}} aria-label={`${item.label} 비교 지표`}>
           <strong style={{color:item.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>{item.label}</strong>
