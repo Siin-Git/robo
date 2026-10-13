@@ -103,7 +103,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
       {comparisons.map(p => <g key={p.id} role="img" aria-label={`${p.label}: 과거 수익률 추정 ${(p.expected_return*100).toFixed(2)}%, 변동성 ${(p.volatility*100).toFixed(2)}%`}>
         <title>{p.label} · 과거 구성 추정치</title>
         <path d={`M ${x(p.volatility)} ${y(p.expected_return)-8} l 8 8 l -8 8 l -8 -8 Z`} fill={p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"} stroke="var(--surface)" strokeWidth={2}/>
-        <text x={x(p.volatility)-12} y={y(p.expected_return)-14} textAnchor="end" className={styles.pointLabel}>{p.label}</text>
+        <text x={x(p.volatility)-12} y={Math.max(16, y(p.expected_return)-14)} textAnchor="end" className={styles.pointLabel}>{p.label}</text>
       </g>)}
       <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff" /></g>
       {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)" /></g>}
