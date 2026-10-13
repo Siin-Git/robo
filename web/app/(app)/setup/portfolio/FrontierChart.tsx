@@ -52,21 +52,22 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   const maxX = Math.max(...all.map(p => p.volatility)) + .015;
   const minY = Math.min(...all.map(p => p.expected_return)) - .012;
   const maxY = Math.max(...all.map(p => p.expected_return)) + .009;
-  const left = 46, right = width - 30, top = 12, bottom = height - 40;
+  const left = 64, right = width - 30, top = 12, bottom = height - 40;
   const x = (v: number) => left + (v - minX) / (maxX - minX) * (right - left);
   const y = (v: number) => bottom - (v - minY) / (maxY - minY) * (bottom - top);
   const coords = visibleAssets.map(a => ({ ...a, x: x(a.volatility), y: y(a.expected_return) }));
+  const labelSize = width < 480 ? 12 : 14;
   const boxes: { x: number; y: number; width: number }[] = [];
   const labels = new Map<string, { x: number; y: number }>();
   for (const a of [...coords].sort((a, b) => b.y - a.y)) {
-    const labelWidth = [...a.name].reduce((n, c) => n + (/[\uac00-\ud7a3]/.test(c) ? 12 : 7), 6);
-    let chosen = { x: Math.max(left + labelWidth / 2, Math.min(right - labelWidth / 2, a.x)), y: a.y + 18 };
-    search: for (const dy of [18, 34, 50, 66, 82]) {
+    const labelWidth = [...a.name].reduce((n, c) => n + (/[\uac00-\ud7a3]/.test(c) ? labelSize : labelSize * .6), 6);
+    let chosen = { x: Math.max(left + labelWidth / 2, Math.min(right - labelWidth / 2, a.x)), y: Math.min(bottom - 8, a.y + 22) };
+    search: for (const dy of [22, -16, 42, -36, 62, -56, 82]) {
       for (const dx of [0, -48, 48, -90, 90]) {
         const lx = Math.max(left + labelWidth / 2, Math.min(right - labelWidth / 2, a.x + dx));
         const ly = a.y + dy;
-        if (ly > bottom - 5) continue;
-        const collides = boxes.some(b => Math.abs(b.y - ly) < 16 && Math.abs(b.x - lx) < (b.width + labelWidth) / 2 + 5)
+        if (ly > bottom - 8 || ly < top + labelSize) continue;
+        const collides = boxes.some(b => Math.abs(b.y - ly) < 20 && Math.abs(b.x - lx) < (b.width + labelWidth) / 2 + 7)
           || coords.some(p => Math.abs(p.y - (ly - 4)) < 13 && Math.abs(p.x - lx) < labelWidth / 2 + 8);
         if (!collides) { chosen = { x: lx, y: ly }; break search; }
       }
@@ -99,7 +100,8 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
           <circle cx={a.x} cy={a.y} r={13} fill="transparent" />
           <circle className={styles.assetPointDot} cx={a.x} cy={a.y} r={5} fill={color} stroke="var(--surface)" strokeWidth={1} />
           {active && <circle cx={a.x} cy={a.y} r={9} fill="none" stroke={color} strokeWidth={1.5} />}
-          <text x={label.x} y={label.y} textAnchor="middle" className={styles.pointLabel}>{a.name}</text>
+          {(Math.abs(label.x-a.x)>20 || Math.abs(label.y-a.y)>30) && <line x1={a.x} y1={a.y} x2={label.x} y2={label.y-labelSize/2} stroke={color} strokeWidth={1} opacity={.55} pointerEvents="none"/>}
+          <text x={label.x} y={label.y} textAnchor="middle" className={styles.pointLabel} style={{fontSize:labelSize}}>{a.name}</text>
         </g>;
       })}
       {comparisons.map(p => <g key={p.id} role="img" aria-label={`${p.label}: 과거 수익률 추정 ${(p.expected_return*100).toFixed(2)}%, 변동성 ${(p.volatility*100).toFixed(2)}%`}>
@@ -111,14 +113,15 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
       {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)" /></g>}
     </svg>
     {inspected && inspectedLabel && <div id="asset-point-tooltip" role="tooltip" aria-label={`${inspected.name} 수익률과 변동성`} className={styles.pointTooltip}
-      style={{ left: Math.max(4, Math.min(width - 204, inspectedLabel.x - 100)), top: inspectedLabel.y + 10 }}>
+      style={{ left: Math.max(4, Math.min(width - 204, inspectedLabel.x - 100)), top: Math.max(4, Math.min(height - 106, inspectedLabel.y + 10)) }}>
       <dl>
         <div><dt>기대수익률</dt><dd>{(inspected.expected_return * 100).toFixed(2)}%</dd></div>
         <div><dt>예상 변동성</dt><dd>{(inspected.volatility * 100).toFixed(2)}%</dd></div>
       </dl>
     </div>}
   </div>
-    <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:12,color:"var(--text-secondary)",padding:"0 8px 5px"}} aria-label="포트폴리오 위치 범례">
+    <div className={presentation.legend} aria-label="포트폴리오 위치 범례">
+      <span><i style={{display:"inline-block",width:18,borderTop:"2px solid #74a8ff",marginRight:6,verticalAlign:"middle"}}/>Efficient Frontier</span>
       {comparisons.map(p=><span key={p.id} style={{color:p.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>◆ {p.label} · 과거 추정</span>)}
       <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>테마 적용 전</span>
       {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>테마 적용 후</span>}
@@ -129,28 +132,25 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
 // One authenticated contract for setup, review and saved portfolio views.
 export function StrategyFrontierChart(props: Parameters<typeof FrontierChart>[0]) {
   const comparison = useQuery({queryKey:["strategy-frontier"], queryFn:()=>get<StrategyComparison>("/api/v1/strategies/frontier-comparison"), staleTime:60*60*1000, retry:1});
-  const [focus, setFocus] = useState(false);
+  const [focus, setFocus] = useState(true);
   const items = comparison.data?.items ?? [];
+  const showModels = items.length > 0 && !focus;
   return <>
     <div className={presentation.controls} aria-label="Frontier 표시 범위">
       <button type="button" className="btn-secondary" aria-pressed={!focus} onClick={()=>setFocus(false)}>전체 비교</button>
       <button type="button" className="btn-secondary" aria-pressed={focus} onClick={()=>setFocus(true)}>Frontier 확대</button>
     </div>
-    <div className={items.length ? presentation.plots : presentation.singlePlot}>
+    <div className={presentation.singlePlot}>
       <section className={presentation.panel} aria-label="기본 Frontier와 자산 비교">
-        <div className={presentation.heading}><h3>기본 Frontier와 자산</h3><p>{focus ? "선택한 곡선 자세히 보기" : `${props.assets.length}개 자산 · 기대수익률 기준`}</p></div>
-        <FrontierChart {...props} comparisons={[]} focus={focus} className={presentation.plot}/>
+        <FrontierChart {...props} comparisons={showModels ? items : []} focus={false} className={presentation.plot}
+          returnAxisLabel={showModels ? "연율 수익률" : "기대수익률"}/>
       </section>
-      {items.length > 0 && <section className={presentation.panel} aria-label="주도주·수출주 모델 전체 비교">
-        <div className={presentation.heading}><h3>모델 비교 위치</h3><p>두 모델의 과거 구성 추정치</p></div>
-        <FrontierChart {...props} assets={[]} comparisons={items} focus className={presentation.plot}
-          inspectedId={null} onInspect={()=>{}} returnAxisLabel="연율 수익률 · 기준 다름" chartLabel="기본 Frontier와 주도주·수출주 모델 위치. 과거 추정치와 기대수익률은 계산 기준이 다릅니다."/>
-      </section>}
     </div>
-    {comparison.isLoading && <p style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오는 중입니다.</p>}
-    {comparison.isError && <p role="status" style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오지 못했습니다. <button type="button" className="btn-secondary" onClick={()=>comparison.refetch()}>다시 시도</button></p>}
-    {comparison.data && <div style={{marginTop:24}}>
-      <p className={presentation.note}>기본 자산과 모델이 모두 보이도록 두 그래프의 축 범위를 따로 표시합니다.<br/>마름모는 과거 구성 추정치입니다. 기본 Frontier의 기대수익률과 계산 기준이 달라 점의 높이로 우열을 판단하지 않습니다.</p>
+    {focus && <p className={presentation.note}>기본 자산 {props.assets.length}개와 내 포트폴리오를 표시합니다. 주도주·수출주는 ‘전체 비교’에서 확인하세요.</p>}
+    {!focus && comparison.isLoading && <p style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오는 중입니다.</p>}
+    {!focus && comparison.isError && <p role="status" style={{color:"var(--text-secondary)",fontSize:13}}>모델 비교 지표를 불러오지 못했습니다. <button type="button" className="btn-secondary" onClick={()=>comparison.refetch()}>다시 시도</button></p>}
+    {!focus && comparison.data && <div style={{marginTop:24}}>
+      <p className={presentation.note}>원형은 기본 자산의 기대수익률, 마름모는 두 모델의 과거 구성 추정치입니다. 계산 기준이 달라 점의 높이로 우열을 판단하지 않습니다.</p>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:12}}>
         {items.map(item=><article key={item.id} style={{padding:16,border:"1px solid var(--border)",borderRadius:14,background:"var(--surface-subtle)"}} aria-label={`${item.label} 비교 지표`}>
           <strong style={{color:item.id==="leader_stock"?"#5dd5bc":"#f0bd6c"}}>{item.label}</strong>

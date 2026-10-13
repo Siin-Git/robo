@@ -1,18 +1,11 @@
 .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
 .controls button[aria-pressed="true"] { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
-.plots { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(260px, 1fr); gap: 18px; }
 .singlePlot, .panel { min-width: 0; }
-.heading { margin-bottom: 10px; }
-.heading h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.heading p { margin-top: 3px; color: var(--text-secondary); font-size: 12px; }
-.plots .panel .plot, .singlePlot .panel .plot { position: relative; height: 340px; margin: 0 0 12px; }
-.note { color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
-@media (max-width: 1250px) {
-  .plots { grid-template-columns: minmax(0, 1fr); gap: 22px; }
-  .plots .panel:nth-child(2) .plot { height: 220px; }
-}
+.singlePlot .panel .plot { position: relative; height: 360px; margin: 0 0 14px; }
+.legend { display: flex; gap: 10px 20px; flex-wrap: wrap; font-size: 13px; line-height: 1.6; color: var(--text-primary); padding: 0 8px 4px; }
+.note { color: var(--text-secondary); font-size: 13px; line-height: 1.7; margin-top: 10px; }
 @media (max-width: 600px) {
-  .plots .panel .plot, .singlePlot .panel .plot { height: 300px; }
-  .plots .panel:nth-child(2) .plot { height: 240px; }
+  .singlePlot .panel .plot { height: 340px; }
+  .legend { gap: 8px 14px; font-size: 12px; }
   .controls button { font-size: 13px; padding: 9px 12px; }
 }

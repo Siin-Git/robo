@@ -5,17 +5,17 @@
 .hero .intro p { font-size: 14px; margin-top: 6px; }
 .hero .workspace { flex: 1; grid-template-columns: minmax(0, 2.65fr) minmax(300px, 1fr); gap: 36px; }
 .hero .chart { position: relative; height: clamp(320px, calc(100svh - 420px), 520px); margin: 10px 0 12px; }
-.axisText { font-size: 12px; fill: var(--text-secondary); }
+.axisText { font-size: 13px; fill: var(--text-secondary); }
 .pointTooltip { position: absolute; z-index: 2; width: 200px; padding: 12px 14px; border: 1px solid var(--border); border-radius:var(--radius-control); background: var(--surface); box-shadow: 0 5px 20px #17233312; pointer-events: none; }
 .pointTooltip dl { display: flex; flex-direction: column; gap: 7px; }
 .pointTooltip dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .pointTooltip dt { font-size: 12px; color: var(--text-secondary); }
 .pointTooltip dd { font-size: 18px; line-height: 1.4; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.pointLabel { font-size: 12px; fill: var(--text-secondary); font-weight: 500; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.pointLabel { font-size: 14px; fill: var(--text-primary); font-weight: 500; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .hero .riskControl { padding-top: 12px; }
 .hero .slider { margin-top: 19px; margin-bottom: 14px; }
 .hero .riskControl p { margin-top: 6px; }
-.hero .result { padding: 24px; }
+.hero .result { padding: 24px; align-self: start; position: sticky; top: 24px; }
 .scrollPrompt { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: var(--text-secondary); min-height: 44px; margin-top: 10px; }
 .scrollPrompt:hover { color: var(--brand); }
 .allocationDetail { padding: 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); display: grid; grid-template-columns: 1fr 1.2fr; gap: 60px; align-items: center; }
@@ -121,7 +121,8 @@
   .hero { min-height: auto; }
   .hero .chart { height: 430px; }
   .hero .workspace { grid-template-columns: 1fr; gap: 28px; }
-  .pointLabel { font-size: 10px; }
+  .pointLabel { font-size: 12px; }
+  .hero .result { position: static; }
   .allocationDetail { grid-template-columns: 1fr; gap: 12px; padding: 12px; }
   .piePanel { height: 350px; }
   .assets .assetList li { padding: 12px 10px; }
