@@ -14,6 +14,7 @@ it('renders server coordinates without moving selection, supports curve focus, a
  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
  render(<QueryClientProvider client={client}><SetupStyleProvider><StrategyFrontierChart points={[{expected_return:.04,volatility:.06},{expected_return:.07,volatility:.13}]} assets={[]} selected={selection} inspectedId={null} onInspect={()=>{}}/></SetupStyleProvider></QueryClientProvider>);
  const leader=await screen.findByRole('img',{name:/주도주 모델: 과거 수익률 추정 66.00%/});
+ expect(Number(leader.querySelector('text')?.getAttribute('y'))).toBeGreaterThanOrEqual(16);
  const exporter=screen.getByRole('img',{name:/수출주 모델: 과거 수익률 추정 36.00%/});
  const base=screen.getByRole('img',{name:'테마 적용 전 Base Portfolio'});
  expect(leader.querySelector('path')?.getAttribute('d')).not.toEqual(exporter.querySelector('path')?.getAttribute('d'));
