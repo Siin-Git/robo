@@ -78,7 +78,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   }
   const inspected = coords.find(a => a.asset_id === inspectedId);
   const inspectedLabel = inspected ? labels.get(inspected.asset_id) : undefined;
-  const inspectedStrategy = comparisons.find(p => p.id === inspectedStrategyId && p.validation_status);
+  const inspectedStrategy = comparisons.find(p => p.id === inspectedStrategyId);
   return <><div ref={host} className={`${styles.chart} ${className}`} onMouseLeave={() => { onInspect(null); setInspectedStrategyId(null); }}>
     <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="group" aria-label={chartLabel ?? "위험과 기대수익률 차트. 자산 점에 마우스를 올리거나 키보드로 선택하면 상세 정보가 표시됩니다."}>
       {Array.from({ length: 4 }, (_, i) => {
@@ -108,11 +108,11 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
         </g>;
       })}
       {comparisons.map(p => <g key={p.id} role="img" aria-label={`${p.label}: 과거 수익률 추정 ${(p.expected_return*100).toFixed(2)}%, 변동성 ${(p.volatility*100).toFixed(2)}%${p.validation_status ? `, ${p.currency} 기준 검증 전 백테스트 ${p.validation_status}` : ""}`}
-        tabIndex={p.validation_status ? 0 : undefined}
+        tabIndex={0}
         aria-describedby={inspectedStrategy?.id === p.id ? "strategy-point-tooltip" : undefined}
-        onMouseEnter={() => p.validation_status && setInspectedStrategyId(p.id)} onMouseLeave={() => setInspectedStrategyId(null)}
-        onFocus={() => p.validation_status && setInspectedStrategyId(p.id)} onBlur={() => setInspectedStrategyId(null)}
-        onKeyDown={e => { if (p.validation_status && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setInspectedStrategyId(p.id); } if (e.key === "Escape") setInspectedStrategyId(null); }}>
+        onMouseEnter={() => setInspectedStrategyId(p.id)} onMouseLeave={() => setInspectedStrategyId(null)}
+        onFocus={() => setInspectedStrategyId(p.id)} onBlur={() => setInspectedStrategyId(null)} onClick={() => setInspectedStrategyId(p.id)}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setInspectedStrategyId(p.id); } if (e.key === "Escape") setInspectedStrategyId(null); }}>
         <title>{p.validation_status ? `${p.label} · ${p.currency} · ${p.validation_status} · 검증 전 백테스트` : `${p.label} · 과거 구성 추정치`}</title>
         <path d={`M ${x(p.volatility)} ${y(p.expected_return)-8} l 8 8 l -8 8 l -8 -8 Z`} fill={strategyColor(p.id)} stroke="var(--surface)" strokeWidth={2}/>
         <text x={x(p.volatility)-12} y={Math.max(16, y(p.expected_return)-14)} textAnchor="end" className={styles.pointLabel}>{p.label}</text>
@@ -130,7 +130,9 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
     {inspectedStrategy && <div id="strategy-point-tooltip" role="tooltip" aria-label={`${inspectedStrategy.label} 검증 상태와 계산값`} className={presentation.comparisonTooltip}
       style={{left:Math.max(4,Math.min(width-296,x(inspectedStrategy.volatility)-146)),top:Math.max(4,Math.min(height-220,y(inspectedStrategy.expected_return)+14))}}>
       <strong>{inspectedStrategy.label}</strong>
-      <p>{inspectedStrategy.currency} 기준 · 검증 전 백테스트<br/><b>{inspectedStrategy.validation_status}</b></p>
+      <p>{inspectedStrategy.validation_status
+        ? <>{inspectedStrategy.currency} 기준 · 검증 전 백테스트<br/><b>{inspectedStrategy.validation_status}</b></>
+        : <>종목·비중 기반 과거 구성 추정<br/>실제 운용 성과 아님</>}</p>
       <dl>
         <div><dt>과거 수익률 추정 · 연율</dt><dd>{(inspectedStrategy.expected_return*100).toFixed(2)}%</dd></div>
         <div><dt>변동성 · 연율</dt><dd>{(inspectedStrategy.volatility*100).toFixed(2)}%</dd></div>
@@ -153,7 +155,7 @@ export function StrategyFrontierChart(props: Parameters<typeof FrontierChart>[0]
   const comparison = useQuery({queryKey:["strategy-frontier"], queryFn:()=>get<StrategyComparison>("/api/v1/strategies/frontier-comparison"), staleTime:60*60*1000, retry:1});
   const v8 = useQuery({queryKey:["v8-frontier"], queryFn:()=>get<StrategyPoint>("/api/v1/strategies/v8-frontier-comparison"), staleTime:60*60*1000, retry:1});
   const [focus, setFocus] = useState(true);
-  const items = [...(comparison.data?.items ?? []), ...(v8.data ? [v8.data] : [])];
+  const items = [...(comparison.data?.items ?? []).map(item => ({...item, period:item.period ?? comparison.data?.period})), ...(v8.data ? [v8.data] : [])];
   const showModels = items.length > 0 && !focus;
   return <>
     <div className={presentation.controls} aria-label="Frontier 표시 범위">

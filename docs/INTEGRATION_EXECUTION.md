@@ -769,3 +769,9 @@ Add an isolated authenticated V8 comparison read endpoint and a comparison-only 
 Source: v8_ma_mdd_us_curve.csv, 943 USD observations (2023-01-03–2026-10-06), SHA256 efa3bd2f0bb1b8d830f60e18d4dd0efdf5e969c7520b32ad99b419d8dde54f65. Tooltip and details disclose USD, PROVISIONAL, unverified backtest status, matched period and non-CAGR arithmetic return. Cash flows/cost accounting in the source backtest remain unverified. Missing/invalid V8 data exposes its own 503 without affecting the original two-strategy endpoint. No DB/ledger writes or optimization/confirmation eligibility are added.
 
 Validation: 26 relevant Python tests and 104 frontend tests pass; production build passes. Independent standard-library weekly aggregation matches the server metrics; tests cover source hash, malformed/missing-week rejection, authentication, V8 failure isolation, and unchanged original strategy/selected portfolio coordinates. Actual isolated local API-to-browser rendering and the provisional tooltip were verified. Production deployment is not included in this implementation step.
+
+### 2026-10-14 — leader/export comparison point tooltips
+
+Reuse the existing V8 comparison tooltip for all research markers. Leader/export hover, click and keyboard focus display the original server return, volatility, Sharpe and inherited common period. Describe them as historical stock/weight composition estimates, not actual operation; retain the distinct USD/PROVISIONAL description for V8. No new validation status, return proxy, currency conversion, coordinate, financial calculation or API/DB change.
+
+Validation: 104 frontend tests and the production build pass. Coverage verifies tooltip values and server-period inheritance, hover/click/keyboard dismissal, unchanged point/portfolio coordinates, and continued V8 status isolation. Deployment and actual-browser evidence are recorded in the task workspace after rollout.
