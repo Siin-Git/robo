@@ -24,12 +24,14 @@ export interface FrontierData {
   assets: { asset_id: string; display_name: string; expected_return: number; volatility: number }[];
 }
 
-export function FrontierChart({ points, assets, benchmark, selected, personalized, inspectedId, onInspect, comparisons = [], focus = false, className = "", chartLabel, returnAxisLabel = "기대수익률" }: {
-  points: Point[]; assets: Asset[]; benchmark?: Point; selected: Point;
+export function FrontierChart({ points, assets, benchmark, selected, personalized, inspectedId, onInspect, comparisons = [], focus = false, className = "", chartLabel, returnAxisLabel = "기대수익률", onPortfolioInspect, inspectedPortfolio }: {
+  points: Point[]; assets: Asset[]; benchmark?: Point; selected?: Point | null;
   personalized?: { expected_return?: number | null; volatility?: number | null } | null;
   comparisons?: StrategyPoint[]; focus?: boolean;
   className?: string; chartLabel?: string; returnAxisLabel?: string;
   inspectedId: string | null; onInspect: (id: string | null) => void;
+  onPortfolioInspect?: (point: "base" | "personalized") => void;
+  inspectedPortfolio?: "base" | "personalized" | null;
 }) {
   const { risk: styles } = useSetupStyles();
   const host = useRef<HTMLDivElement>(null);
@@ -49,7 +51,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
     && Number.isFinite(personalized.expected_return) && Number.isFinite(personalized.volatility)
     ? { expected_return: personalized.expected_return, volatility: personalized.volatility } : null;
   const visibleAssets = focus ? [] : assets;
-  const all = [...points, ...visibleAssets, ...comparisons, selected, ...(benchmark ? [benchmark] : []), ...(after ? [after] : [])];
+  const all = [...points, ...visibleAssets, ...comparisons, ...(selected ? [selected] : []), ...(benchmark ? [benchmark] : []), ...(after ? [after] : [])];
   const minX = Math.max(0, Math.min(...all.map(p => p.volatility)) - .015);
   const maxX = Math.max(...all.map(p => p.volatility)) + .015;
   const minY = Math.min(...all.map(p => p.expected_return)) - .012;
@@ -117,8 +119,22 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
         <path d={`M ${x(p.volatility)} ${y(p.expected_return)-8} l 8 8 l -8 8 l -8 -8 Z`} fill={strategyColor(p.id)} stroke="var(--surface)" strokeWidth={2}/>
         <text x={x(p.volatility)-12} y={Math.max(16, y(p.expected_return)-14)} textAnchor="end" className={styles.pointLabel}>{p.label}</text>
       </g>)}
-      <g role="img" aria-label="테마 적용 전 Base Portfolio" pointerEvents="none"><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2} /><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff" /></g>
-      {after && <g role="img" aria-label="테마 적용 후 Personalized Portfolio" pointerEvents="none"><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2} /><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)" /></g>}
+      {selected && <g role={onPortfolioInspect ? "button" : "img"} aria-label="테마 적용 전 Base Portfolio" data-portfolio-point="base"
+        tabIndex={onPortfolioInspect ? 0 : undefined} aria-pressed={onPortfolioInspect ? inspectedPortfolio === "base" : undefined}
+        style={{cursor:onPortfolioInspect ? "pointer" : undefined}}
+        onClick={()=>onPortfolioInspect?.("base")}
+        onKeyDown={e=>{if(onPortfolioInspect && (e.key==="Enter" || e.key===" ")){e.preventDefault();onPortfolioInspect("base");}}}>
+        <circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={16} fill="transparent"/>
+        <circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2}/><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff"/>
+      </g>}
+      {after && <g role={onPortfolioInspect ? "button" : "img"} aria-label="테마 적용 후 Personalized Portfolio" data-portfolio-point="personalized"
+        tabIndex={onPortfolioInspect ? 0 : undefined} aria-pressed={onPortfolioInspect ? inspectedPortfolio === "personalized" : undefined}
+        style={{cursor:onPortfolioInspect ? "pointer" : undefined}}
+        onClick={()=>onPortfolioInspect?.("personalized")}
+        onKeyDown={e=>{if(onPortfolioInspect && (e.key==="Enter" || e.key===" ")){e.preventDefault();onPortfolioInspect("personalized");}}}>
+        <circle cx={x(after.volatility)} cy={y(after.expected_return)} r={17} fill="transparent"/>
+        <circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2}/><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)"/>
+      </g>}
     </svg>
     {inspected && inspectedLabel && <div id="asset-point-tooltip" role="tooltip" aria-label={`${inspected.name} 수익률과 변동성`} className={styles.pointTooltip}
       style={{ left: Math.max(4, Math.min(width - 204, inspectedLabel.x - 100)), top: Math.max(4, Math.min(height - 106, inspectedLabel.y + 10)) }}>
@@ -144,8 +160,8 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
     <div className={presentation.legend} aria-label="포트폴리오 위치 범례">
       <span><i style={{display:"inline-block",width:18,borderTop:"2px solid #74a8ff",marginRight:6,verticalAlign:"middle"}}/>Efficient Frontier</span>
       {comparisons.map(p=><span key={p.id} style={{color:strategyColor(p.id)}}>◆ {p.label} · {p.validation_status ? `${p.currency} · 검증 전` : "과거 추정"}</span>)}
-      <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>테마 적용 전</span>
-      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>테마 적용 후</span>}
+      {selected && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>{onPortfolioInspect ? <button type="button" aria-pressed={inspectedPortfolio==="base"} onClick={()=>onPortfolioInspect("base")}>Base · 판단 보기</button> : "테마 적용 전"}</span>}
+      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>{onPortfolioInspect ? <button type="button" aria-pressed={inspectedPortfolio==="personalized"} onClick={()=>onPortfolioInspect("personalized")}>Personalized · 판단 보기</button> : "테마 적용 후"}</span>}
     </div>
   </>;
 }

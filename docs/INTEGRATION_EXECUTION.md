@@ -1,5 +1,14 @@
 # 2026-10-03 integration
 
+## 2026-10-23 Frontier 투자 판단 검증
+
+원본 `release/public-operation@8bee054`에서 `feat/frontier-decision-verification`
+브랜치로 구현했다. Base/Personalized 점을 선택하면 당시 판단·동일 기간 NAV
+비교·당시 가정의 재검토를 표시한다. 기존 불변 판단 JSON을 재사용하며 미확보
+예상값과 실적을 생성하지 않는다. 현재 자산/전략 비교는 접힌 상세로 보존한다.
+데이터 경계, 설계 결정과 검증은 [FRONTIER_DECISION_VERIFICATION.md](FRONTIER_DECISION_VERIFICATION.md)에 기록했다.
+운영 배포, 운영 DB 변경과 거래 실행은 수행하지 않았다.
+
 ## 2026-10-05 ledger ranking presentation
 
 The default recorded-ledger comparison now uses the existing demo card/table/chart presentation. Financial figures, missing observations and risk quality gates are preserved. Public period theme IDs/metric averages and independent server return ranks are additive read-only fields. Scope, actual validation, isolated preview and limitations are recorded in [LEDGER_RANKING_PRESENTATION.md](LEDGER_RANKING_PRESENTATION.md). No operation, replay execution, scheduler, merge, push or deployment was performed.

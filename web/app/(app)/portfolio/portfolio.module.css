@@ -2,6 +2,11 @@
 .frontierPanel{border:1px solid var(--panel-border);background:var(--surface);border-radius:var(--radius-card);padding:28px 32px;margin-top:20px}
 .frontierPanel h2{font-size:22px;font-weight:700;margin-bottom:18px}
 .frontierPanel p{font-size:13px;color:var(--text-secondary);line-height:1.7;margin-top:12px}
+.verificationLayout{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+.verificationLayout[data-open=true]{grid-template-columns:minmax(0,1fr) minmax(300px,360px)}
+.frontierChart{min-width:0}
+.frontierChart :is(button,[role=button]):focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+@media(max-width:1100px){.verificationLayout[data-open=true]{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.frontierPanel{padding:22px 15px}}
 .header { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:28px; }
 .eyebrow { display:block; font-size:11px; font-weight:700; letter-spacing:.15em; color:var(--text-secondary); margin-bottom:10px; }

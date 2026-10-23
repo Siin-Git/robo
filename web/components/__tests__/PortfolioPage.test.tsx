@@ -43,10 +43,10 @@ describe("portfolio dashboard",()=>{
   });
   it("plots the personalized point only when the API provides both coordinates",()=>{
     const view=render(<PortfolioPage/>);
-    expect(screen.getByRole("img",{name:"테마 적용 전 Base Portfolio"})).toBeInTheDocument();
-    expect(screen.queryByRole("img",{name:"테마 적용 후 Personalized Portfolio"})).not.toBeInTheDocument();
+    expect(screen.getByRole("button",{name:"테마 적용 전 Base Portfolio"})).toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"테마 적용 후 Personalized Portfolio"})).not.toBeInTheDocument();
     state.data.personalized.expected_return=.061;
     view.rerender(<PortfolioPage/>);
-    expect(screen.getByRole("img",{name:"테마 적용 후 Personalized Portfolio"})).toBeInTheDocument();
+    expect(screen.getByRole("button",{name:"테마 적용 후 Personalized Portfolio"})).toBeInTheDocument();
   });
 });
