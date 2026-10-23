@@ -29,6 +29,7 @@ function ReviewContent(){
     if(request.current?.payload!==payload)request.current={key:crypto.randomUUID(),payload};
     return saveChoice({decision_id:id!,target_id:d!.target_id,action,reason:reason.trim(),request_key:request.current!.key});
   },onSuccess:c=>{cache.invalidateQueries({queryKey:['portfolio-choices']});
+    cache.invalidateQueries({queryKey:['decision-verification',id]});
     if(c.action==='ADJUST')router.push(`/setup/portfolio?adjustment_choice_id=${encodeURIComponent(c.choice_id)}&step=risk`);
   }});
   return <AppShell headerTitle="최초 예상·실제 검토" softBackground><div className={`${s.page} review-workspace`}><header className={s.header}><div><h1>최초 예상·실제 검토</h1><p>확정 당시 판단을 보존하고 관측 결과를 검토합니다. 조회만으로 구성이나 주문이 변경되지 않습니다.</p></div><Link href="/dashboard">운용 성과로 돌아가기</Link></header>

@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from ...db.models import Account, NavDaily, PortfolioChoice, PortfolioDecision, PriceDaily
 from ...db.models.base_selection import BasePortfolioSelection
+from ...db.models.scheduled_job import ScheduledJob
 from ...forward.performance_report import calculate_report
 from ...forward.replay import read_metadata
 from . import _common as C
@@ -16,7 +17,13 @@ from .internal_tracking_service import SNAPSHOT_KEY
 
 
 def _number(value):
-    return float(value) if value is not None and math.isfinite(float(value)) else None
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _original(session, decision):
@@ -29,6 +36,7 @@ def _original(session, decision):
     if not base:
         base = {"expected_return": _number(selection.expected_return) if selection else None,
                 "volatility": _number(selection.volatility) if selection else None}
+    base = {key: _number(base.get(key)) for key in ("expected_return", "volatility")}
     base["weights"] = deepcopy(provenance.get("base_weights", selection.weights_json if selection else {}))
     expectations = decision.expectations_json or {}
     personal = {key: (_number((expectations.get(key) or {}).get("value"))
@@ -37,9 +45,14 @@ def _original(session, decision):
     personal["weights"] = deepcopy(decision.weights_json)
     # Publish only the curve coordinates, not the administrator diagnostics snapshot.
     stored = (provenance.get(SNAPSHOT_KEY) or {}).get("frontier") or {}
-    points = [{key: p[key] for key in ("frontier_id", "expected_return", "volatility")}
-              for p in stored.get("points", [])
-              if _number(p.get("expected_return")) is not None and _number(p.get("volatility")) is not None]
+    points = []
+    for point in stored.get("points", []):
+        if not isinstance(point, dict) or not isinstance(point.get("frontier_id"), str):
+            continue
+        expected_return, volatility = _number(point.get("expected_return")), _number(point.get("volatility"))
+        if expected_return is not None and volatility is not None and volatility >= 0:
+            points.append({"frontier_id": point["frontier_id"],
+                           "expected_return": expected_return, "volatility": volatility})
     return {"base": base, "personalized": personal,
             "frontier": {"version": stored.get("version"), "points": points},
             "return_basis": (expectations.get("expected_return") or {}).get("basis"),
@@ -55,6 +68,9 @@ def _actual(session, decision, start, end):
         return {**unavailable, "reason": "과거 가격 재생 자료는 판단 이후의 계좌 실적으로 사용하지 않습니다."}
     if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)):
         return {**unavailable, "reason": "합성 테스트 자료는 계좌 실적으로 사용하지 않습니다."}
+    core_version = (decision.provenance_json or {}).get("core_version")
+    if not core_version:
+        return {**unavailable, "reason": "당시 CORE 비교 기준의 버전 미확보"}
     core = session.scalar(select(Account).where(Account.participant_id == decision.participant_id,
                                                 Account.account_type == "core"))
     if not core:
@@ -67,7 +83,7 @@ def _actual(session, decision, start, end):
     for row in rows:
         nav = _number(row.nav)
         if (row.nav_status != "OK" or row.stale_price_flag or nav is None or nav <= 0
-                or row.benchmark_version != decision.provenance_json.get("core_version")):
+                or row.benchmark_version != core_version):
             excluded += 1
             continue
         by_account[row.account_id][C.as_date(row.date).isoformat()] = {
@@ -105,7 +121,11 @@ def verification(session, user_id, decision_id):
     choice = session.scalar(select(PortfolioChoice).where(
         PortfolioChoice.user_id == user_id, PortfolioChoice.decision_id == decision_id)
         .order_by(PortfolioChoice.selected_at.desc(), PortfolioChoice.choice_id.desc()).limit(1))
+    job = session.scalar(select(ScheduledJob).where(ScheduledJob.job_type == "daily")
+        .order_by(ScheduledJob.scheduled_for.desc(), ScheduledJob.started_at.desc(), ScheduledJob.job_id.desc()).limit(1))
     return {"decision_id": decision_id, "version": decision.version,
+            "valuation_job": {"status": job.status, "scheduled_for": C.as_date(job.scheduled_for).isoformat(),
+                              "completed_at": C.as_aware_utc(job.completed_at).isoformat() if job.completed_at else None} if job else None,
             "confirmed_at": C.as_aware_utc(decision.confirmed_at).isoformat(),
             "effective_date": start.isoformat(), "reason": decision.reason,
             "superseded_effective_date": C.as_date(next_decision.effective_date).isoformat() if next_decision else None,

@@ -125,3 +125,69 @@ def test_summary_does_not_replace_missing_personal_forecast_with_base(client, id
     summary = client.get('/api/v1/me/portfolio/summary', cookies=identity[0]).json()
     assert summary['base']['expected_return'] is not None
     assert summary['personalized']['expected_return'] is None
+
+
+def test_incomplete_historical_snapshot_stays_readable_without_current_backfill(client, env, identity, decision):
+    from src.api.services.internal_tracking_service import SNAPSHOT_KEY
+    with env.factory() as db:
+        old = db.get(PortfolioDecision, decision['decision_id'])
+        values = {column.name: deepcopy(getattr(old, column.name)) for column in PortfolioDecision.__table__.columns}
+        values.update(decision_id='incomplete-snapshot', version=2, previous_decision_id=old.decision_id)
+        values['provenance_json'] = {
+            'base_expectations': {'expected_return': 'missing', 'volatility': 'NaN'},
+            SNAPSHOT_KEY: {'frontier': {'points': [
+                {'expected_return': .05, 'volatility': .08},
+                {'frontier_id': 'bad', 'expected_return': 'missing', 'volatility': .08},
+                {'frontier_id': 'negative-risk', 'expected_return': .05, 'volatility': -.08},
+                {'frontier_id': 'valid', 'expected_return': '.05', 'volatility': '.08'},
+            ]}},
+        }
+        values['expectations_json'] = {'expected_return': {'value': True}, 'volatility': {'value': 'missing'}}
+        db.add(PortfolioDecision(**values))
+        db.commit()
+    response = read(client, identity, {'decision_id': 'incomplete-snapshot'})
+    assert response.status_code == 200
+    out = response.json()
+    assert out['original']['base']['expected_return'] is None
+    assert out['original']['base']['volatility'] is None
+    assert out['original']['personalized']['expected_return'] is None
+    assert out['original']['personalized']['volatility'] is None
+    assert out['original']['frontier']['points'] == [{'frontier_id': 'valid', 'expected_return': .05, 'volatility': .08}]
+    assert out['actual']['status'] == 'UNAVAILABLE'
+    assert out['actual']['reason'] == '당시 CORE 비교 기준의 버전 미확보'
+
+
+def test_automatic_reads_follow_new_nav_review_and_job_without_rewriting_decision(client, env, identity, decision, monkeypatch):
+    from src.db.models.scheduled_job import ScheduledJob
+    start = date.fromisoformat(decision['target_effective_date'])
+    due = date.fromisoformat(decision['expectations']['expected_return']['definition']['end'])
+    now = datetime.combine(due, datetime.min.time(), timezone.utc)
+    monkeypatch.setattr(C, 'now_utc', lambda: now)
+    # The annual observation clock also expires the original login session.
+    cookies = dict(login(client, 'decision@example.com').cookies)
+    identity = cookies, {'X-CSRF-Token': cookies['ra_csrf']}
+    initial_response = read(client, identity, decision)
+    assert initial_response.status_code == 200, initial_response.text
+    initial = initial_response.json()
+    assert initial['valuation_job'] is None
+    assert initial['review']['status'] == 'IN_PROGRESS'
+    navs(env, decision, [(0, 100, 'OK'), ((due-start).days, 104, 'OK')],
+         [(0, 1000, 'OK'), ((due-start).days, 1020, 'OK')])
+    with env.factory() as db:
+        db.add(ScheduledJob(job_id='failed-evaluation', job_type='daily', scheduled_for=due,
+            started_at=now, completed_at=now, status='failed', error_message='private diagnostic', stats_json={'private': True}))
+        db.commit()
+    cookies, headers = identity
+    choice = client.post('/api/v1/me/portfolio/choices', cookies=cookies, headers=headers, json={
+        'decision_id': decision['decision_id'], 'target_id': decision['target_id'],
+        'action': 'KEEP', 'reason': '관측 자료를 확인하고 기존 비중 유지', 'request_key': 'verification-auto-keep'})
+    assert choice.status_code == 200, choice.text
+    latest = read(client, identity, decision).json()
+    assert latest['original'] == initial['original']
+    assert latest['actual']['personalized_return'] == pytest.approx(.04)
+    assert latest['review']['status'] == 'REVIEW_REQUIRED'
+    assert latest['review']['automatic_verdict'] is False
+    assert latest['review']['choice']['reason'] == '관측 자료를 확인하고 기존 비중 유지'
+    assert latest['valuation_job']['status'] == 'failed'
+    assert 'private' not in str(latest)
+    assert client.get('/api/v1/me/decisions', cookies=cookies).json()['items'][0] == decision

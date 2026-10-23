@@ -74,10 +74,38 @@ it("does not borrow a current curve or forecast when the historical values are m
 });
 
 it("retries failed evidence reads without presenting current estimates as the decision",()=>{
-  state.error=true;
+  state.error=true;state.record=null;
   render(<PortfolioPage/>);
   expect(screen.getByText("판단 기록을 불러오지 못했습니다.")).toBeInTheDocument();
   expect(screen.queryByRole("button",{name:"테마 적용 전 Base Portfolio"})).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button",{name:"Retry"}));
+  expect(state.refetch).toHaveBeenCalled();
+});
+
+it("connects the same decision to existing review history and displays stored risk evidence",()=>{
+  state.record!.original.risk_basis="5Y weekly Ledoit-Wolf annualized covariance";
+  state.record!.original.personalized.weights={};
+  render(<PortfolioPage/>);
+  fireEvent.click(screen.getByRole("button",{name:"Personalized · 판단 보기"}));
+  const panel=screen.getByRole("complementary");
+  expect(within(panel).getByText(/Ledoit–Wolf 공분산을 연율화/)).toBeInTheDocument();
+  expect(within(panel).getByText("당시 자산 비중 미확보")).toBeInTheDocument();
+  expect(within(panel).getByRole("link",{name:"이 판단의 검토 기록 보기"})).toHaveAttribute("href","/review?decision_id=decision-1");
+  fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
+  expect(within(panel).queryByText(/테마의 독립 전망/)).not.toBeInTheDocument();
+  expect(within(panel).getByText(/Base는 확정 당시 선택한 기본 구성의 저장값/)).toBeInTheDocument();
+});
+
+
+it("keeps prior evidence visible but explicitly reports an automatic refresh failure",()=>{
+  state.error=true;
+  state.record!.valuation_job={status:"failed",scheduled_for:"2026-09-05",completed_at:null};
+  render(<PortfolioPage/>);
+  expect(screen.getByRole("alert")).toHaveTextContent("이전 조회 결과");
+  fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
+  const panel=screen.getByRole("complementary");
+  expect(within(panel).getByText(/전체 계좌 평가 작업.*실패/)).toBeInTheDocument();
+  expect(within(panel).getByText(/성과 비교 미확보/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button",{name:"다시 조회"}));
   expect(state.refetch).toHaveBeenCalled();
 });

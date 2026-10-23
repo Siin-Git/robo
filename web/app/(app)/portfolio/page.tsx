@@ -57,7 +57,7 @@ function DemoPortfolioPage() {
 }
 
 function DesignPortfolioPage() {
-  const summary = useQuery({ queryKey: ["summary-portfolio"], queryFn: () => get<PortfolioSummary>("/api/v1/me/portfolio/summary") });
+  const summary = useQuery({ queryKey: ["summary-portfolio"], queryFn: () => get<PortfolioSummary>("/api/v1/me/portfolio/summary"), refetchInterval:60_000, refetchIntervalInBackground:false });
   return <AppShell headerTitle={DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"} softBackground>
     {summary.isLoading ? <LoadingSkeleton rows={6} /> : summary.isError || !summary.data ?
       <ErrorState message="포트폴리오를 불러오지 못했습니다." onRetry={() => summary.refetch()} /> :
@@ -158,7 +158,7 @@ function PortfolioFrontier({data}:{data:PortfolioSummary}) {
   const [inspectedAssetId,setInspectedAssetId] = useState<string|null>(null);
   const [inspectedPortfolio,setInspectedPortfolio] = useState<"base"|"personalized"|null>(null);
   const host = useRef<HTMLElement>(null);
-  const verification = useQuery({queryKey:["decision-verification",data.decision_id],queryFn:()=>get<DecisionVerification>(`/api/v1/me/decisions/${encodeURIComponent(data.decision_id!)}/verification`),enabled:!!data.decision_id});
+  const verification = useQuery({queryKey:["decision-verification",data.decision_id],queryFn:()=>get<DecisionVerification>(`/api/v1/me/decisions/${encodeURIComponent(data.decision_id!)}/verification`),enabled:!!data.decision_id,refetchInterval:60_000,refetchIntervalInBackground:false});
   const frontier = useQuery({queryKey:["frontier"],queryFn:()=>get<FrontierData>("/api/v1/me/frontier"),enabled:data.base.expected_return!=null&&data.base.volatility!=null,staleTime:60*60*1000});
   const coordinates = (value:{expected_return?:number|null;volatility?:number|null}) => value.expected_return!=null && value.volatility!=null && Number.isFinite(value.expected_return) && Number.isFinite(value.volatility) ? {expected_return:value.expected_return,volatility:value.volatility} : null;
   const stored = data.decision_id ? verification.data : undefined;
@@ -169,10 +169,11 @@ function PortfolioFrontier({data}:{data:PortfolioSummary}) {
     host.current?.querySelector<SVGGElement>(`[data-portfolio-point="${inspectedPortfolio}"]`)?.focus();
   };
   return <section ref={host} className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>Efficient Frontier에서의 위치</h2>
-    {data.decision_id && verification.isLoading ? <LoadingSkeleton rows={3}/> : data.decision_id && (verification.isError || !stored) ?
+    {data.decision_id && verification.isLoading ? <LoadingSkeleton rows={3}/> : data.decision_id && (!stored) ?
       <ErrorState message="판단 기록을 불러오지 못했습니다." onRetry={()=>verification.refetch()}/> :
       <div className={s.verificationLayout} data-open={!!inspectedPortfolio}>
         <div className={s.frontierChart}>
+          {verification.isError && stored && <p role="alert">자동 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button type="button" onClick={()=>verification.refetch()}>다시 조회</button></p>}
           {stored ? <>
             <p>확정 당시 저장한 위치 · {fmtDate(stored.confirmed_at)}</p>
             {base || personalized ? <SetupStyleProvider><StoredFrontierChart points={stored.original.frontier.points} assets={[]}
