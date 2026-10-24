@@ -4,11 +4,12 @@ from datetime import timedelta
 import math
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 
-from ...db.models import Account, NavDaily, PortfolioChoice, PortfolioDecision, PriceDaily
+from ...db.models import Account, NavDaily, PortfolioChoice, PortfolioDecision, PriceDaily, Event
 from ...db.models.base_selection import BasePortfolioSelection
 from ...db.models.scheduled_job import ScheduledJob
+from ...db.models.operational import ForwardState
 from ...forward.performance_report import calculate_report
 from ...forward.replay import read_metadata
 from . import _common as C
@@ -64,9 +65,9 @@ def _actual(session, decision, start, end):
     unavailable = {"status": "UNAVAILABLE", "start": None, "end": None, "observations": 0,
                    "personalized_return": None, "core_return": None, "difference_pp": None,
                    "personalized_nav": None, "core_nav": None, "excluded_rows": 0}
-    if read_metadata(session):
+    if session.get(ForwardState, "replay_run_id") or read_metadata(session):
         return {**unavailable, "reason": "과거 가격 재생 자료는 판단 이후의 계좌 실적으로 사용하지 않습니다."}
-    if session.scalar(select(PriceDaily.asset_id).where(PriceDaily.source.like("SYNTHETIC_TEST%")).limit(1)):
+    if session.scalar(select(PriceDaily.asset_id).where(func.lower(PriceDaily.source).like("synthetic%")).limit(1)):
         return {**unavailable, "reason": "합성 테스트 자료는 계좌 실적으로 사용하지 않습니다."}
     core_version = (decision.provenance_json or {}).get("core_version")
     if not core_version:
@@ -75,6 +76,14 @@ def _actual(session, decision, start, end):
                                                 Account.account_type == "core"))
     if not core:
         return {**unavailable, "reason": "CORE 비교 계좌 미확보"}
+    # Old events without provenance remain governed by the existing store-level
+    # guards. Never invent historical lineage. Explicit non-forward evidence
+    # survives a copied DB, replaced price rows, or a later model configuration.
+    for event in session.scalars(select(Event).where(
+            Event.event_type == "NAV_CALCULATED", Event.account_id.in_([decision.account_id, core.account_id]))):
+        payload = event.payload_json or {}
+        if payload.get("data_kind") in {"TEST_FIXTURE", "HISTORICAL_REPLAY"}:
+            return {**unavailable, "reason": "합성·재생 NAV 이력은 이후 운용 실적으로 사용하지 않습니다."}
     rows = session.scalars(select(NavDaily).where(
         NavDaily.account_id.in_([decision.account_id, core.account_id]),
         NavDaily.date >= start, NavDaily.date < end).order_by(NavDaily.date)).all()
@@ -104,6 +113,46 @@ def _actual(session, decision, start, end):
             "core_nav": {"start": benchmark[common[0]]["nav"], "end": benchmark[common[-1]]["nav"]}}
 
 
+def _valuation_job(session):
+    from ...forward.job_outcome import daily_outcome
+    latest_slot = select(func.max(ScheduledJob.scheduled_for)).where(ScheduledJob.job_type == "daily").scalar_subquery()
+    jobs = session.scalars(select(ScheduledJob).where(
+        ScheduledJob.job_type == "daily", ScheduledJob.scheduled_for == latest_slot)
+        .order_by(ScheduledJob.scheduled_for.desc(), ScheduledJob.started_at.desc(), ScheduledJob.job_id.desc()))
+    latest = None
+    job = None
+    for candidate in jobs:
+        latest = latest or candidate
+        if candidate.scheduled_for != latest.scheduled_for:
+            break
+        job = candidate
+        # Empty duplicate-skip audit rows must not hide the financial outcome.
+        if candidate.status != "skipped" or candidate.stats_json:
+            break
+    if latest is None:
+        return None
+    result = daily_outcome(job.status, job.stats_json or {})
+    if result["valuation_completed"]:
+        # Check persisted normal NAV as well as the batch's claims. Historical
+        # counters alone (or deleted/stale rows) cannot establish completion.
+        stats = job.stats_json or {}
+        try:
+            asof = C.as_date(stats.get("asof"))
+        except (ValueError, TypeError, AttributeError):
+            asof = None
+        rows = session.scalars(select(NavDaily).where(NavDaily.date == asof)).all() if asof else []
+        normal = {r.account_id for r in rows if r.nav_status == "OK" and not r.stale_price_flag
+                  and _number(r.nav) is not None and _number(r.nav) > 0}
+        expected = set((stats.get("account_results") or {}).keys())
+        if (not normal or len(normal) < result["valuated"]
+                or (expected and not expected.issubset(normal))):
+            result.update(state="PARTIAL", message="정상 NAV 저장 확인 미완료", valuation_completed=False)
+    return {"status": job.status, "latest_attempt_status": latest.status, "scope": "ALL_ACCOUNTS",
+            "scheduled_for": C.as_date(job.scheduled_for).isoformat(),
+            "completed_at": C.as_aware_utc(job.completed_at).isoformat() if job.completed_at else None,
+            **result}
+
+
 def verification(session, user_id, decision_id):
     decision = own(session, user_id, decision_id)
     next_decision = session.scalar(select(PortfolioDecision).where(
@@ -121,11 +170,8 @@ def verification(session, user_id, decision_id):
     choice = session.scalar(select(PortfolioChoice).where(
         PortfolioChoice.user_id == user_id, PortfolioChoice.decision_id == decision_id)
         .order_by(PortfolioChoice.selected_at.desc(), PortfolioChoice.choice_id.desc()).limit(1))
-    job = session.scalar(select(ScheduledJob).where(ScheduledJob.job_type == "daily")
-        .order_by(ScheduledJob.scheduled_for.desc(), ScheduledJob.started_at.desc(), ScheduledJob.job_id.desc()).limit(1))
     return {"decision_id": decision_id, "version": decision.version,
-            "valuation_job": {"status": job.status, "scheduled_for": C.as_date(job.scheduled_for).isoformat(),
-                              "completed_at": C.as_aware_utc(job.completed_at).isoformat() if job.completed_at else None} if job else None,
+            "valuation_job": _valuation_job(session),
             "confirmed_at": C.as_aware_utc(decision.confirmed_at).isoformat(),
             "effective_date": start.isoformat(), "reason": decision.reason,
             "superseded_effective_date": C.as_date(next_decision.effective_date).isoformat() if next_decision else None,

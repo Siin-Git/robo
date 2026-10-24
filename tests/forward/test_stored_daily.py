@@ -341,3 +341,85 @@ def test_delayed_scheduler_stored_valuation_during_open_market_fetches_nothing(b
     # The legacy refresh path still refuses an open market, before any write.
     assert daily.main([]) == 2
     assert counts(x.con) == initial
+
+
+def test_saved_nav_counter_does_not_count_incomplete_attempts(build):
+    x = ready(build, with_prices=False)
+    code, stats = run(x)
+    assert code == 0 and stats['outcome'] == 'PARTIAL'
+    assert stats['valuated'] == 0 and stats['attempted_accounts'] == 4
+    assert len(stats['price_wait_accounts']) == 4
+    assert counts(x.con)['nav_daily'] == 0
+    x.prices(DAY)
+    code, stats = run(x)
+    assert code == 0 and stats['valuated'] == counts(x.con)['nav_daily'] == 4
+
+
+@pytest.mark.parametrize('legacy', [
+    {'status':'COMPETITION_WAIT','outcome':'PARTIAL','reason':'START_NOT_SCHEDULED','valuated':0},
+    {'status':'PARTIAL','valuated':4},
+    {'status':'PASS','valuated':0},
+])
+def test_legacy_incomplete_success_retries_without_rewriting_history(build, monkeypatch, legacy):
+    x = ready(build, with_prices=False)
+    from src.forward import jobs
+    path = x.directory / 'portfolio_design.db'
+    jid, _ = jobs.claim_job(None, 'daily', DAY, sqlite_path=path)
+    jobs.complete_job(None, jid, legacy, sqlite_path=path)
+    assert cli(x, monkeypatch) == 0
+    assert counts(x.con)['nav_daily'] == 0
+    x.prices(DAY)
+    assert cli(x, monkeypatch) == 0
+    before = counts(x.con)
+    for _ in range(3):
+        assert cli(x, monkeypatch) == 0
+        assert counts(x.con) == before
+    recorded = next(r for r in jobs.recent_jobs(None, sqlite_path=path) if r['job_id'] == jid)
+    assert recorded['status'] == 'success' and recorded['stats_json'] == legacy
+
+
+def test_scheduler_to_verification_reads_current_committed_nav(build, monkeypatch):
+    from sqlalchemy import select
+    from src.db.models import PortfolioDecision
+    from src.api.services.decision_verification_service import verification
+    x = ready(build)
+    assert cli(x, monkeypatch) == 0
+    with x.operation() as db:
+        decision = db.scalar(select(PortfolioDecision))
+        user_id, decision_id = decision.user_id, decision.decision_id
+        out = verification(db, user_id, decision_id)
+        snapshot = out['original']
+        assert out['valuation_job']['state'] == 'NAV_COMPLETE'
+        assert out['valuation_job']['valuated'] == 4
+        # Fixture prices remain honestly marked synthetic, even after real engine work.
+        assert out['actual']['status'] == 'UNAVAILABLE' and '합성' in out['actual']['reason']
+    x.prices('2026-10-08')
+    x.clock['now'] = datetime(2026,10,8,17,17,tzinfo=competition.KST)
+    assert cli(x, monkeypatch) == 0
+    with x.operation() as db:
+        out = verification(db, user_id, decision_id)
+        assert out['original'] == snapshot
+        assert out['valuation_job']['scheduled_for'] == '2026-10-08'
+    assert counts(x.con)['nav_daily'] == 8
+
+
+def test_synthetic_nav_lineage_survives_replaced_prices(build, monkeypatch):
+    from sqlalchemy import select
+    from src.db.models import PortfolioDecision
+    from src.api.services import _common as C
+    from src.api.services.decision_verification_service import verification
+    x = ready(build)
+    assert run(x)[0] == 0
+    x.prices('2026-10-08')
+    assert daily._execute_daily(x.con,x.cfg,'2026-10-08',use_stored_prices=True)[0] == 0
+    # Deliberately remove the current source signal in this isolated test; the
+    # original NAV event must still prevent accidental performance promotion.
+    x.con.execute("UPDATE prices_daily SET source='replaced-price-source'")
+    x.con.commit()
+    monkeypatch.setattr(C,'now_utc',lambda: datetime(2026,10,9,tzinfo=competition.KST))
+    with x.operation() as db:
+        d = db.scalar(select(PortfolioDecision))
+        out = verification(db,d.user_id,d.decision_id)
+        assert out['actual']['observations'] == 0
+        assert '합성·재생 NAV 이력' in out['actual']['reason']
+        assert out['actual']['personalized_return'] is None

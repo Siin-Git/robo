@@ -54,7 +54,10 @@ def finish_job(sqlite_path, job_id: str | None, decision: str,
         except Exception as e:  # noqa: BLE001
             print(f"WARNING: could not record job failure: {e}")
         return code if code != 0 else 1
-    if (stats or {}).get("status") == "COMPETITION_WAIT" or (stats or {}).get("retryable"):
+    from .job_outcome import incomplete_daily
+    is_daily = bool(job_id and job_id.startswith("daily-"))
+    if ((is_daily and incomplete_daily(stats or {}))
+            or (stats or {}).get("status") == "COMPETITION_WAIT" or (stats or {}).get("retryable")):
         # Financial work is incomplete: same-day attempts remain retryable.
         _jobs.wait_job(ctx["jobs_db_url"], job_id, stats, sqlite_path=sqlite_path)
     else:

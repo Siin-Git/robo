@@ -794,3 +794,35 @@ Validation: 26 relevant Python tests and 104 frontend tests pass; production bui
 Reuse the existing V8 comparison tooltip for all research markers. Leader/export hover, click and keyboard focus display the original server return, volatility, Sharpe and inherited common period. Describe them as historical stock/weight composition estimates, not actual operation; retain the distinct USD/PROVISIONAL description for V8. No new validation status, return proxy, currency conversion, coordinate, financial calculation or API/DB change.
 
 Validation: 104 frontend tests and the production build pass. Coverage verifies tooltip values and server-period inheritance, hover/click/keyboard dismissal, unchanged point/portfolio coordinates, and continued V8 status isolation. Deployment and actual-browser evidence are recorded in the task workspace after rollout.
+
+
+### 2026-10-24 — daily operation evidence and decision verification
+
+Continue open PR #20 on its existing branch and worktree. Latest collector run
+40063536709 stored 16 prices; latest valuation stage 39961497998 still reports
+START_NOT_SCHEDULED / READY 15/15 with no orders, fills or NAV. Process success is
+not operation completion. No operating start, deployment or production writes.
+
+Reuse the existing collection, account transaction, execution, NAV and job registry.
+Count persisted NAV rather than incomplete valuation attempts. Keep explicit
+incomplete legacy successes retryable, retain unknown legacy success locks, and
+preserve successful-slot deduplication. The verification API exposes allowlisted
+execution/valuation states, checks persisted normal NAV, and retains outcome evidence
+across duplicate skips. Frontend uses the server state rather than success=complete.
+
+Preserve fixture/replay lineage in existing NAV events; copied replay state and
+replaced synthetic prices cannot become forward performance. Original decisions
+and missing historical estimates stay immutable; read requests never run trading.
+The existing paired-date return engine and owner checks remain in place.
+
+Contract, trade-offs, acceptance cases and remaining operating conditions:
+docs/FRONTIER_DECISION_VERIFICATION.md. No new tables, services or backup changes.
+Validation uses disposable local SQLite/PostgreSQL plus existing CI. Final measured
+results are recorded in that contract and PR #20.
+
+Final validation: 772 backend tests passed, zero skipped, with isolated PostgreSQL
+14.19 and SQLite; 93 focused provenance/engine/replay tests passed; 111 frontend
+tests and the production build/type checks passed. PostgreSQL LIKE pattern binding
+was corrected after the new provenance test exposed it. Generated migration/parity
+reports, covariance cache and Next environment declarations were restored and are
+excluded from the change. No production DB was used.

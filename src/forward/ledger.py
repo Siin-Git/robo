@@ -80,8 +80,14 @@ def valuate(con: sqlite3.Connection, account_id: str, date: str, versions: dict,
                  versions["theme_universe_version"], versions["risk_model_version"],
                  versions["execution_rule_version"]))
     con.commit()
+    # Preserve evidence on the existing valuation event: later price refreshes
+    # must not turn fixture/replay NAV into forward performance.
+    replay = con.execute("SELECT 1 FROM forward_state WHERE key='replay_run_id'").fetchone()
+    synthetic = con.execute("SELECT 1 FROM prices_daily WHERE LOWER(source) LIKE ? AND date<=? LIMIT 1",
+                            ("synthetic%", date)).fetchone()
+    data_kind = "HISTORICAL_REPLAY" if replay else "TEST_FIXTURE" if synthetic else "FORWARD_SIMULATION"
     log_event(con, "NAV_CALCULATED", versions["benchmark_version"], None, account_id,
-              {"date": date, "nav": nav})
+              {"date": date, "nav": nav, "data_kind": data_kind})
     con.commit()
     return {"status": "STALE_PRICE" if stale else "OK", "nav": nav}
 

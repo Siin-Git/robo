@@ -5,7 +5,8 @@
 기존 Next.js `/portfolio`의 Base 또는 Personalized 점을 선택하면 옆에
 당시 판단, 동일 기간 계좌 성과, 당시 가정의 재검토를 표시한다.
 다크 대시보드와 기존 자산 구성·현재 모형/전략 비교를 보존한다.
-주문 생성, 거래 실행, 운영 배포, 신규 저장 인프라는 범위에 포함하지 않는다.
+운영 환경의 주문 생성·거래 실행·배포와 신규 저장 인프라는 범위에 포함하지 않는다.
+2026-10-24 후속 작업은 기존 예약 엔진의 상태·재시도와 검증 API 연결까지 포함한다.
 
 ## 데이터와 결정
 
@@ -92,3 +93,149 @@ Codex가 기존 서비스·모델·화면을 추적하고 API, 패널과 회귀 
   만기 상태 반영과 원본 보존, 실패 작업의 비공개 진단 제외를 회귀 검증했다.
 - 로컬 브라우저에서 패널 → 동일 판단 검토 화면 → 포트폴리오 복귀 확인.
   별도 검토 DB에 운용 NAV/주문/체결을 생성하지 않았다.
+
+
+## 자동 운용 백엔드 보완 (2026-10-24)
+
+### 확인된 운영 상태
+
+PR #20은 OPEN, 작업/원격 HEAD는 `7109caa`, 운영 브랜치는 `8bee054`에서
+시작했다. 기존 작업 경로는 깨끗했으며 해당 브랜치를 이어서 수정했다.
+
+- 최신 수집 실행 [40063536709](https://github.com/MinchoLover/robo/actions/runs/40063536709):
+  2026-10-24, `status=OK`, 가격 16건 추가. 이 실행은 일일 운용 단계 대상이 아니다.
+- 최근 일일 운용 단계 [39961497998](https://github.com/MinchoLover/robo/actions/runs/39961497998):
+  2026-10-23, `START_NOT_SCHEDULED; READY 15/15; no orders, fills or NAV`.
+- 따라서 GitHub 작업의 성공은 평가 완료를 뜻하지 않는다. 10월 22일 단계 성공을
+  기록한 위 과거 메모도 프로세스 종료 결과이며 운용 활성화 증거가 아니다.
+  이번 확인은 로그 읽기이며 운영 DB 변경·예약 dispatch·공동 시작일 지정은 하지 않았다.
+
+### 연결과 상태 계약
+
+기존 `daily_forward.yml`의 완료 가격 수집 → `run_daily --use-stored-prices` →
+계좌별 주문/체결/`valuate` 트랜잭션 → 동일 설계 DB의 `nav_daily`, `scheduled_jobs`
+→ 소유권 확인된 검증 GET 경로를 유지한다. 별도 예약 작업이나 DB를 만들지 않는다.
+
+기존 API `GET /api/v1/me/decisions/{decision_id}/verification`의 `valuation_job`을
+다음 형태로 확장했다. 아래는 시작일 미지정 기록을 해석한 **응답 형태 예시**이며
+운영 API에 이 변경을 배포했다는 의미가 아니다.
+
+```json
+{
+  "valuation_job": {
+    "status": "success",
+    "latest_attempt_status": "success",
+    "scope": "ALL_ACCOUNTS",
+    "scheduled_for": "2026-10-23",
+    "completed_at": "2026-10-23T13:29:51+00:00",
+    "state": "START_WAIT",
+    "message": "공동 운용 시작 대기",
+    "execution_succeeded": true,
+    "valuation_completed": false,
+    "valuated": 0,
+    "ready": 15,
+    "required": 15,
+    "retryable": true
+  }
+}
+```
+
+| `state` | 의미 |
+| --- | --- |
+| `RUNNING` | 실행 중 |
+| `START_WAIT` | 시작일 미지정 또는 T0 도달 전 |
+| `PARTICIPANTS_NOT_READY` | 참가자 준비 부족 |
+| `OPERATION_WAIT` | 나머지 운용 게이트 대기, 원문 사유는 비공개 |
+| `PRICE_WAIT` | 체결/평가용 가격 미확보 또는 stale NAV |
+| `EVALUATION_FAILED` | 실패 종료 또는 실패 통계, 재시도 필요 |
+| `NO_NAV` | NAV 저장 0건 |
+| `PARTIAL` | 일부 평가·검사 미완료 또는 정상 NAV 저장 확인 불충족 |
+| `NAV_COMPLETE` | PASS, 양수 저장 건수, 미완료 신호 없음, 해당 날짜 정상 NAV 저장 확인 |
+| `UNKNOWN` | 완료를 입증할 기록 부족 |
+
+- 작업 기록 자체가 없으면 `valuation_job=null`이다. `status`는 증거가 있는 작업의
+  원래 상태이며 `execution_succeeded`도 그 실행 결과만 뜻한다. 프런트는
+  `message`/`state`와 `valuation_completed`를 사용한다. 구형 API의 `success`만
+  받은 경우에도 프런트는 “작업 성공 · 평가 완료 여부 미확인”으로 표시한다.
+- 가장 최근 날짜에서 빈 중복 건너뜀 기록을 넘겨 원래 평가 결과를 보여주고,
+  `latest_attempt_status`로 마지막 시도의 건너뜀 여부를 보존한다.
+- `valuated`는 NAV 저장 계좌 수(정상+stale), `successful_accounts` 내부 통계는
+  정상이며 가격 대기가 없는 계좌 수다. 구형 통계에 계좌별 결과가 있으면
+  `NAV_INCOMPLETE` 시도를 저장 수에 넣지 않는다. 값이 없으면 null이다.
+- `NAV_COMPLETE`는 전체 배치의 저장 상태이며 본인 판단의 성과 확보와 별개다.
+  `COMPETITION_WAIT`, `PARTIAL`, `valuated=0`이면 프로세스가 성공했어도 완료가 아니다.
+- 전체 `stats_json`, 원문 오류, 계좌별 결과/오류/ID, 연결 정보는 공개하지 않는다.
+  공개 숫자와 고정 메시지만 허용한다.
+
+기존 응답 본문은 다음 계약을 유지한다.
+
+| 필드 | 실제 타입과 사용 |
+| --- | --- |
+| `decision_id`, `version`, `confirmed_at`, `effective_date` | 확정 원본 식별자, 정수 버전, ISO 시각/날짜 |
+| `reason`, `superseded_effective_date` | 원래 이유 및 후속 효력일, 없으면 null |
+| `original.base`, `original.personalized` | `{expected_return: number|null, volatility: number|null, weights: Record<string,number>}` |
+| `original.frontier` | `{version: string|null, points: [{frontier_id, expected_return, volatility}]}` |
+| `original.return_basis`, `risk_basis`, `price_data_as_of` | 당시 산출 근거·자료 기준일 또는 null |
+| `actual` | 아래 공통 기간 성과 객체 |
+| `review` | `{status: IN_PROGRESS|REVIEW_REQUIRED, horizon_end: string|null, automatic_verdict: false, basis: string, choice: {action, reason, recorded_at}|null}` |
+| `read_only` | 항상 true |
+
+`actual`은 `{status: AVAILABLE|UNAVAILABLE, reason: string|null, start: string|null,
+end: string|null, observations: number, excluded_rows: number,
+personalized_return: number|null, core_return: number|null, difference_pp: number|null,
+personalized_nav: {start:number,end:number}|null, core_nav: {start:number,end:number}|null}`이다.
+반환 수익률과 `difference_pp`는 기존 엔진의 **소수 단위**다. 예를 들어 `.01` 차이는
+프런트에서 `1.00%p`로 표시한다. NAV 단위는 KRW이며 미확보를 0으로 대체하지 않는다.
+
+동일 CORE 버전·공통 날짜의 정상 NAV가 최소 두 시점 있어야 계산한다. 최초 예상
+수익률·변동성·비중·확정일은 변경하지 않고, 누락된 과거 값을 소급 생성하지 않는다.
+새 NAV/KEEP·ADJUST가 커밋되면 다음 GET에서 반영하며 연간 예상과 단기 실현 차이를
+적중 판정에 쓰지 않는다. GET은 가격 수집·주문·체결·평가를 호출하지 않는다.
+
+### 출처와 재시도 정책
+
+- 신규 `NAV_CALCULATED` 이벤트의 기존 JSON에 `data_kind`를 추가한다.
+  `FORWARD_SIMULATION`, `TEST_FIXTURE`, `HISTORICAL_REPLAY`를 구분한다.
+  과거 이벤트는 고치지 않는다. 원장 이름을 바꾸어도 `replay_run_id` 상태가 있으면
+  재생으로 차단한다. 대소문자를 포함한 기존 `synthetic*` 가격도 차단한다.
+- 합성/재생 NAV 이력이 있는 두 계좌는 가격표가 갱신돼도 실제 이후 운용 성과로
+  승격하지 않는다. 기존 출처 정보가 전혀 없는 과거 NAV는 새로 추정하지 않고 기존
+  저장소 출처 검사와 정상 NAV 조건을 적용한다. 출처 불명의 과거 데이터를 실제
+  운용 DB에 가져와 실적으로 사용해서는 안 된다.
+- SQLite `BEGIN IMMEDIATE`, PostgreSQL slot advisory lock과 계좌 트랜잭션을
+  그대로 재사용한다. 새 성공은 같은 슬롯의 반복 실행을 차단하고 건너뜀을 기록한다.
+- 실패·가격 부족·시작 대기·PARTIAL은 다음 시도에서 같은 슬롯 재실행이 가능하다.
+  구형 `success`라도 명시적인 미완료 통계가 있으면 슬롯을 소비하지 않는다.
+  통계가 없는 구형 성공은 안전하게 잠금을 유지하며 자동 거래 재실행을 추정하지 않는다.
+- 진행 중 작업은 기존 6시간 stale 기준 이전까지 잠기며 실패 기록은 보존한다.
+  실패 계좌는 기존 트랜잭션으로 롤백되고 다른 계좌의 성공은 유지된다.
+  완료 계좌 재처리 시 주문/체결 중복이 생기지 않는 기존 규칙을 검증했다.
+- 자동 재시도 루프를 추가하지 않는다. 기존 일일 운용 예약은 08:17 UTC 단계이며,
+  다음 예약 또는 별도 승인된 동일 슬롯 재시도가 필요하다. `retryable`은 즉시
+  재실행 예약이 걸렸다는 의미가 아니다.
+
+### 남은 운영 조건
+
+이 PR은 코드 완성과 격리 검증 단계다. 운영 활성화에는 별도 승인된 병합/배포 후
+참가자 준비 상태·동일 초기 자본·대기 주문 적합성 확인, 명시적인 미래 공동 시작일,
+그 이후 체결 가능한 가격과 예약 실행이 필요하다. 실제 평가 완료는 새 작업의
+정상 NAV 저장을 확인해야 한다. 판단 성과 비교는 본인과 CORE 공통 정상 NAV가
+최소 두 시점 쌓인 뒤 제공된다. 이번 작업에서 시작일·운영 DB·예약 변수는 바꾸지 않는다.
+
+### 이번 검증
+
+테스트는 `/private/tmp`의 SQLite와 `127.0.0.1:55432`의 폐기 가능한 PostgreSQL
+PostgreSQL 14.19 인스턴스/테스트 DB를 사용한다. 운영 DB 주소는 테스트에 사용하지 않는다.
+기존 CI의 PostgreSQL 서비스도 같은 회귀 파일을 실행한다.
+
+- 핵심 테스트 107 passed (SQLite/PostgreSQL 포함).
+- 프런트 111 passed, Next.js production build 및 타입 검사 통과.
+- 최종 전체 백엔드: `python -m pytest tests --ignore=tests/backup -q` → **772 passed**, 0 skipped (221.25초).
+- 출처·엔진·재생·검증 API 추가 회귀: **93 passed**. PostgreSQL LIKE 패턴 바인딩 오류를 발견해 매개변수 바인딩으로 수정한 뒤 재검증했다.
+- 기존 CI는 PostgreSQL 18 서비스를 사용한다. 이번 로컬 전체 테스트도 PostgreSQL 관련 검증을 건너뛰지 않았다.
+- 경고 745건은 기존 pandas 등의 deprecation 경고이며 테스트 실패가 아니다.
+- UI 변경은 상태 문구만이므로 해당 컴포넌트와 전체 프런트 테스트/빌드로 검증했으며 이번 단계에서 운영 브라우저 거래나 별도 E2E 실행은 하지 않았다.
+- 기존 lockfile로 `npm ci --no-audit --no-fund`, Python `pip check` 통과.
+  별도 Python lint/typecheck 명령은 저장소에 없다.
+- Codex가 기존 코드와 최신 로그를 추적하여 수정하고 명령 실행 결과로 검증했다.
+  `sources/`, 백업 PR, 운영 배포 파일/변수는 변경하지 않았다.

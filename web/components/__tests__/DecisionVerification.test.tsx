@@ -109,3 +109,15 @@ it("keeps prior evidence visible but explicitly reports an automatic refresh fai
   fireEvent.click(screen.getByRole("button",{name:"다시 조회"}));
   expect(state.refetch).toHaveBeenCalled();
 });
+
+
+it("never labels a successful process as completed valuation without server evidence",()=>{
+  state.record!.valuation_job={status:"success",scheduled_for:"2026-09-05",completed_at:null};
+  const view=render(<PortfolioPage/>);
+  fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
+  expect(screen.getByText(/작업 성공 · 평가 완료 여부 미확인/)).toBeInTheDocument();
+  state.record!.valuation_job={...state.record!.valuation_job,state:"START_WAIT",message:"공동 운용 시작 대기",valuation_completed:false};
+  view.rerender(<PortfolioPage/>);
+  expect(screen.getByText(/공동 운용 시작 대기/)).toBeInTheDocument();
+  expect(screen.queryByText(/작업 성공 · 평가 완료 여부 미확인/)).not.toBeInTheDocument();
+});
