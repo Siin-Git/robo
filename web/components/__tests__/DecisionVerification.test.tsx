@@ -33,6 +33,7 @@ afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 it("opens three sections from each point, preserves historical coordinates, closes with Escape",()=>{
   render(<PortfolioPage/>);
   expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+  expect(screen.getByText("확정 당시 저장한 위치 · 한국시간 2026. 9. 2.")).toBeInTheDocument();
   const base=screen.getByRole("button",{name:"테마 적용 전 Base Portfolio"});
   fireEvent.keyDown(base,{key:"Enter"});
   const panel=screen.getByRole("complementary",{name:"투자 판단 검증"});

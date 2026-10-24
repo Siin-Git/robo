@@ -184,7 +184,7 @@ function PortfolioFrontier({data}:{data:PortfolioSummary}) {
         <div className={s.frontierChart}>
           {verification.isError && stored && <p role="alert">자동 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button type="button" onClick={()=>verification.refetch()}>다시 조회</button></p>}
           {stored ? <>
-            <p>확정 당시 저장한 위치 · {fmtDate(stored.confirmed_at)}</p>
+            <p>확정 당시 저장한 위치 · 한국시간 {new Date(stored.confirmed_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</p>
             {base || personalized ? <SetupStyleProvider><StoredFrontierChart points={stored.original.frontier.points} assets={[]}
               selected={base} personalized={personalized} inspectedId={null} onInspect={()=>{}}
               chartLabel="확정 당시 Frontier. Base 또는 Personalized 점을 선택하면 투자 판단 검증을 확인합니다."

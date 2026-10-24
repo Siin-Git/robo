@@ -849,3 +849,17 @@ desktop/mobile and failure recovery. Only disposable local SQLite fixtures were 
 The synthetic NAV success case remains UNAVAILABLE as actual performance. Screenshots,
 exact reproduction and source limitations are in docs/FRONTIER_DECISION_VERIFICATION.md.
 No operating start, deployment, production DB, backup workflow or sources/ changes.
+
+
+### 2026-10-24 — production verification and decision date consistency
+
+After PR #20 rollout, an authenticated production account showed the new waiting
+status, zero forward NAV, separate archived results, both saved Frontier panels,
+and Escape focus restoration correctly. The chart caption truncated confirmed_at
+to its UTC date while the detail panel showed Korea time, producing different dates
+for the same decision near midnight. Use Asia/Seoul explicitly in that caption,
+matching the existing panel; date-only effective/price dates remain unchanged.
+Extend the existing UTC-to-next-Korean-day interaction regression. No financial
+values, account records, operating start or scheduler configuration are changed.
+
+Validation: 123 frontend tests and production build/type checking passed.
