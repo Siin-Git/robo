@@ -29,9 +29,10 @@ function ReviewContent(){
     if(request.current?.payload!==payload)request.current={key:crypto.randomUUID(),payload};
     return saveChoice({decision_id:id!,target_id:d!.target_id,action,reason:reason.trim(),request_key:request.current!.key});
   },onSuccess:c=>{cache.invalidateQueries({queryKey:['portfolio-choices']});
+    cache.invalidateQueries({queryKey:['decision-verification',id]});
     if(c.action==='ADJUST')router.push(`/setup/portfolio?adjustment_choice_id=${encodeURIComponent(c.choice_id)}&step=risk`);
   }});
-  return <AppShell headerTitle="최초 예상·실제 검토" softBackground><div className={`${s.page} review-workspace`}><header className={s.header}><div><h1>최초 예상·실제 검토</h1><p>확정 당시 판단을 보존하고 관측 결과를 검토합니다. 조회만으로 구성이나 주문이 변경되지 않습니다.</p></div><Link href="/dashboard">운용 성과로 돌아가기</Link></header>
+  return <AppShell headerTitle="최초 예상·실제 검토" softBackground><div className={`${s.page} review-workspace`}><header className={s.header}><div><h1>최초 예상·실제 검토</h1><p>확정 당시 판단을 보존하고 관측 결과를 검토합니다. 조회만으로 구성이나 주문이 변경되지 않습니다.</p></div><div className="ui-actions">{id&&<Link href={`/portfolio?decision_id=${encodeURIComponent(id)}&inspect=personalized`}>이 판단의 검증으로 돌아가기</Link>}<Link href="/dashboard">운용 성과로 돌아가기</Link></div></header>
     {ds.isError&&<p role="alert">판단 기록 조회 실패 <button onClick={()=>ds.refetch()}>다시 조회</button></p>}
     {ds.isLoading?<p>판단 기록 조회 중</p>:!ds.data?.items.length?<section className={s.empty}><h2>최초 예상 기록이 없습니다</h2><p>과거에 저장하지 않은 예상값을 현재 모형으로 채우지 않습니다. 이후 새 확정부터 판단 버전이 저장됩니다.</p><Link href="/setup/portfolio">새 판단 설계</Link></section>:<>
     <label>판단 버전 <select className="input" style={{maxWidth:"100%"}} aria-label="판단 버전" value={id} onChange={e=>{setSelected(e.target.value);choice.reset();}}>{ds.data.items.map(x=><option key={x.decision_id} value={x.decision_id}>v{x.version} · {new Date(x.confirmed_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})} KST</option>)}</select></label>
@@ -56,7 +57,7 @@ function ReviewContent(){
       {choice.isError&&<p role="alert">{choice.error.message}</p>}{choice.isSuccess&&choice.data.action==='KEEP'&&<p role="status">유지 선택을 저장했습니다. 목표 유지 · 정기 운용 계속</p>}
     </section>}
     </>}
-    <section className={s.operations}><h2>사용자 선택 History</h2>{cs.isError?<p role="alert">선택 기록 조회 실패</p>:cs.data?.items.length?<ul>{cs.data.items.map(c=><li key={c.choice_id}>{c.action==='KEEP'?'유지':'조정 검토'} · {c.selected_at} · {c.reason} · 판단 {c.decision_id}</li>)}</ul>:<p>저장된 선택이 없습니다.</p>}</section>
+    <section className={s.operations}><h2>이 판단의 검토 기록</h2>{cs.isError?<p role="alert">선택 기록 조회 실패 <button onClick={()=>cs.refetch()}>다시 조회</button></p>:cs.data?.items.some(c=>c.decision_id===id)?<ul>{cs.data.items.filter(c=>c.decision_id===id).map(c=><li key={c.choice_id}>{c.action==='KEEP'?'유지':'조정 검토'} · {c.selected_at} · {c.reason} · 판단 {c.decision_id}</li>)}</ul>:<p>저장된 선택이 없습니다.</p>}</section>
     </>}
   </div></AppShell>;
 }

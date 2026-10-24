@@ -21,6 +21,7 @@ import { LedgerHistory } from "@/components/dashboard/LedgerHistory";
 import { DashboardDecisionContext } from "@/components/dashboard/DashboardDecisionContext";
 import { HistoricalPreview, useHistoricalPreview } from "@/components/dashboard/HistoricalPreview";
 import { HistoricalLedger } from "@/components/dashboard/HistoricalLedger";
+import { OperationReadiness } from "@/components/dashboard/OperationReadiness";
 import { ForwardOperations } from "@/components/dashboard/ForwardOperations";
 import { ledgerReason } from "@/lib/api/ledger-comparison";
 import { BenchmarkOptions } from '@/components/strategies/BenchmarkOptions';
@@ -77,7 +78,8 @@ function LegacyDashboardPage() {
     {!example && report?.valuation && <div className={s.balanceSummary} aria-label="계좌 요약"><span>총 평가액 <strong>{report.valuation.nav_krw.toLocaleString("ko-KR",{maximumFractionDigits:0})}원</strong></span><span>현금 <strong>{report.valuation.cash_krw?.toLocaleString("ko-KR",{maximumFractionDigits:0})??"—"}원</strong></span><a href="#operation-details" onClick={()=>setOperationsOpen(true)}>보유·운용 내역 보기 <ArrowRight size={13}/></a></div>}
     {example&&<div className={s.exampleBanner} role="status"><Info size={19}/><div><strong>DEMO / EXAMPLE · 가상 데이터</strong><span>확정한 포트폴리오의 성과가 아닙니다. 시연용 가상 데이터이며 랭킹에 반영되지 않습니다.</span></div><button onClick={()=>{setExample(false);setSelected(null);}}>내 모의운용 기록으로 돌아가기</button></div>}
     {!example && report?.data_kind === "TEST_FIXTURE" && <p className={`${s.exampleBanner} ${s.fixtureBanner}`} role="status">검증용 합성 데이터 · 실제 운용 기록이 아닙니다. 장기 성과나 발표 실적의 근거로 사용하지 않습니다.</p>}
-    {!example&&query.isLoading?<LoadingSkeleton rows={6}/>:!example&&query.isError?<ErrorState message="성과 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/>:<>
+    {!example&&query.isError&&query.data&&<p role="alert">성과 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button className="btn-secondary" onClick={()=>query.refetch()}>다시 조회</button></p>}
+    {!example&&query.isLoading?<LoadingSkeleton rows={6}/>:!example&&query.isError&&!query.data?<ErrorState message="성과 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/>:<>
       {ready && <div className={s.kpis}>
         <Metric label="내 누적수익률" value={fmtReturn(m?.cumulative_return)} hint={ready?`${fmtDate(report?.start)} — ${fmtDate(report?.end)}`:"첫 평가액 이후의 변화"} primary/>
         <Metric label="비교 기준 수익률" value={fmtReturn(m?.benchmark_return)} hint="시스템 기준 CORE · 같은 기간"/>
@@ -87,6 +89,7 @@ function LegacyDashboardPage() {
       {!ready?<section className={s.empty} aria-label="운용 준비 상태"><div className={s.emptyIcon}><ChartNoAxesCombined size={32}/></div>
         <h2>{needsSetup ? "나의 기본 포트폴리오부터 설계해 보세요" : hasPortfolio ? "포트폴리오는 저장되어 있어요" : "포트폴리오 상태를 확인하고 있어요"}</h2>
         <p>{needsSetup ? "위험 수준 선택 → 투자 인사이트 반영 → 비교 및 확정 순서로 나의 투자 구성을 만듭니다." : hasPortfolio ? <>현재 조회 기간에는 수익률을 표시할 운용 기록이 부족합니다.<br/>다시 설계할 필요 없이 저장된 투자 구성을 먼저 확인할 수 있어요.<br/>모의운용 평가액이 두 날짜 이상 기록되면 성과가 표시됩니다.</> : base.isError ? "저장 상태를 불러오지 못했습니다. 다시 확인해 주세요." : "저장된 투자 구성을 확인한 뒤 다음 단계를 안내합니다."}</p>
+        {!example && hasPortfolio && <OperationReadiness/>}
         {needsSetup && <Link className="btn-primary" href="/setup/portfolio?step=risk">기본 포트폴리오 설계 시작<ArrowRight size={17}/></Link>}
         {hasPortfolio && <Link className="btn-primary" href={portfolioHref}>저장된 포트폴리오 확인<ArrowRight size={17}/></Link>}
         {base.isError && <button className="btn-secondary" onClick={()=>base.refetch()}>저장 상태 다시 확인</button>}

@@ -1,0 +1,24 @@
+.panel{min-width:0;max-height:760px;overflow-y:auto;scrollbar-width:thin;border:1px solid var(--panel-border);border-radius:var(--radius-card);padding:22px;background:var(--surface-subtle);color:var(--text-primary);font-size:13px;line-height:1.7}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.header span{font-size:12px;color:var(--text-secondary)}
+.header h3{font-size:19px;font-weight:650;margin:3px 0 0}
+.close{display:grid;place-items:center;min-width:32px;min-height:32px;border:1px solid var(--border);border-radius:8px;color:var(--text-secondary);background:var(--surface)}
+.panel section{border-top:1px solid var(--border);margin-top:18px;padding-top:16px}
+.panel h4{font-weight:600;font-size:14px;margin-bottom:10px}
+.panel p{font-size:12px;color:var(--text-secondary);margin-top:10px;overflow-wrap:anywhere}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metrics dt{color:var(--text-secondary);font-size:11px}
+.metrics dd{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.weights{margin-top:14px;font-size:12px;max-height:140px;overflow:auto;scrollbar-width:thin}
+.weights div{display:flex;justify-content:space-between;gap:14px;padding:3px 0}
+.weights dd,.table td{font-variant-numeric:tabular-nums}
+.table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.table caption{text-align:left;font-size:11px;color:var(--text-secondary);padding-bottom:6px}
+.table th,.table td{padding:7px 0;border-bottom:1px solid var(--border);text-align:left;font-weight:400}
+.table td,.table thead th:last-child{text-align:right}
+.table thead{color:var(--text-secondary);font-size:11px}
+.status{font-size:13px;color:var(--insight)}
+.nav{font-size:11px!important}
+.panel a{text-decoration:underline;text-underline-offset:3px}
+.panel :is(button,h3,a):focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+@media(max-width:1100px){.panel{max-height:none;overflow-y:visible}}

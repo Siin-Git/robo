@@ -4,7 +4,7 @@ import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
 import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, SlidersHorizontal, Layers3 } from "lucide-react";
@@ -15,13 +15,15 @@ import { fmtActivePp, fmtDate, fmtPct } from "@/lib/format";
 import { reviewRows, Weight } from "../setup/portfolio/review-data";
 import { THEME_INFO } from "../setup/portfolio/theme-content";
 import { ASSET_COLORS } from "../setup/portfolio/FrontierChart";
-import { StrategyFrontierChart as FrontierChart, type FrontierData } from "../setup/portfolio/FrontierChart";
+import { FrontierChart as StoredFrontierChart, StrategyFrontierChart as FrontierChart, type FrontierData } from "../setup/portfolio/FrontierChart";
+import { DecisionVerificationPanel, type DecisionVerification } from "@/components/portfolio/DecisionVerificationPanel";
 import { SetupStyleProvider } from "../setup/SetupStyleProvider";
 import { ASSET_META } from "../setup/portfolio/asset-meta";
 import s from "./portfolio.module.css";
 import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
 export interface PortfolioSummary {
+  decision_id?: string | null;
   rebalance_frequency?: RebalanceFrequency | null;
   rebalance_frequency_source?: "CONFIRMED_SELECTION" | "LEGACY_DEFAULT" | "UNCONFIRMED";
   base: { frontier_id: string | null; expected_return: number | null; volatility: number | null; weights: Weight[]; groups: Record<string, number> };
@@ -39,7 +41,7 @@ const GROUPS = [
 ];
 
 export default function PortfolioPage() {
-  return DEMO_MODE ? <Suspense fallback={<LoadingSkeleton rows={6}/>}><DemoPortfolioRoute/></Suspense> : <DesignPortfolioPage/>;
+  return <Suspense fallback={<LoadingSkeleton rows={6}/>}>{DEMO_MODE ? <DemoPortfolioRoute/> : <DesignPortfolioPage/>}</Suspense>;
 }
 
 function DemoPortfolioRoute() {
@@ -55,9 +57,10 @@ function DemoPortfolioPage() {
 }
 
 function DesignPortfolioPage() {
-  const summary = useQuery({ queryKey: ["summary-portfolio"], queryFn: () => get<PortfolioSummary>("/api/v1/me/portfolio/summary") });
+  const summary = useQuery({ queryKey: ["summary-portfolio"], queryFn: () => get<PortfolioSummary>("/api/v1/me/portfolio/summary"), refetchInterval:60_000, refetchIntervalInBackground:false });
   return <AppShell headerTitle={DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"} softBackground>
-    {summary.isLoading ? <LoadingSkeleton rows={6} /> : summary.isError || !summary.data ?
+    {summary.isError && summary.data && <p role="alert">포트폴리오 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button className="btn-secondary" onClick={()=>summary.refetch()}>다시 조회</button></p>}
+    {summary.isLoading ? <LoadingSkeleton rows={6} /> : !summary.data ?
       <ErrorState message="포트폴리오를 불러오지 못했습니다." onRetry={() => summary.refetch()} /> :
       <PortfolioOverview data={summary.data} />}
   </AppShell>;
@@ -120,7 +123,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       </div>
     </section>
 
-    <PortfolioFrontier data={p}/>
+    <PortfolioFrontier key={p.decision_id ?? "unrecorded"} data={p}/>
 
     <section className={s.themes} aria-labelledby="chosen-themes"><div className={s.sectionTitle}><h2 id="chosen-themes">내가 선택한 테마</h2><span>{themes.length}개 테마 · {fmtPct(themeTotal)}</span></div>
       {themes.length ? <div className={s.themeGrid}>{themes.map(t => <article className={s.themeCard} key={t.theme_id} style={{ "--theme-color": color(t.theme_id) } as React.CSSProperties}>
@@ -154,13 +157,53 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
 
 function PortfolioFrontier({data}:{data:PortfolioSummary}) {
   const [inspectedAssetId,setInspectedAssetId] = useState<string|null>(null);
+  const params=useSearchParams();
+  const decisionId=params.get("decision_id") ?? data.decision_id;
+  const [inspectedPortfolio,setInspectedPortfolio] = useState<"base"|"personalized"|null>(params.get("inspect")==="personalized"?"personalized":params.get("inspect")==="base"?"base":null);
+  const opener=useRef<HTMLElement|SVGElement|null>(null);
+  const inspect=(point:"base"|"personalized",trigger:HTMLElement|SVGElement)=>{
+    opener.current=trigger;
+    setInspectedPortfolio(point);
+  };
+  const host = useRef<HTMLElement>(null);
+  const verification = useQuery({queryKey:["decision-verification",decisionId],queryFn:()=>get<DecisionVerification>(`/api/v1/me/decisions/${encodeURIComponent(decisionId!)}/verification`),enabled:!!decisionId,refetchInterval:60_000,refetchIntervalInBackground:false});
   const frontier = useQuery({queryKey:["frontier"],queryFn:()=>get<FrontierData>("/api/v1/me/frontier"),enabled:data.base.expected_return!=null&&data.base.volatility!=null,staleTime:60*60*1000});
-  if (data.base.expected_return == null || data.base.volatility == null) return null;
-  return <section className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>Efficient Frontier에서의 위치</h2>
-    {frontier.isLoading ? <LoadingSkeleton rows={3}/> : frontier.isError || !frontier.data ? <ErrorState message="Frontier 데이터를 불러오지 못했습니다." onRetry={()=>frontier.refetch()}/> :
-      <SetupStyleProvider><FrontierChart points={frontier.data.points} assets={frontier.data.assets.map(a=>({...a,name:ASSET_META[a.asset_id]?.name??a.display_name,cat:ASSET_META[a.asset_id]?.cat??"현금"}))}
-        selected={{expected_return:data.base.expected_return,volatility:data.base.volatility}}
-        personalized={data.personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}/></SetupStyleProvider>}
-    {data.personalized.expected_return == null && <p>테마 적용 후 기대수익률은 백엔드 제공 전입니다. 현재는 적용 전 위치만 표시합니다.</p>}
+  const coordinates = (value:{expected_return?:number|null;volatility?:number|null}) => value.expected_return!=null && value.volatility!=null && Number.isFinite(value.expected_return) && Number.isFinite(value.volatility) ? {expected_return:value.expected_return,volatility:value.volatility} : null;
+  const stored = decisionId ? verification.data : undefined;
+  const base = coordinates(stored?.original.base ?? data.base);
+  const personalized = coordinates(stored?.original.personalized ?? data.personalized);
+  const close = () => {
+    setInspectedPortfolio(null);
+    if(opener.current && host.current?.contains(opener.current)) {opener.current.focus();return;}
+    host.current?.querySelector<SVGGElement>(`[data-portfolio-point="${inspectedPortfolio}"]`)?.focus();
+  };
+  return <section ref={host} className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>Efficient Frontier에서의 위치</h2>
+    {decisionId && verification.isLoading ? <LoadingSkeleton rows={3}/> : decisionId && (!stored) ?
+      <ErrorState message="판단 기록을 불러오지 못했습니다." onRetry={()=>verification.refetch()}/> :
+      <div className={s.verificationLayout} data-open={!!inspectedPortfolio}>
+        <div className={s.frontierChart}>
+          {verification.isError && stored && <p role="alert">자동 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button type="button" onClick={()=>verification.refetch()}>다시 조회</button></p>}
+          {stored ? <>
+            <p>확정 당시 저장한 위치 · {fmtDate(stored.confirmed_at)}</p>
+            {base || personalized ? <SetupStyleProvider><StoredFrontierChart points={stored.original.frontier.points} assets={[]}
+              selected={base} personalized={personalized} inspectedId={null} onInspect={()=>{}}
+              chartLabel="확정 당시 Frontier. Base 또는 Personalized 점을 선택하면 투자 판단 검증을 확인합니다."
+              onPortfolioInspect={inspect} inspectedPortfolio={inspectedPortfolio}/></SetupStyleProvider> : <EmptyState title="당시 예상 좌표 미확보"/>}
+            {!stored.original.frontier.points.length && <p>당시 Frontier 곡선 미확보. 저장된 예상 좌표만 표시합니다.</p>}
+            <details className={s.details}><summary>현재 모형의 자산·전략 비교</summary>
+              {frontier.isLoading ? <LoadingSkeleton rows={3}/> : frontier.isError || !frontier.data ? <ErrorState message="Frontier 데이터를 불러오지 못했습니다." onRetry={()=>frontier.refetch()}/> :
+                <SetupStyleProvider><FrontierChart points={frontier.data.points} assets={frontier.data.assets.map(a=>({...a,name:ASSET_META[a.asset_id]?.name??a.display_name,cat:ASSET_META[a.asset_id]?.cat??"현금"}))}
+                  selected={coordinates(data.base)} personalized={coordinates(data.personalized)} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}/></SetupStyleProvider>}
+              <p>현재 모형의 추정치와 과거 전략 비교 자료입니다. 과거 전략 수익률은 미래 기대수익률이 아닙니다. 확정 당시 판단은 위의 저장된 좌표에서 확인합니다.</p>
+            </details>
+          </> : frontier.isLoading ? <LoadingSkeleton rows={3}/> : frontier.isError || !frontier.data ? <ErrorState message="Frontier 데이터를 불러오지 못했습니다." onRetry={()=>frontier.refetch()}/> :
+            <SetupStyleProvider><FrontierChart points={frontier.data.points} assets={frontier.data.assets.map(a=>({...a,name:ASSET_META[a.asset_id]?.name??a.display_name,cat:ASSET_META[a.asset_id]?.cat??"현금"}))}
+              selected={base} personalized={personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}
+              onPortfolioInspect={inspect} inspectedPortfolio={inspectedPortfolio}/></SetupStyleProvider>}
+          {!personalized && <p>Personalized 예상 좌표 미확보. 다른 구성의 값으로 대체하지 않습니다.</p>}
+          <p>Base 또는 Personalized 점을 선택하면 투자 판단과 이후 계좌 기록을 확인할 수 있습니다.</p>
+        </div>
+        {inspectedPortfolio && <DecisionVerificationPanel point={inspectedPortfolio} data={stored} onClose={close}/>}
+      </div>}
   </section>;
 }

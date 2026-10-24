@@ -288,6 +288,7 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
     except Exception:
         base_er_calc = None
     base_info = {
+        "selection_id": getattr(base_sel, "selection_id", None),
         "frontier_id": getattr(base_sel, "frontier_id", None),
         "expected_return": (C.fnum(base_sel.expected_return) if base_sel
                             else base_er_calc),
@@ -297,7 +298,7 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         "expected_return_basis": EXPECTED_RETURN_BASIS,
     }
     pers_info = {
-        "expected_return": pers_er if pers_er is not None else base_er_calc,
+        "expected_return": pers_er,
         "volatility": pers_vol,
         "tracking_error": pers_te,
         "weights": _legs(pers_w, tickers),

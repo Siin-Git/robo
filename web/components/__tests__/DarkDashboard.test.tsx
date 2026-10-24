@@ -9,6 +9,7 @@ vi.mock('../dashboard/HistoricalPreview',()=>({useHistoricalPreview:()=>state.hi
 vi.mock('@tanstack/react-query',()=>({useQuery:({queryKey}:any)=>queryKey[0]==='dashboard-performance'?state.forward:state.ledger}));
 vi.mock('../dashboard/HistoricalLedger',()=>({HistoricalLedger:()=> <div>Saved ledger</div>}));
 vi.mock('../dashboard/LedgerHistory',()=>({LedgerHistory:()=> <div>Forward ledger</div>}));
+vi.mock('../dashboard/OperationReadiness',()=>({OperationReadiness:()=> <div>서버가 확인한 운용 대기 사유</div>}));
 vi.mock('../dashboard/ForwardOperations',()=>({ForwardOperations:()=> <div>Forward status</div>}));
 vi.mock('recharts',()=>({ResponsiveContainer:()=>null,LineChart:()=>null,Line:()=>null,XAxis:()=>null,YAxis:()=>null,CartesianGrid:()=>null,Tooltip:()=>null,PieChart:()=>null,Pie:()=>null,Cell:()=>null,ReferenceLine:()=>null,AreaChart:()=>null,Area:()=>null}));
 afterEach(cleanup);
@@ -27,8 +28,8 @@ it('uses saved server values and preserves provenance, not demo gains',()=>{
  expect(screen.getByRole('link',{name:'상세 분석'})).toHaveAttribute('href','/dashboard?view=details&source=archive');
 });
 it('switches to empty forward without substituting saved results',()=>{
- render(<DarkDashboard/>);fireEvent.click(screen.getByRole('button',{name:'자동운용',exact:true}));
- expect(screen.getByText('운용 기록을 기다리고 있어요')).toBeVisible();
+ render(<DarkDashboard/>);fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
+ expect(screen.getByText('서버가 확인한 운용 대기 사유')).toBeVisible();
  expect(screen.queryByText('99,100,000원')).not.toBeInTheDocument();
  expect(screen.getByRole('link',{name:'상세 분석'})).toHaveAttribute('href','/dashboard?view=details&source=forward');
 });
@@ -44,7 +45,7 @@ it('waits for source selection before rendering numbers',()=>{
 });
 it('honors an explicit forward link when archived results exist',()=>{
  state.source='forward';render(<DarkDashboard/>);
- expect(screen.getByRole('button',{name:'자동운용',exact:true})).toHaveAttribute('aria-pressed','true');
+ expect(screen.getByRole('button',{name:'자동운용'})).toHaveAttribute('aria-pressed','true');
  expect(screen.queryByText('99,100,000원')).not.toBeInTheDocument();
 });
 
@@ -60,13 +61,23 @@ it('shows archived server attribution and toggles asset groups without mixing fo
  render(<DarkDashboard/>);
  expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/일반 주식 \+9.00%p/);
  expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/거래비용 -1.00%p/);
- fireEvent.click(screen.getByRole('button',{name:'개별 자산',exact:true}));
+ fireEvent.click(screen.getByRole('button',{name:'개별 자산'}));
  expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/미국주식 \+6.00%p/);
  expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/한국주식 \+3.00%p/);
- fireEvent.click(screen.getByRole('button',{name:'자동운용',exact:true}));
+ fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
  expect(screen.queryByRole('img',{name:/누적 기여도:/})).not.toBeInTheDocument();
 });
 it('does not fabricate archived contribution when only summary NAV exists',()=>{
  render(<DarkDashboard/>);
  expect(screen.queryByRole('img',{name:/누적 기여도:/})).not.toBeInTheDocument();
+});
+
+
+it('preserves previous forward data and distinguishes refresh failure',()=>{
+ state.source='forward';state.forward.isError=true;
+ render(<DarkDashboard/>);
+ expect(screen.getByRole('alert')).toHaveTextContent('이전 조회 결과');
+ expect(screen.getByRole('region',{name:'성과 요약'})).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'다시 조회'}));
+ expect(state.forward.refetch).toHaveBeenCalled();
 });

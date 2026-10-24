@@ -1,4 +1,23 @@
+## 2026-10-23 · 판단 검증 자동 갱신 보완
+
+기존 daily-forward의 활성화와 최근 예약 성공을 읽기 확인했다. 검증 패널에
+60초 자동 조회, 실패 시 이전 자료 안내, 일일 평가 작업 상태, 동일 판단의
+검토 기록 화면 연결 및 저장 후 캐시 갱신을 추가했다. 최초 판단은 보존한다.
+누락 CORE 버전/불완전 좌표를 실적으로 해석하지 않고, 당시 산출 근거를 표시한다.
+로컬 API/성과 계산 215 통과·PostgreSQL 전용 1 건너뜀, 프런트 110 통과 및 빌드 통과.
+상세와 한계는 docs/FRONTIER_DECISION_VERIFICATION.md에 기록했다.
+운영 배포·실거래·예약 설정 변경 없음.
+
 # 2026-10-03 integration
+
+## 2026-10-23 Frontier 투자 판단 검증
+
+원본 `release/public-operation@8bee054`에서 `feat/frontier-decision-verification`
+브랜치로 구현했다. Base/Personalized 점을 선택하면 당시 판단·동일 기간 NAV
+비교·당시 가정의 재검토를 표시한다. 기존 불변 판단 JSON을 재사용하며 미확보
+예상값과 실적을 생성하지 않는다. 현재 자산/전략 비교는 접힌 상세로 보존한다.
+데이터 경계, 설계 결정과 검증은 [FRONTIER_DECISION_VERIFICATION.md](FRONTIER_DECISION_VERIFICATION.md)에 기록했다.
+운영 배포, 운영 DB 변경과 거래 실행은 수행하지 않았다.
 
 ## 2026-10-05 ledger ranking presentation
 
@@ -775,3 +794,58 @@ Validation: 26 relevant Python tests and 104 frontend tests pass; production bui
 Reuse the existing V8 comparison tooltip for all research markers. Leader/export hover, click and keyboard focus display the original server return, volatility, Sharpe and inherited common period. Describe them as historical stock/weight composition estimates, not actual operation; retain the distinct USD/PROVISIONAL description for V8. No new validation status, return proxy, currency conversion, coordinate, financial calculation or API/DB change.
 
 Validation: 104 frontend tests and the production build pass. Coverage verifies tooltip values and server-period inheritance, hover/click/keyboard dismissal, unchanged point/portfolio coordinates, and continued V8 status isolation. Deployment and actual-browser evidence are recorded in the task workspace after rollout.
+
+
+### 2026-10-24 — daily operation evidence and decision verification
+
+Continue open PR #20 on its existing branch and worktree. Latest collector run
+40063536709 stored 16 prices; latest valuation stage 39961497998 still reports
+START_NOT_SCHEDULED / READY 15/15 with no orders, fills or NAV. Process success is
+not operation completion. No operating start, deployment or production writes.
+
+Reuse the existing collection, account transaction, execution, NAV and job registry.
+Count persisted NAV rather than incomplete valuation attempts. Keep explicit
+incomplete legacy successes retryable, retain unknown legacy success locks, and
+preserve successful-slot deduplication. The verification API exposes allowlisted
+execution/valuation states, checks persisted normal NAV, and retains outcome evidence
+across duplicate skips. Frontend uses the server state rather than success=complete.
+
+Preserve fixture/replay lineage in existing NAV events; copied replay state and
+replaced synthetic prices cannot become forward performance. Original decisions
+and missing historical estimates stay immutable; read requests never run trading.
+The existing paired-date return engine and owner checks remain in place.
+
+Contract, trade-offs, acceptance cases and remaining operating conditions:
+docs/FRONTIER_DECISION_VERIFICATION.md. No new tables, services or backup changes.
+Validation uses disposable local SQLite/PostgreSQL plus existing CI. Final measured
+results are recorded in that contract and PR #20.
+
+Final validation: 772 backend tests passed, zero skipped, with isolated PostgreSQL
+14.19 and SQLite; 93 focused provenance/engine/replay tests passed; 111 frontend
+tests and the production build/type checks passed. PostgreSQL LIKE pattern binding
+was corrected after the new provenance test exposed it. Generated migration/parity
+reports, covariance cache and Next environment declarations were restored and are
+excluded from the change. No production DB was used.
+
+
+### 2026-10-24 — frontend operation readiness and decision review completion
+
+Continue PR #20 from 1a1edf6; its two CI runs completed successfully (backend and
+frontend). Preserve the existing dark dashboard, Frontier and three-section panel.
+Add safe reason_code to disambiguate an unspecified shared start from awaiting T0.
+Dashboard empty states consume existing owner-scoped decision queries; readiness,
+job date and NAV counts are server evidence. NAV_COMPLETE also requires the completion
+flag, while actual.status controls paired-period performance. No GET runs operation.
+
+Keep prior data visible on refresh failure and provide retry. Link the selected
+decision's review back to its panel, filter its history, and restore keyboard focus
+to the exact point/legend trigger. Current model and historical strategy comparisons
+stay separate from saved forecasts. No replacement of missing Personalized values.
+
+Validation: 123 frontend tests, explicit tsc --noEmit, production build, 25 verification
+API tests and 2 actual-API Playwright scenarios passed. The browser flow covers login,
+Base/Personalized selection, KEEP and ADJUST reasons, unchanged original, cache refresh,
+desktop/mobile and failure recovery. Only disposable local SQLite fixtures were used.
+The synthetic NAV success case remains UNAVAILABLE as actual performance. Screenshots,
+exact reproduction and source limitations are in docs/FRONTIER_DECISION_VERIFICATION.md.
+No operating start, deployment, production DB, backup workflow or sources/ changes.

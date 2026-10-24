@@ -326,7 +326,7 @@ def _execute_daily(con, cfg, today, *, use_stored_prices=False):
     # FX alone never advances an investable observation; future rows are ignored.
     maxdate = con.execute("SELECT MAX(date) m FROM prices_daily WHERE asset_id != '__FX__' AND date <= ?",
                           (asof,)).fetchone()["m"]
-    results, account_errors, waiting_accounts = {}, {}, []
+    results, account_errors, waiting_accounts, price_wait_accounts = {}, {}, [], []
     for a in accounts:
         aid = a["account_id"]
         stage = "orders"
@@ -346,7 +346,7 @@ def _execute_daily(con, cfg, today, *, use_stored_prices=False):
                 stage = "valuation"
                 r = (valuate(tx, aid, maxdate, versions, float(a["initial_capital_krw"]), stale_days)
                      if maxdate else {"status": "NAV_INCOMPLETE", "reason": "no stored investable prices"})
-                expected_wait = r.get("reason") in (
+                expected_wait = bool(r.get("missing")) or r.get("reason") in (
                     "no executions yet", "competition not started for this valuation",
                     "no stored investable prices")
                 if r["status"] == "NAV_INCOMPLETE" and not expected_wait:
@@ -357,6 +357,7 @@ def _execute_daily(con, cfg, today, *, use_stored_prices=False):
             results[aid] = r
             if expected_wait or pending:
                 waiting_accounts.append(aid)
+                price_wait_accounts.append(aid)
         except Exception as exc:
             # The account transaction rolled back, including counters and events.
             # Only type/stage/id are recorded: exception text can contain secrets.
@@ -377,11 +378,15 @@ def _execute_daily(con, cfg, today, *, use_stored_prices=False):
     # ---- guardrails ----
     fails = [f"{aid}: {e['stage']} {e['error_type']}" for aid, e in account_errors.items()]
     partials = []
+    if not accounts:
+        partials.append("no eligible accounts")
     for aid, r in results.items():
         if r["status"] == "NAV_INCOMPLETE" and r.get("reason") == "competition not started for this valuation":
             partials.append(f"{aid}: awaiting prices on/after competition T0 (no NAV yet)")
         elif r["status"] == "NAV_INCOMPLETE" and r.get("reason") in ("no executions yet", "no stored investable prices"):
             partials.append(f"{aid}: awaiting first execution (no NAV yet)")
+        elif r["status"] == "NAV_INCOMPLETE" and r.get("missing"):
+            partials.append(f"{aid}: valuation price missing")
         elif r["status"] == "NAV_INCOMPLETE":
             fails.append(f"{aid}: {r.get('reason', r.get('missing', 'nav incomplete'))}")
         elif r["status"] == "STALE_PRICE":
@@ -423,15 +428,16 @@ def _execute_daily(con, cfg, today, *, use_stored_prices=False):
         con.rollback()
         partials.append(f"risk check unavailable: {type(e).__name__}")
 
-    print(f"valuated {len(results)} accounts at {maxdate}; pending orders: {pend}")
-    stats = {"asof": maxdate, "valuated": len(results), "pending": pend,
+    valuated = sum(r["status"] in ("OK", "STALE_PRICE") for r in results.values())
+    print(f"saved NAV for {valuated} accounts at {maxdate}; pending orders: {pend}")
+    stats = {"asof": maxdate, "valuated": valuated, "attempted_accounts": len(accounts), "pending": pend,
              "new_points": price_report["new_points"],
              "fetch_failed": price_report["fetch_failed"],
              "stale_assets": price_report["stale_assets"],
              "account_results": results, "account_errors": account_errors,
-             "waiting_accounts": waiting_accounts,
+             "waiting_accounts": waiting_accounts, "price_wait_accounts": price_wait_accounts,
              "retryable": bool(fails or partials or waiting_accounts)}
-    successful = sum(aid not in waiting_accounts and r["status"] in ("OK", "STALE_PRICE")
+    successful = sum(aid not in waiting_accounts and r["status"] == "OK"
                      for aid, r in results.items())
     stats["successful_accounts"] = successful
     if fails:

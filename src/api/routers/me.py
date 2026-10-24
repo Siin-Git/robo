@@ -63,6 +63,8 @@ def me_summary(db=Depends(get_design_db), user=Depends(get_current_user)):
     from sqlalchemy import select
     account = db.scalar(select(Account).where(Account.participant_id == _pid(user), Account.account_type == 'personal'))
     decision = latest(db, account.account_id) if account else None
+    result['decision_id'] = (decision.decision_id if decision and
+                             decision.selection_id == result['base']['selection_id'] else None)
     recorded = decision.provenance_json.get('rebalance_frequency') if decision else None
     from ..services import _common as C
     result['rebalance_frequency'] = recorded or (C.load_forward_cfg()['forward_test']['core_rebalance']['frequency'] if decision else None)

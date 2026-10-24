@@ -136,8 +136,11 @@ def claim_job(db_url: str | None, job_type: str, scheduled_for: str,
         done = conn.execute(select(table).where(
             table.c.job_type == job_type,
             table.c.scheduled_for == sched,
-            table.c.status == "success")).fetchone()
-        if done is not None:
+            table.c.status == "success")).fetchall()
+        from .job_outcome import incomplete_daily
+        consumed = any(job_type != "daily" or not incomplete_daily(r._mapping["stats_json"] or {})
+                       for r in done)
+        if consumed:
             conn.execute(insert(table).values(
                 job_id=job_id, job_type=job_type, scheduled_for=sched,
                 started_at=_now(), completed_at=_now(), status="skipped",

@@ -312,6 +312,7 @@ input::placeholder,textarea::placeholder { color:var(--text-muted);opacity:.8; }
 .page-heading { flex-wrap:wrap;margin-bottom:28px; }
 .page-desc { max-width:820px;line-height:1.8; }
 .skip-link { position:fixed;top:8px;left:16px;z-index:100;transform:translateY(-160%);padding:12px 20px;background:var(--surface);border:1px solid var(--brand);border-radius:8px; }
+.skip-link:not(:focus) { clip-path:inset(50%); }
 .skip-link:focus { transform:translateY(0); }
 .ui-panel { min-width:0; }
 .fin-table thead { background:var(--surface-subtle); }
