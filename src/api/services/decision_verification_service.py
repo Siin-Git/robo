@@ -1,6 +1,7 @@
 """Owner-scoped, read-only evidence for a confirmed Frontier point."""
 from copy import deepcopy
-from datetime import timedelta
+from datetime import date, timedelta
+from calendar import monthrange
 import math
 from zoneinfo import ZoneInfo
 
@@ -25,6 +26,63 @@ def _number(value):
     except (TypeError, ValueError, OverflowError):
         return None
     return number if math.isfinite(number) else None
+
+
+def _risk_change(decision):
+    """Only a saved, same-model pair can describe the confirmation-time delta."""
+    source = (decision.provenance_json or {}).get("risk_comparison")
+    unavailable = {"status": "UNAVAILABLE", "base_volatility": None,
+                   "personalized_volatility": None, "difference_pp": None,
+                   "as_of": None, "method": None}
+    if not isinstance(source, dict):
+        return unavailable
+    base = _number(source.get("base_volatility"))
+    personal = _number(source.get("personalized_volatility"))
+    try:
+        as_of = C.as_date(source.get("as_of")).isoformat()
+    except (ValueError, TypeError, AttributeError):
+        return unavailable
+    method = source.get("method")
+    if (base is None or personal is None or base < 0 or personal < 0
+            or not isinstance(method, str) or not method.strip()):
+        return unavailable
+    difference_pp = (personal - base) * 100
+    if not math.isfinite(difference_pp):
+        return unavailable
+    return {"status": "AVAILABLE", "base_volatility": base,
+            "personalized_volatility": personal,
+            "difference_pp": difference_pp,
+            "as_of": as_of, "method": method}
+
+
+def _add_months(start: date, months: int) -> date:
+    month = start.month - 1 + months
+    year, month = start.year + month // 12, month % 12 + 1
+    return date(year, month, min(start.day, monthrange(year, month)[1]))
+
+
+def _review_plan(start, forward_start, today, actual, choices, superseded):
+    anchor = max(start, forward_start) if forward_start else start
+    dates = [_add_months(anchor, months) for months in (3, 6)]
+    choice_dates = [C.as_aware_utc(choice.selected_at).astimezone(ZoneInfo("Asia/Seoul")).date()
+                    for choice in choices]
+    actual_end = date.fromisoformat(actual["end"]) if actual["end"] else None
+    checkpoints = []
+    for index, due in enumerate(dates):
+        next_due = dates[index + 1] if index + 1 < len(dates) else None
+        if superseded and superseded <= due:
+            state = "ENDED"
+        elif today < due:
+            state = "UPCOMING"
+        elif any(due <= recorded and (not next_due or recorded < next_due) for recorded in choice_dates):
+            state = "RECORDED"
+        elif actual_end is None or actual_end < due:
+            state = "DATA_PENDING"
+        else:
+            state = "DUE"
+        checkpoints.append({"months": (3, 6)[index], "date": due.isoformat(), "state": state})
+    return {"basis_date": anchor.isoformat(), "basis": "CALENDAR_FROM_EFFECTIVE_OR_FORWARD_START",
+            "checkpoints": checkpoints}
 
 
 def _original(session, decision):
@@ -159,9 +217,11 @@ def verification(session, user_id, decision_id):
         PortfolioDecision.account_id == decision.account_id, PortfolioDecision.version > decision.version)
         .order_by(PortfolioDecision.version).limit(1))
     start = C.as_date(decision.effective_date)
-    end = C.now_utc().astimezone(ZoneInfo("Asia/Seoul")).date() + timedelta(days=1)
+    today = C.now_utc().astimezone(ZoneInfo("Asia/Seoul")).date()
+    end = today + timedelta(days=1)
+    superseded = C.as_date(next_decision.effective_date) if next_decision else None
     if next_decision:
-        end = min(end, C.as_date(next_decision.effective_date))
+        end = min(end, superseded)
     original = _original(session, decision)
     actual = _actual(session, decision, start, end)
     from ...forward.opening import EVENT as OPENING_EVENT
@@ -173,15 +233,19 @@ def verification(session, user_id, decision_id):
     definition = ((decision.expectations_json or {}).get("expected_return") or {}).get("definition") or {}
     due = definition.get("end")
     complete = bool(due and actual["end"] and actual["end"] >= due and actual["start"] == definition.get("start"))
-    choice = session.scalar(select(PortfolioChoice).where(
+    choices = session.scalars(select(PortfolioChoice).where(
         PortfolioChoice.user_id == user_id, PortfolioChoice.decision_id == decision_id)
-        .order_by(PortfolioChoice.selected_at.desc(), PortfolioChoice.choice_id.desc()).limit(1))
+        .order_by(PortfolioChoice.selected_at.desc(), PortfolioChoice.choice_id.desc())).all()
+    choice = choices[0] if choices else None
+    forward_start = date.fromisoformat(opening_context["forward_start"]) if opening_context else None
     return {"decision_id": decision_id, "version": decision.version,
             "valuation_job": _valuation_job(session),
             "confirmed_at": C.as_aware_utc(decision.confirmed_at).isoformat(),
             "effective_date": start.isoformat(), "reason": decision.reason,
-            "superseded_effective_date": C.as_date(next_decision.effective_date).isoformat() if next_decision else None,
-            "original": original, "actual": actual, "opening_context": opening_context,
+            "superseded_effective_date": superseded.isoformat() if superseded else None,
+            "original": original, "risk_change": _risk_change(decision),
+            "actual": actual, "opening_context": opening_context,
+            "review_plan": _review_plan(start, forward_start, today, actual, choices, superseded),
             "review": {"status": "REVIEW_REQUIRED" if complete else "IN_PROGRESS",
                 "horizon_end": due, "automatic_verdict": False,
                 "basis": "연간 기대수익률과 단기 실현수익률의 차이로 판단의 적중 여부를 판정하지 않습니다.",

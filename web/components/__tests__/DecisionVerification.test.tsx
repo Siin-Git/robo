@@ -24,6 +24,8 @@ beforeEach(()=>{
   state.record={decision_id:"decision-1",version:1,confirmed_at:"2026-09-01T15:30:00+00:00",effective_date:"2026-09-03",reason:"주식 비중 제한",superseded_effective_date:null,
     original:{base:{expected_return:.05,volatility:.08,weights:{us_equity:.6,us_treasury:.4}},personalized:{expected_return:.05,volatility:.09,weights:{us_equity:.5,us_treasury:.4,"theme:ai":.1}},
       frontier:{version:"frozen",points:[{frontier_id:"F001",expected_return:.05,volatility:.08}]},return_basis:"themes inherit the funding equity average",risk_basis:"5Y weekly Ledoit-Wolf",price_data_as_of:"2026-08-31"},
+    risk_change:{status:"AVAILABLE",base_volatility:.08,personalized_volatility:.09,difference_pp:1,as_of:"2026-08-31",method:"5Y weekly Ledoit-Wolf"},
+    review_plan:{basis_date:"2026-09-03",basis:"CALENDAR_FROM_EFFECTIVE_OR_FORWARD_START",checkpoints:[{months:3,date:"2026-12-03",state:"UPCOMING"},{months:6,date:"2027-03-03",state:"UPCOMING"}]},
     actual:{status:"UNAVAILABLE",reason:"동일 날짜의 정상 NAV가 필요합니다.",start:null,end:null,observations:0,excluded_rows:0,personalized_return:null,core_return:null,difference_pp:null,personalized_nav:null,core_nav:null},
     review:{status:"IN_PROGRESS",horizon_end:"2027-09-03",basis:"연간 기대수익률과 단기 실현수익률의 차이로 판단의 적중 여부를 판정하지 않습니다.",choice:null},
   };
@@ -43,6 +45,10 @@ it("opens three sections from each point, preserves historical coordinates, clos
   expect(within(panel).getByText("2026. 9. 2.")).toBeInTheDocument();
   expect(within(panel).getByText(/성과 비교 미확보/)).toBeInTheDocument();
   expect(within(panel).getByText("검증 진행 중")).toBeInTheDocument();
+  expect(within(panel).getByText("내 선택이 바꾼 예상 위험")).toBeInTheDocument();
+  expect(within(panel).getByText("+1.00%p")).toBeInTheDocument();
+  expect(within(panel).getByText("3개월 점검 · 2026.12.03")).toBeInTheDocument();
+  expect(within(panel).getByText("6개월 점검 · 2027.03.03")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button",{name:"테마 적용 후 Personalized Portfolio"}));
   expect(within(panel).getByText("인공지능")).toBeInTheDocument();
   expect(within(panel).getByText("10.00%")).toBeInTheDocument();
@@ -58,7 +64,7 @@ it("shows only the paired period NAV returns and an explicit CORE benchmark",()=
   fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
   const panel=screen.getByRole("complementary");
   expect(within(panel).getByText("2.00%")).toBeInTheDocument();
-  expect(within(panel).getByText("+1.00%p")).toBeInTheDocument();
+  expect(within(panel).getAllByText("+1.00%p")).toHaveLength(2);
   expect(within(panel).getByText(/별도 CORE 계좌/)).toBeInTheDocument();
   expect(within(panel).getByText(/1,020,000원/)).toBeInTheDocument();
   expect(within(panel).getByText("검증 진행 중")).toBeInTheDocument();
@@ -72,6 +78,17 @@ it("does not borrow a current curve or forecast when the historical values are m
   expect(screen.getByText(/당시 Frontier 곡선 미확보/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
   expect(screen.getByRole("complementary")).toBeInTheDocument();
+});
+
+it("does not invent a historical risk difference or review outcome from incomplete evidence",()=>{
+  state.record!.risk_change={status:"UNAVAILABLE",base_volatility:null,personalized_volatility:null,difference_pp:null,as_of:null,method:null};
+  state.record!.review_plan!.checkpoints[0].state="DATA_PENDING";
+  render(<PortfolioPage/>);
+  fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
+  const panel=screen.getByRole("complementary");
+  expect(within(panel).getByText(/두 위험 값이 없어 변화량을 표시할 수 없습니다/)).toBeInTheDocument();
+  expect(within(panel).getByText("관측 자료 대기")).toBeInTheDocument();
+  expect(within(panel).queryByText("+1.00%p")).not.toBeInTheDocument();
 });
 
 it("retries failed evidence reads without presenting current estimates as the decision",()=>{

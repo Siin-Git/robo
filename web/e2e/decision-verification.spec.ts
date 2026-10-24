@@ -30,12 +30,18 @@ test('real API: waiting reason, keyboard panel, KEEP/ADJUST, same-decision retur
  await expect(panel.getByRole('heading',{name:'투자 판단 검증',exact:true})).toBeFocused();
  await expect(panel.getByRole('heading',{level:4})).toHaveCount(3);
  await expect(panel).toContainText('격리 테스트용 판단');
+ await expect(panel).toContainText('내 선택이 바꾼 예상 위험');
+ await expect(panel).toContainText('3개월 점검');
+ await expect(panel).toContainText('6개월 점검');
  await expect(panel).toContainText('공동 운용 시작일 미지정');
  const region=page.getByRole('region',{name:'테마 적용 전후 Efficient Frontier 위치'});
  const svg=region.locator('svg').first();
  const panelBox=(await panel.boundingBox())!,chartBox=(await svg.boundingBox())!;
  expect(panelBox.x).toBeGreaterThan(chartBox.x+chartBox.width-1);
  await region.scrollIntoViewIfNeeded();await region.screenshot({path:path.join(evidence,'verification-desktop.png')});
+ await panel.getByText('언제 다시 살펴볼까요?').scrollIntoViewIfNeeded();
+ await expect(panel).toContainText('점검 예정');
+ await region.screenshot({path:path.join(evidence,'review-checkpoints-desktop.png')});
  await panel.press('Escape');await expect(base).toBeFocused();await expect(panel).toHaveCount(0);
  const personal=page.getByRole('button',{name:'테마 적용 후 Personalized Portfolio',exact:true});
  await personal.focus();await personal.press('Space');await expect(panel).toBeVisible();
@@ -44,6 +50,11 @@ test('real API: waiting reason, keyboard panel, KEEP/ADJUST, same-decision retur
  await legend.click();await panel.press('Escape');await expect(legend).toBeFocused();await legend.click();
  const initial=await(await page.request.get(`/api/v1/me/decisions/${original.decision_id}/verification`)).json();
  expect(initial.original.personalized.expected_return).toBe(original.expectations.expected_return.value);
+ expect(initial.review_plan.checkpoints.map((item:{months:number})=>item.months)).toEqual([3,6]);
+ expect(initial.review_plan.checkpoints.every((item:{state:string})=>item.state==='UPCOMING')).toBe(true);
+ expect(initial.risk_change.status).toBe('AVAILABLE');
+ expect(initial.risk_change.difference_pp).toBeCloseTo(
+  (initial.risk_change.personalized_volatility-initial.risk_change.base_volatility)*100);
  expect(initial.actual.status).toBe('UNAVAILABLE');expect(initial.valuation_job.valuation_completed).toBe(false);
  expect(JSON.stringify(initial)).not.toContain('internal_tracking');
  await panel.getByRole('link',{name:'이 판단의 검토 기록 보기'}).click();
