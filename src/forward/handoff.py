@@ -143,3 +143,35 @@ def apply(con, plan, expected_hash):
     except BaseException:
         con.rollback()
         raise
+
+
+def audit(con, receipt):
+    """Read persisted evidence again; a previous success log alone is insufficient."""
+    schedule = gate.saved_start(con)
+    if not schedule or schedule["start_date"] != receipt["forward_start"]:
+        raise ValueError("HANDOFF_SCHEDULE_MISMATCH")
+    accounts = {a for m in schedule["members"] for a in m["account_ids"]}
+    if len(accounts) != receipt["openings"]:
+        raise ValueError("HANDOFF_ACCOUNT_COVERAGE_MISMATCH")
+    nav_count = pending_count = 0
+    for aid in accounts:
+        value = opening(con, aid)
+        if not value or value["run_id"] != receipt["run_id"] or value["forward_start"] != receipt["forward_start"]:
+            raise ValueError("HANDOFF_OPENING_MISSING")
+        if abs(sum(p["quantity"] * p["price"] for p in value["holdings"]) + value["cash_balance"] - value["nav"]) > 1e-5:
+            raise ValueError("HANDOFF_OPENING_IDENTITY_FAILED")
+        if con.execute("SELECT 1 FROM nav_daily WHERE account_id=? AND date<? LIMIT 1", (aid, receipt["forward_start"])).fetchone():
+            raise ValueError("HISTORICAL_NAV_IN_FORWARD_LEDGER")
+        nav_count += con.execute("SELECT COUNT(*) FROM nav_daily WHERE account_id=?", (aid,)).fetchone()[0]
+        pending_count += con.execute("SELECT COUNT(*) FROM orders WHERE account_id=? AND status='pending'", (aid,)).fetchone()[0]
+    archived = set()
+    for row in con.execute("SELECT account_id,payload_json FROM events WHERE event_type='HISTORICAL_REPLAY_ARCHIVED'"):
+        payload = json.loads(row["payload_json"])
+        if payload.get("run_id") == receipt["run_id"]:
+            archived.add(row["account_id"])
+    if archived != {m["personal_account_id"] for m in schedule["members"]}:
+        raise ValueError("HANDOFF_ARCHIVE_COVERAGE_MISMATCH")
+    policy = gate.policy(con)
+    return dict(verified_openings=len(accounts), verified_archives=len(archived), forward_nav_rows=nav_count,
+                pending_orders=pending_count, competition_status=policy["status"], competition_reason=policy["reason"],
+                ready=policy["ready"], required=policy["required"])

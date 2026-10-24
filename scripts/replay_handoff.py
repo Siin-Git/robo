@@ -16,7 +16,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from src.forward.handoff import digest, snapshot, validate_plan, apply
+from src.forward.handoff import digest, snapshot, validate_plan, apply, audit
 
 
 def replay_local(input_path, output_path):
@@ -179,7 +179,7 @@ def main():
             value = json.loads(receipt["payload_json"])
             if args.apply_hash and value["plan_hash"] != args.apply_hash:
                 raise ValueError("DIFFERENT_HANDOFF_ALREADY_APPLIED")
-            print(json.dumps({**value, "reused": True}))
+            print(json.dumps({**value, **audit(con, value), "reused": True}))
             return
         source = snapshot(con, args.start, args.end, args.forward_start)
         con.rollback()
@@ -193,7 +193,8 @@ def main():
         if args.apply_hash:
             if not hasattr(con, "_con"):
                 con.execute("PRAGMA query_only=OFF")
-            result = {**result, **apply(con, plan, args.apply_hash), "status": "APPLIED"}
+            receipt = apply(con, plan, args.apply_hash)
+            result = {**result, **receipt, **audit(con, receipt), "status": "APPLIED"}
         print(json.dumps(result))
 
 

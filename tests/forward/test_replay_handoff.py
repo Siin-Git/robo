@@ -7,7 +7,7 @@ import pytest
 
 from tests.forward.test_competition_start import build
 from src.forward import competition as gate
-from src.forward.handoff import snapshot, apply, digest
+from src.forward.handoff import snapshot, apply, digest, audit
 from src.forward.opening import opening
 from src.forward.execution import holding_qty, create_orders, execute_pending, current_weights
 from src.forward.ledger import cash_balance, valuate
@@ -62,6 +62,10 @@ def test_atomic_handoff_idempotence_and_forward_balances(build, monkeypatch):
     monkeypatch.setattr(handoff, "log_event", real_log)
     receipt = apply(x.con, plan, digest(plan))
     assert receipt["openings"] == 30 and receipt["archives"] == 15
+    report = audit(x.con, receipt)
+    assert report["verified_openings"] == 30 and report["verified_archives"] == 15
+    assert report["forward_nav_rows"] == 0 and report["pending_orders"] == 0
+    assert report["competition_reason"] == "AWAITING_T0"
     assert apply(x.con, plan, digest(plan))["reused"]
     assert receipt["cancelled_pending"] == 1
     assert x.con.execute("SELECT status FROM orders WHERE order_id='OLD-HANDOFF'").fetchone()[0] == 'cancelled'
