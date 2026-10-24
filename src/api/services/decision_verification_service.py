@@ -164,6 +164,12 @@ def verification(session, user_id, decision_id):
         end = min(end, C.as_date(next_decision.effective_date))
     original = _original(session, decision)
     actual = _actual(session, decision, start, end)
+    from ...forward.opening import EVENT as OPENING_EVENT
+    inherited = session.scalar(select(Event).where(Event.event_type == OPENING_EVENT,
+                               Event.account_id == decision.account_id))
+    opening_context = ({"forward_start": inherited.payload_json["forward_start"],
+                        "historical_start": inherited.payload_json["historical_start"],
+                        "historical_end": inherited.payload_json["historical_end"]} if inherited else None)
     definition = ((decision.expectations_json or {}).get("expected_return") or {}).get("definition") or {}
     due = definition.get("end")
     complete = bool(due and actual["end"] and actual["end"] >= due and actual["start"] == definition.get("start"))
@@ -175,7 +181,7 @@ def verification(session, user_id, decision_id):
             "confirmed_at": C.as_aware_utc(decision.confirmed_at).isoformat(),
             "effective_date": start.isoformat(), "reason": decision.reason,
             "superseded_effective_date": C.as_date(next_decision.effective_date).isoformat() if next_decision else None,
-            "original": original, "actual": actual,
+            "original": original, "actual": actual, "opening_context": opening_context,
             "review": {"status": "REVIEW_REQUIRED" if complete else "IN_PROGRESS",
                 "horizon_end": due, "automatic_verdict": False,
                 "basis": "연간 기대수익률과 단기 실현수익률의 차이로 판단의 적중 여부를 판정하지 않습니다.",

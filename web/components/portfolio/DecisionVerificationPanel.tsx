@@ -23,6 +23,7 @@ export interface DecisionVerification {
     state?: string; reason_code?: "START_NOT_SCHEDULED" | "AWAITING_T0" | "PARTICIPANTS_NOT_READY" | null; message?: string; execution_succeeded?: boolean; valuation_completed?: boolean;
     valuated?: number | null; ready?: number | null; required?: number | null; retryable?: boolean;
   } | null;
+  opening_context?: {forward_start:string;historical_start:string;historical_end:string} | null;
   actual: {
     status: "AVAILABLE" | "UNAVAILABLE"; reason: string | null;
     start: string | null; end: string | null; observations: number; excluded_rows: number;
@@ -77,6 +78,7 @@ export function DecisionVerificationPanel({ point, data, onClose }: {
       </> : <p>성과 비교 미확보{actual?.reason && ` · ${actual.reason}`}</p>}
       <p>화면이 열려 있는 동안 1분마다 저장된 평가 결과를 다시 조회합니다.</p>
       {data && <ValuationStatus job={data.valuation_job}/>}
+      {data?.opening_context&&<p>{fmtDate(data.opening_context.forward_start)}부터 과거 재현의 보유자산·현금을 승계한 모의운용입니다. 이 비교에는 시작일 이후의 정상 NAV만 포함하며 과거 재현 수익률은 포함하지 않습니다.</p>}
       <p>개별 계좌 성과는 위의 공통 정상 NAV 기록을 기준으로 합니다.</p>
       {!!actual?.excluded_rows && <p>정상 평가 조건을 충족하지 않은 NAV {actual.excluded_rows}건 제외</p>}
     </section>

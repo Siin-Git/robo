@@ -1,0 +1,42 @@
+name: replay-forward-handoff
+on:
+  push:
+    branches: [feat/replay-forward-handoff]
+  workflow_dispatch:
+    inputs:
+      apply_hash:
+        description: "Blank = read-only plan. Apply requires the exact reviewed plan SHA256."
+        required: false
+        type: string
+        default: ""
+concurrency:
+  group: forward-jobs
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  handoff:
+    if: github.ref == 'refs/heads/release/public-operation' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Plan or apply reviewed replay handoff
+        env:
+          APP_PROFILE: local
+          CAPSTONE_DEMO: "1"
+          DATABASE_BACKEND: postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          FORWARD_EXECUTOR: actions
+          TZ: Asia/Seoul
+          APPLY_HASH: ${{ inputs.apply_hash }}
+        run: |
+          args=(--start 2026-10-01 --end 2026-10-24 --forward-start 2026-10-26)
+          if [ -n "$APPLY_HASH" ]; then args+=(--apply-hash "$APPLY_HASH"); fi
+          python scripts/replay_handoff.py "${args[@]}"

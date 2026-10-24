@@ -9,6 +9,7 @@ from __future__ import annotations
 import sqlite3
 
 from .db import log_event, next_id
+from .opening import opening, assets as position_assets, cash as position_cash
 from .prices import next_available_close, price_on_or_before
 
 
@@ -20,6 +21,11 @@ def current_weights(con: sqlite3.Connection, account_id: str, asof: str) -> dict
                     (account_id, asof, account_id, asof)).fetchall()
     if h:
         return {r["asset_id"]: float(r["weight"]) for r in h}
+    inherited = opening(con, account_id, asof)
+    if inherited:
+        nav, quantities, _ = nav_before_trades(con, account_id, asof, 0)
+        return {asset: quantity * price_on_or_before(con, asset, asof)[0] / nav
+                for asset, quantity in quantities.items()}
     row = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
                       " AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
                       (account_id, asof)).fetchone()
@@ -33,7 +39,9 @@ def holding_qty(con: sqlite3.Connection, account_id: str, asset_id: str, asof: s
     row = con.execute("SELECT COALESCE(SUM(quantity), 0) AS q FROM trades WHERE account_id = ?"
                       " AND asset_id = ? AND execution_at <= ?",
                       (account_id, asset_id, asof)).fetchone()
-    return float(row["q"])
+    inherited = opening(con, account_id, asof)
+    initial = next((float(p["quantity"]) for p in inherited["holdings"] if p["asset_id"] == asset_id), 0) if inherited else 0
+    return initial + float(row["q"])
 
 
 def within_band(target_w: float, current_w: float, band: dict | None) -> bool:
@@ -116,7 +124,7 @@ def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
         return []
     if start_date:
         effective_at = max(str(effective_at)[:10], start_date)
-    reuse_initial = bool(start_date and not con.execute(
+    reuse_initial = bool(start_date and not opening(con, account_id) and not con.execute(
         "SELECT 1 FROM trades WHERE account_id=? LIMIT 1", (account_id,)).fetchone())
     oids = []
     for row in plan_orders(target_w, baseline, band):
@@ -146,8 +154,7 @@ def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
 def nav_before_trades(con: sqlite3.Connection, account_id: str, exec_date: str,
                       initial_capital: float) -> tuple[float, dict, float]:
     """Holdings value + cash just before trades on exec_date. Returns (nav, qty, cash)."""
-    assets = [r["asset_id"] for r in con.execute(
-        "SELECT DISTINCT asset_id FROM trades WHERE account_id = ?", (account_id,)).fetchall()]
+    assets = position_assets(con, account_id, exec_date)
     qty, mv = {}, 0.0
     for a in assets:
         q = holding_qty(con, account_id, a, exec_date)
@@ -156,13 +163,7 @@ def nav_before_trades(con: sqlite3.Connection, account_id: str, exec_date: str,
             raise RuntimeError(f"execution price missing for {a} on {exec_date}")
         qty[a] = q
         mv += q * px
-    cash = initial_capital
-    for r in con.execute("SELECT quantity, gross_value, transaction_cost FROM trades"
-                         " WHERE account_id = ? AND execution_at <= ?", (account_id, exec_date)).fetchall():
-        if r["quantity"] > 0:
-            cash -= r["gross_value"] + r["transaction_cost"]
-        else:
-            cash += r["gross_value"] - r["transaction_cost"]
+    cash = position_cash(con, account_id, exec_date, initial_capital)
     return mv + cash, qty, cash
 
 

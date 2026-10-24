@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from .opening import assets as position_assets, cash as position_cash, opening
 from .db import log_event
 from .execution import holding_qty
 from .prices import price_on_or_before
@@ -10,15 +11,7 @@ from .prices import price_on_or_before
 
 def cash_balance(con: sqlite3.Connection, account_id: str, asof: str,
                  initial_capital: float) -> float:
-    cash = initial_capital
-    for r in con.execute("SELECT quantity, gross_value, transaction_cost FROM trades"
-                         " WHERE account_id = ? AND execution_at <= ?",
-                         (account_id, asof)).fetchall():
-        if r["quantity"] > 0:
-            cash -= r["gross_value"] + r["transaction_cost"]
-        else:
-            cash += r["gross_value"] - r["transaction_cost"]
-    return cash
+    return position_cash(con, account_id, asof, initial_capital)
 
 
 def valuate(con: sqlite3.Connection, account_id: str, date: str, versions: dict,
@@ -28,10 +21,8 @@ def valuate(con: sqlite3.Connection, account_id: str, date: str, versions: dict,
     blocked, start_date = account_gate(con, account_id)
     if blocked or (start_date and date < start_date):
         return {"status": "NAV_INCOMPLETE", "reason": "competition not started for this valuation"}
-    assets = [r["asset_id"] for r in con.execute(
-        "SELECT DISTINCT asset_id FROM trades WHERE account_id = ? AND execution_at <= ?",
-        (account_id, date)).fetchall()]
-    if not assets:
+    assets = position_assets(con, account_id, date)
+    if not assets and not opening(con, account_id, date):
         # No executions yet: NAV anchor must only be created after first execution
         # (never backfill performance before inception fills).
         return {"status": "NAV_INCOMPLETE", "reason": "no executions yet"}
@@ -87,7 +78,8 @@ def valuate(con: sqlite3.Connection, account_id: str, date: str, versions: dict,
                             ("synthetic%", date)).fetchone()
     data_kind = "HISTORICAL_REPLAY" if replay else "TEST_FIXTURE" if synthetic else "FORWARD_SIMULATION"
     log_event(con, "NAV_CALCULATED", versions["benchmark_version"], None, account_id,
-              {"date": date, "nav": nav, "data_kind": data_kind})
+              {"date": date, "nav": nav, "data_kind": data_kind,
+               "opening_run_id": (opening(con, account_id, date) or {}).get("run_id")})
     con.commit()
     return {"status": "STALE_PRICE" if stale else "OK", "nav": nav}
 

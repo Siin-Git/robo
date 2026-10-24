@@ -13,6 +13,7 @@ import {ReturnContribution} from "./ReturnContribution";
 import {HistoricalLedger} from "./HistoricalLedger";
 import {LedgerHistory} from "./LedgerHistory";
 import {ForwardOperations} from "./ForwardOperations";
+import {Continuity} from "./Continuity";
 import {OperationReadiness} from "./OperationReadiness";
 import {get} from "@/lib/api/client";
 import {getForwardLedger} from "@/lib/api/ledger";
@@ -61,6 +62,7 @@ export function DarkDashboard(){
   <div className={s.page}>
    <div className={s.preview}><span>PORTFOLIO OVERVIEW <b>내 투자 현황 한눈에 보기</b></span><Link href={originalHref}>상세 분석 <ArrowUpRight size={14}/></Link></div>
    <header className={s.heading}><div><p className={s.eyebrow}>MY INVESTMENT</p><h1>내 투자의 흐름을 한눈에</h1><p>성과부터 보유자산까지, 기록된 숫자로 살펴보세요.</p></div><Link className={s.primary} href="/portfolio">내 포트폴리오 <ArrowUpRight size={17}/></Link></header>
+   <Continuity/>
    <div className={s.toolbar}><div className={s.tabs} role="group" aria-label="운용 기록 선택">{saved?.ledger&&<button aria-pressed={archive} onClick={()=>setView("archive")}>기준일 모의운용</button>}<button aria-pressed={!archive} onClick={()=>setView("forward")}>자동운용</button></div><span className={s.asof}><span/>{end?`${fmtDate(end)} 평가 기준`:"평가일 미확보"}<button aria-label="기록 새로고침" onClick={retry}><RefreshCw size={14}/></button></span></div>
    {error&&hasData&&<p role="alert">기록 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button className="btn-secondary" onClick={retry}>다시 조회</button></p>}
    {!archive && report?.data_kind === "TEST_FIXTURE" && <p role="status">검증용 합성 데이터 · 실제 운용 실적이 아닙니다.</p>}
