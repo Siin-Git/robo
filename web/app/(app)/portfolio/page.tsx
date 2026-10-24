@@ -138,7 +138,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
           return value > 0 ? <span key={g.key} style={{ width: `${value * 100}%`, background: g.color }} title={`${g.name} ${fmtPct(value)}`}>{value >= .1 ? fmtPct(value, 1) : ""}</span> : null;
         })}</div></div>)}
         <div className={s.legend}>{GROUPS.filter(g => (p.base.groups[g.base] ?? 0) + (p.personalized.groups[g.key] ?? 0) > 0).map(g => <span key={g.key}><i style={{ background: g.color }} />{g.name}</span>)}</div>
-      </div><div className={s.risk}><h3>예상 변동성 변화</h3><div className={s.riskValues}><div><span>기본 구성</span><strong>{fmtPct(before)}</strong></div><ArrowRight size={20} /><div><span>현재 구성</span><strong>{fmtPct(after)}</strong></div></div>
+      </div><div className={s.risk}><h3>현재 모형의 예상 변동성 변화</h3><div className={s.riskValues}><div><span>기본 구성</span><strong>{fmtPct(before)}</strong></div><ArrowRight size={20} /><div><span>현재 구성</span><strong>{fmtPct(after)}</strong></div></div>
         <p>{delta == null ? "같은 기준의 위험 지표를 산출할 데이터가 부족합니다." : <>기본 구성 대비 <b>{fmtActivePp(delta)}</b></>}</p><small>같은 기간과 위험 모형으로 비교합니다.{p.risk_comparison?.as_of && ` · ${fmtDate(p.risk_comparison.as_of)} 기준`}</small>
       </div></div>
     </section>
@@ -201,7 +201,7 @@ function PortfolioFrontier({data}:{data:PortfolioSummary}) {
               selected={base} personalized={personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}
               onPortfolioInspect={inspect} inspectedPortfolio={inspectedPortfolio}/></SetupStyleProvider>}
           {!personalized && <p>Personalized 예상 좌표 미확보. 다른 구성의 값으로 대체하지 않습니다.</p>}
-          <p>Base 또는 Personalized 점을 선택하면 투자 판단과 이후 계좌 기록을 확인할 수 있습니다.</p>
+          <p>Base 또는 Personalized 점을 선택하면 확정 당시 위험 변화와 3·6개월 재검토 시점, 이후 계좌 기록을 확인할 수 있습니다.</p>
         </div>
         {inspectedPortfolio && <DecisionVerificationPanel point={inspectedPortfolio} data={stored} onClose={close}/>}
       </div>}

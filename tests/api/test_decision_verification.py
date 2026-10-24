@@ -1,6 +1,7 @@
 """Verification uses isolated test NAVs, never a live database."""
 from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
@@ -46,12 +47,18 @@ def test_owner_snapshot_read_only_and_summary_binding(client, env, identity, dec
     assert before['original']['personalized']['expected_return'] == decision['expectations']['expected_return']['value']
     assert before['review']['status'] == 'IN_PROGRESS'
     assert before['review']['automatic_verdict'] is False
+    assert before['risk_change']['status'] == 'UNAVAILABLE'
+    assert before['risk_change']['difference_pp'] is None
+    assert before['review_plan']['basis_date'] == decision['target_effective_date']
+    assert [item['months'] for item in before['review_plan']['checkpoints']] == [3, 6]
+    assert all(item['state'] == 'UPCOMING' for item in before['review_plan']['checkpoints'])
     assert client.get('/api/v1/me/portfolio/summary', cookies=identity[0]).json()['decision_id'] == decision['decision_id']
     assert 'internal_tracking' not in str(before) and 'ADMIN_ONLY' not in str(before)
     from src.api.services import frontier_service
     monkeypatch.setattr(frontier_service, 'get_frontier', lambda: {'points': [], 'frontier_version': 'changed'})
     monkeypatch.setattr(portfolio_service, '_expected_return', lambda *args: 999)
     assert read(client, identity, decision).json()['original'] == before['original']
+    assert read(client, identity, decision).json()['risk_change'] == before['risk_change']
     assert client.get('/api/v1/me/decisions', cookies=identity[0]).json()['items'][0] == decision
     assert client.get(f"/api/v1/me/decisions/{decision['decision_id']}/verification", cookies={}).status_code == 401
     register(client, 'verification-other@example.com')
@@ -155,6 +162,62 @@ def test_incomplete_historical_snapshot_stays_readable_without_current_backfill(
     assert out['original']['frontier']['points'] == [{'frontier_id': 'valid', 'expected_return': .05, 'volatility': .08}]
     assert out['actual']['status'] == 'UNAVAILABLE'
     assert out['actual']['reason'] == '당시 CORE 비교 기준의 버전 미확보'
+    assert out['risk_change']['status'] == 'UNAVAILABLE'
+
+
+def test_saved_risk_pair_requires_both_values_method_and_date(client, env, identity, decision):
+    with env.factory() as db:
+        old = db.get(PortfolioDecision, decision['decision_id'])
+        values = {column.name: deepcopy(getattr(old, column.name)) for column in PortfolioDecision.__table__.columns}
+        values.update(decision_id='risk-missing', version=2, previous_decision_id=old.decision_id)
+        values['provenance_json'] = {**values['provenance_json'], 'risk_comparison': {
+            'base_volatility': .08, 'personalized_volatility': .09, 'method': None, 'as_of': '2026-09-01'}}
+        values['expectations_json'] = {**values['expectations_json'], 'volatility': {'value': .09}}
+        db.add(PortfolioDecision(**values))
+        db.commit()
+    result = read(client, identity, {'decision_id': 'risk-missing'}).json()
+    assert result['original']['personalized']['volatility'] is not None
+    assert result['risk_change']['status'] == 'UNAVAILABLE'
+    assert result['risk_change']['difference_pp'] is None
+
+
+def test_saved_same_model_risk_pair_is_read_without_recomputing(client, env, identity, decision, monkeypatch):
+    with env.factory() as db:
+        old = db.get(PortfolioDecision, decision['decision_id'])
+        values = {column.name: deepcopy(getattr(old, column.name)) for column in PortfolioDecision.__table__.columns}
+        values.update(decision_id='risk-recorded', version=2, previous_decision_id=old.decision_id)
+        values['provenance_json'] = {**values['provenance_json'], 'risk_comparison': {
+            'base_volatility': .08, 'personalized_volatility': .09,
+            'method': '5Y weekly Ledoit-Wolf', 'as_of': '2026-08-31'}}
+        db.add(PortfolioDecision(**values))
+        db.commit()
+    monkeypatch.setattr(portfolio_service, '_cov_asof', lambda *args: (_ for _ in ()).throw(AssertionError('recomputed')))
+    result = read(client, identity, {'decision_id': 'risk-recorded'}).json()
+    assert result['risk_change'] == {'status': 'AVAILABLE', 'base_volatility': .08,
+        'personalized_volatility': .09, 'difference_pp': pytest.approx(1),
+        'as_of': '2026-08-31', 'method': '5Y weekly Ledoit-Wolf'}
+
+
+def test_review_dates_use_forward_start_and_never_claim_observation_early():
+    from src.api.services.decision_verification_service import _add_months, _review_plan
+    assert _add_months(date(2027, 1, 31), 1) == date(2027, 2, 28)
+    start, forward = date(2026, 10, 13), date(2026, 10, 26)
+    unavailable = {'end': None}
+    waiting = _review_plan(start, forward, date(2027, 1, 26), unavailable, [], None)
+    assert waiting['basis_date'] == '2026-10-26'
+    assert waiting['checkpoints'] == [
+        {'months': 3, 'date': '2027-01-26', 'state': 'DATA_PENDING'},
+        {'months': 6, 'date': '2027-04-26', 'state': 'UPCOMING'}]
+    observed = _review_plan(start, forward, date(2027, 1, 27), {'end': '2027-01-26'}, [], None)
+    assert observed['checkpoints'][0]['state'] == 'DUE'
+    choice = SimpleNamespace(selected_at=datetime(2027, 1, 27, tzinfo=timezone.utc))
+    reviewed = _review_plan(start, forward, date(2027, 1, 28), {'end': '2027-01-26'}, [choice], None)
+    assert reviewed['checkpoints'][0]['state'] == 'RECORDED'
+    later = SimpleNamespace(selected_at=datetime(2027, 4, 27, tzinfo=timezone.utc))
+    both = _review_plan(start, forward, date(2027, 4, 28), {'end': '2027-04-26'}, [later, choice], None)
+    assert [item['state'] for item in both['checkpoints']] == ['RECORDED', 'RECORDED']
+    ended = _review_plan(start, forward, date(2027, 1, 28), unavailable, [], date(2027, 1, 20))
+    assert all(item['state'] == 'ENDED' for item in ended['checkpoints'])
 
 
 def test_automatic_reads_follow_new_nav_review_and_job_without_rewriting_decision(client, env, identity, decision, monkeypatch):
