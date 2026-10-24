@@ -129,7 +129,8 @@ PR #20은 OPEN, 작업/원격 HEAD는 `7109caa`, 운영 브랜치는 `8bee054`�
     "scheduled_for": "2026-10-23",
     "completed_at": "2026-10-23T13:29:51+00:00",
     "state": "START_WAIT",
-    "message": "공동 운용 시작 대기",
+    "message": "공동 운용 시작일 미지정",
+    "reason_code": "START_NOT_SCHEDULED",
     "execution_succeeded": true,
     "valuation_completed": false,
     "valuated": 0,
@@ -224,7 +225,7 @@ personalized_nav: {start:number,end:number}|null, core_nav: {start:number,end:nu
 
 ### 이번 검증
 
-테스트는 `/private/tmp`의 SQLite와 `127.0.0.1:55432`의 폐기 가능한 PostgreSQL
+테스트는 `/private/tmp`의 SQLite와 `127.0.0.1:55432`의 폐기 가능한
 PostgreSQL 14.19 인스턴스/테스트 DB를 사용한다. 운영 DB 주소는 테스트에 사용하지 않는다.
 기존 CI의 PostgreSQL 서비스도 같은 회귀 파일을 실행한다.
 
@@ -239,3 +240,86 @@ PostgreSQL 14.19 인스턴스/테스트 DB를 사용한다. 운영 DB 주소는 
   별도 Python lint/typecheck 명령은 저장소에 없다.
 - Codex가 기존 코드와 최신 로그를 추적하여 수정하고 명령 실행 결과로 검증했다.
   `sources/`, 백업 PR, 운영 배포 파일/변수는 변경하지 않았다.
+
+
+## 프런트 연결 및 실제 API 브라우저 검증 (2026-10-24)
+
+### 구현 범위와 결정
+
+기존 PR #20 / `1a1edf6`을 이어 작업했다. 별도 앱·목업·디자인 시스템을 추가하지
+않고 기존 다크 대시보드, Frontier, 오른쪽 검증 패널, 검토 페이지를 유지했다.
+완료 기준은 로그인 → 저장된 판단 선택 → 근거 확인 → 유지/조정 이유 저장 →
+같은 판단으로 복귀하여 최신 기록 확인이다. 운영 배포·시작일 변경은 제외한다.
+
+- 패널의 세 항목(당시 판단, 동일 기간 계좌 성과, 당시 가정의 재검토)을 유지한다.
+  저장 좌표와 현재 모형/과거 전략 비교를 분리하고 누락 Personalized는 대체하지 않는다.
+- `valuation_job.state`와 `valuation_completed`를 함께 해석한다.
+  `NAV_COMPLETE`라도 완료 플래그가 true가 아니면 정상 저장 완료로 표시하지 않는다.
+  구형 `success`만 있는 응답은 평가 완료 여부 미확인으로 남긴다.
+  개별 판단의 성과 확보는 별도 `actual.status`로 판단한다.
+- `START_WAIT`만으로 시작일 미지정을 추측할 수 없으므로 API에 작은 호환 확장인
+  `reason_code: START_NOT_SCHEDULED | AWAITING_T0 | PARTICIPANTS_NOT_READY | null`을
+  추가했다. 허용되지 않은 내부 사유는 null로 남긴다. 미지정과 지정일 도달 전을
+  각각 명시하고 준비 인원·작업 기준일·NAV 저장 수는 서버 값만 표시한다.
+  구형 API에 사유 코드가 없으면 일반적인 시작 대기로 표시한다.
+- 대시보드 개요와 상세의 빈 상태는 기존 `decisions`, `decision-verification`
+  React Query 키와 인증된 읽기 API를 재사용한다. 새 실행 API는 호출하지 않는다.
+  화면 조회와 서버 운용 실행이 다르다는 설명을 표시한다.
+- 포트폴리오 요약·판단 증거·대시보드의 갱신 실패는 이전 자료를 유지하면서
+  경고와 재조회 버튼을 표시한다. 첫 조회 실패는 성공 자료가 있는 것처럼 보이지 않는다.
+  조회 간격은 기존 60초이며 백그라운드 주기 조회는 비활성화한다.
+- 검토 페이지는 선택한 판단의 KEEP/ADJUST 이력만 보여주고 같은 `decision_id`의
+  패널로 돌아가는 링크를 제공한다. 저장 시 기존 검증 캐시를 무효화한다.
+  ADJUST는 기존 재설계 페이지를 열며 새 확정 전에는 최초 판단을 덮어쓰지 않는다.
+- Enter/Space, 클릭, Escape/닫기, 점/범례의 실제 선택 요소로 포커스 복원을 확인했다.
+  데스크톱 오른쪽·모바일 아래쪽 배치를 유지한다. 비활성 본문 이동 링크를 클리핑해
+  긴 모바일 화면 캡처에서도 떠 있는 링크가 나타나지 않도록 했다.
+
+### 검증 결과와 화면 증거
+
+**아래 모든 화면은 격리 테스트 환경이다.** 계정, 판단 이유, 준비 인원 15/15,
+작업 날짜, NAV 수치 모두 테스트 DB의 기록이며 운영 실적·운영 활성화 증거가 아니다.
+성공 사례는 화면/저장 흐름 성공과 NAV 저장 상태 확인이다. 합성 NAV는 API에서
+`actual.status=UNAVAILABLE`이며 운영 성과로 표시하지 않는다.
+
+| 확인 항목 | 화면 |
+| --- | --- |
+| 공동 시작일 미지정·서버 준비 인원·최근 작업일 | [대시보드](evidence/decision-verification-ui/dashboard-wait-desktop.png) |
+| 저장된 Frontier 점과 우측 세 항목 패널 | [데스크톱 패널](evidence/decision-verification-ui/verification-desktop.png) |
+| 390px 배치·가로 넘침 없음·최신 조정 이유 | [모바일 패널](evidence/decision-verification-ui/verification-mobile.png) |
+| 동일 판단의 유지 이유 저장 | [검토 저장](evidence/decision-verification-ui/review-saved-desktop.png) |
+| 정상 NAV 저장 작업과 합성 실적 제외의 분리 | [합성 자료 제외](evidence/decision-verification-ui/synthetic-nav-excluded-mobile.png) |
+| 이전 자료 유지·갱신 실패·다시 조회 | [통신 실패](evidence/decision-verification-ui/refresh-failure-desktop.png) |
+
+- `npm test`: **123 passed** (25 files).
+- `npx tsc --noEmit`: **통과**. 기존 Testing Library 테스트 5곳의 지원되지 않는
+  `getByRole({exact:true})` 옵션도 제거했다. 문자열 name 매칭은 이미 정확 일치다.
+- `npm run build`: **통과**, 실제 브라우저 테스트도 이 production 빌드로 실행했다.
+- `python -m pytest tests/api/test_decision_verification.py -q`: **25 passed**.
+- `E2E_DECISION_VERIFICATION=1 ... npx playwright test --config playwright.operations.config.ts`:
+  **2 passed (10.2초)**. 실제 FastAPI/SQLite와 Next 동일 출처 프록시를 사용한다.
+  성공 응답을 모킹하지 않는다. 실패/로딩 테스트에만 네트워크 중단/지연과 브라우저
+  타이머를 사용해 60초 조회 주기, 이전 자료 유지, 초기 오류, 재조회 복구를 확인했다.
+- 브라우저에서 KEEP, ADJUST 이유 저장 후 같은 판단을 다시 읽고 최초 판단 객체가
+  동일함을 검증했다. 이 구간 주문 0·체결 0·NAV 0·작업 1·판단 1은 변하지 않고
+  사용자 선택만 0→2가 된다. 이후 명시적인 fixture 명령으로만 합성 NAV 4건과
+  성공 작업 1건을 추가했고, 성과 미확보와 테스트 자료 경고를 확인했다.
+- 앞선 `1a1edf6`의 push/PR CI 둘 다 backend/frontend **SUCCESS**를 확인했다.
+  [push CI](https://github.com/MinchoLover/robo/actions/runs/40075557866),
+  [PR CI](https://github.com/MinchoLover/robo/actions/runs/40075561165).
+  기존 PG18 전체 검사는 통과했으며 이번 순수 사유 코드 변경은 API 회귀로 검증했다.
+
+### 재현 방법
+
+새 `/private/tmp` 경로를 사용한다. fixture 도구는 이미 있는 경로의 준비를 거부하며
+표시된 marker가 없는 디렉터리에 NAV를 넣지 않는다. 계정 비밀번호 파일은 비공개
+테스트 디렉터리에만 남기고 Git에 포함하지 않는다.
+
+1. 저장소에서 `.venv/bin/python scripts/seed_verification_ui_fixture.py --directory /private/tmp/robo-verification-new` 실행.
+2. `APP_PROFILE=local CAPSTONE_DEMO=1 CAPSTONE_MARKET_COMPARISON=1 DATABASE_BACKEND=sqlite DATABASE_URL='' CAPSTONE_DESIGN_DATABASE_URL='' CAPSTONE_DATA_DIR=/private/tmp/robo-verification-new AUTH_COOKIE_SECURE=false ALLOW_PUBLIC_REGISTRATION=false` 환경으로
+   `.venv/bin/python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8057` 실행.
+3. `web`에서 `NEXT_PUBLIC_CAPSTONE_DEMO=1 NEXT_PUBLIC_LAB_MEETING=1 FASTAPI_INTERNAL_URL=http://127.0.0.1:8057 npm run build`, 같은 환경의 `npm run start -- --hostname 127.0.0.1 --port 3057` 실행.
+4. `web`에서 `E2E_DECISION_VERIFICATION=1 E2E_BASE_URL=http://127.0.0.1:3057 E2E_OPERATIONS_DATA_DIR=/private/tmp/robo-verification-new npx playwright test --config playwright.operations.config.ts` 실행.
+
+Codex가 구현·테스트를 수행하고 실제 화면 PNG를 확인했다. 운영 DB·공동 시작일·예약
+설정·운영 배포는 변경하지 않았다. 테스트 환경은 운영 서버에 연결하지 않는다.

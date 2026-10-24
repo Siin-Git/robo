@@ -826,3 +826,26 @@ tests and the production build/type checks passed. PostgreSQL LIKE pattern bindi
 was corrected after the new provenance test exposed it. Generated migration/parity
 reports, covariance cache and Next environment declarations were restored and are
 excluded from the change. No production DB was used.
+
+
+### 2026-10-24 — frontend operation readiness and decision review completion
+
+Continue PR #20 from 1a1edf6; its two CI runs completed successfully (backend and
+frontend). Preserve the existing dark dashboard, Frontier and three-section panel.
+Add safe reason_code to disambiguate an unspecified shared start from awaiting T0.
+Dashboard empty states consume existing owner-scoped decision queries; readiness,
+job date and NAV counts are server evidence. NAV_COMPLETE also requires the completion
+flag, while actual.status controls paired-period performance. No GET runs operation.
+
+Keep prior data visible on refresh failure and provide retry. Link the selected
+decision's review back to its panel, filter its history, and restore keyboard focus
+to the exact point/legend trigger. Current model and historical strategy comparisons
+stay separate from saved forecasts. No replacement of missing Personalized values.
+
+Validation: 123 frontend tests, explicit tsc --noEmit, production build, 25 verification
+API tests and 2 actual-API Playwright scenarios passed. The browser flow covers login,
+Base/Personalized selection, KEEP and ADJUST reasons, unchanged original, cache refresh,
+desktop/mobile and failure recovery. Only disposable local SQLite fixtures were used.
+The synthetic NAV success case remains UNAVAILABLE as actual performance. Screenshots,
+exact reproduction and source limitations are in docs/FRONTIER_DECISION_VERIFICATION.md.
+No operating start, deployment, production DB, backup workflow or sources/ changes.

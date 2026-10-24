@@ -8,6 +8,7 @@ vi.mock("@tanstack/react-query",()=>({useQuery:({queryKey}:{queryKey:string[]})=
   queryKey[0]==="own-historical-preview"?{data:baseState.archive??{available:false},isLoading:false,isError:false}:
   queryKey[0]==="ledger-status"||queryKey[0]==="ledger-alerts"?{data:null,isLoading:false,isError:false}:
   ({data:baseState.report??{status:"INSUFFICIENT_HISTORY",series:[],assets:[],metrics:{},quality:{unresolved_intervals:0,stale_observations:0,missing_nav_dates:0}},isLoading:false,isError:false})}));
+vi.mock("@/components/dashboard/OperationReadiness",()=>({OperationReadiness:()=> <div>서버 운용 대기 사유</div>}));
 vi.mock("@/components/layout/AppShell",()=>({AppShell:({children}:{children:React.ReactNode})=><div>{children}</div>}));
 vi.mock("@/app/(app)/dashboard/performance-panels",()=>({PerformancePanels:({riskPanel}:{riskPanel:React.ReactNode})=> <div>성과 차트{riskPanel}</div>}));
 afterEach(()=>{cleanup();baseState.status="selected";baseState.isError=false;baseState.report=null;baseState.archive=null;});
@@ -113,7 +114,7 @@ it("shows the saved ledger without the empty forward panel and keeps forward sel
  expect(screen.getByText('체결 History (1)')).toBeInTheDocument();
  expect(screen.getByText('모의 주문 기준 시각')).toBeInTheDocument();
  expect(screen.getByText('2026-10-08')).toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:'자동운용',exact:true}));
+ fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
  expect(screen.getByText('포트폴리오는 저장되어 있어요')).toBeInTheDocument();
  expect(screen.queryByText('모의 주문 기준 시각')).not.toBeInTheDocument();
  fireEvent.click(screen.getByRole('button',{name:'2026.10.02 기준 모의운용'}));

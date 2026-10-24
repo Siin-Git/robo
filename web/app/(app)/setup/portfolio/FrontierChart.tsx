@@ -30,7 +30,7 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
   comparisons?: StrategyPoint[]; focus?: boolean;
   className?: string; chartLabel?: string; returnAxisLabel?: string;
   inspectedId: string | null; onInspect: (id: string | null) => void;
-  onPortfolioInspect?: (point: "base" | "personalized") => void;
+  onPortfolioInspect?: (point: "base" | "personalized", trigger: HTMLElement | SVGElement) => void;
   inspectedPortfolio?: "base" | "personalized" | null;
 }) {
   const { risk: styles } = useSetupStyles();
@@ -122,16 +122,16 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
       {selected && <g role={onPortfolioInspect ? "button" : "img"} aria-label="테마 적용 전 Base Portfolio" data-portfolio-point="base"
         tabIndex={onPortfolioInspect ? 0 : undefined} aria-pressed={onPortfolioInspect ? inspectedPortfolio === "base" : undefined}
         style={{cursor:onPortfolioInspect ? "pointer" : undefined}}
-        onClick={()=>onPortfolioInspect?.("base")}
-        onKeyDown={e=>{if(onPortfolioInspect && (e.key==="Enter" || e.key===" ")){e.preventDefault();onPortfolioInspect("base");}}}>
+        onClick={e=>onPortfolioInspect?.("base",e.currentTarget)}
+        onKeyDown={e=>{if(onPortfolioInspect && (e.key==="Enter" || e.key===" ")){e.preventDefault();onPortfolioInspect("base",e.currentTarget);}}}>
         <circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={16} fill="transparent"/>
         <circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={8} fill="var(--surface)" stroke="#74a8ff" strokeWidth={2}/><circle cx={x(selected.volatility)} cy={y(selected.expected_return)} r={3.5} fill="#74a8ff"/>
       </g>}
       {after && <g role={onPortfolioInspect ? "button" : "img"} aria-label="테마 적용 후 Personalized Portfolio" data-portfolio-point="personalized"
         tabIndex={onPortfolioInspect ? 0 : undefined} aria-pressed={onPortfolioInspect ? inspectedPortfolio === "personalized" : undefined}
         style={{cursor:onPortfolioInspect ? "pointer" : undefined}}
-        onClick={()=>onPortfolioInspect?.("personalized")}
-        onKeyDown={e=>{if(onPortfolioInspect && (e.key==="Enter" || e.key===" ")){e.preventDefault();onPortfolioInspect("personalized");}}}>
+        onClick={e=>onPortfolioInspect?.("personalized",e.currentTarget)}
+        onKeyDown={e=>{if(onPortfolioInspect && (e.key==="Enter" || e.key===" ")){e.preventDefault();onPortfolioInspect("personalized",e.currentTarget);}}}>
         <circle cx={x(after.volatility)} cy={y(after.expected_return)} r={17} fill="transparent"/>
         <circle cx={x(after.volatility)} cy={y(after.expected_return)} r={9} fill="#baa0f3" stroke="var(--surface)" strokeWidth={2}/><circle cx={x(after.volatility)} cy={y(after.expected_return)} r={3} fill="var(--surface)"/>
       </g>}
@@ -160,8 +160,8 @@ export function FrontierChart({ points, assets, benchmark, selected, personalize
     <div className={presentation.legend} aria-label="포트폴리오 위치 범례">
       <span><i style={{display:"inline-block",width:18,borderTop:"2px solid #74a8ff",marginRight:6,verticalAlign:"middle"}}/>Efficient Frontier</span>
       {comparisons.map(p=><span key={p.id} style={{color:strategyColor(p.id)}}>◆ {p.label} · {p.validation_status ? `${p.currency} · 검증 전` : "과거 추정"}</span>)}
-      {selected && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>{onPortfolioInspect ? <button type="button" aria-pressed={inspectedPortfolio==="base"} onClick={()=>onPortfolioInspect("base")}>Base · 판단 보기</button> : "테마 적용 전"}</span>}
-      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>{onPortfolioInspect ? <button type="button" aria-pressed={inspectedPortfolio==="personalized"} onClick={()=>onPortfolioInspect("personalized")}>Personalized · 판단 보기</button> : "테마 적용 후"}</span>}
+      {selected && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",border:"2px solid #74a8ff",marginRight:6}}/>{onPortfolioInspect ? <button type="button" aria-pressed={inspectedPortfolio==="base"} onClick={e=>onPortfolioInspect("base",e.currentTarget)}>Base · 판단 보기</button> : "테마 적용 전"}</span>}
+      {after && <span><i style={{display:"inline-block",width:9,height:9,borderRadius:"50%",background:"#baa0f3",marginRight:6}}/>{onPortfolioInspect ? <button type="button" aria-pressed={inspectedPortfolio==="personalized"} onClick={e=>onPortfolioInspect("personalized",e.currentTarget)}>Personalized · 판단 보기</button> : "테마 적용 후"}</span>}
     </div>
   </>;
 }

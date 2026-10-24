@@ -8,6 +8,7 @@ import { ASSET_META } from "@/app/(app)/setup/portfolio/asset-meta";
 import { THEME_INFO } from "@/app/(app)/setup/portfolio/theme-content";
 import type { FrontierCoordinate } from "@/app/(app)/setup/portfolio/FrontierChart";
 import s from "./decision-verification.module.css";
+import {ValuationStatus} from "./ValuationStatus";
 
 type Estimate = { expected_return: number | null; volatility: number | null; weights: Record<string, number> };
 export interface DecisionVerification {
@@ -19,7 +20,7 @@ export interface DecisionVerification {
     return_basis: string | null; risk_basis: string | null; price_data_as_of: string | null;
   };
   valuation_job?: { status: "running" | "success" | "failed" | "skipped"; scheduled_for: string; completed_at: string | null;
-    state?: string; message?: string; execution_succeeded?: boolean; valuation_completed?: boolean;
+    state?: string; reason_code?: "START_NOT_SCHEDULED" | "AWAITING_T0" | "PARTICIPANTS_NOT_READY" | null; message?: string; execution_succeeded?: boolean; valuation_completed?: boolean;
     valuated?: number | null; ready?: number | null; required?: number | null; retryable?: boolean;
   } | null;
   actual: {
@@ -74,8 +75,9 @@ export function DecisionVerificationPanel({ point, data, onClose }: {
           <tbody><tr><th scope="row">Personalized</th><td>{fmtPct(actual.personalized_return)}</td></tr><tr><th scope="row">CORE</th><td>{fmtPct(actual.core_return)}</td></tr><tr><th scope="row">차이</th><td>{fmtActivePp(actual.difference_pp)}</td></tr></tbody></table>
         <p className={s.nav}>Personalized NAV: {nav(actual.personalized_nav?.start)} → {nav(actual.personalized_nav?.end)}<br/>CORE NAV: {nav(actual.core_nav?.start)} → {nav(actual.core_nav?.end)}</p>
       </> : <p>성과 비교 미확보{actual?.reason && ` · ${actual.reason}`}</p>}
-      <p>화면이 열려 있는 동안 1분마다 저장된 평가 결과를 확인합니다.</p>
-      {data && <p>{data.valuation_job ? `전체 계좌 평가 작업 · ${fmtDate(data.valuation_job.scheduled_for)} · ${data.valuation_job.message ?? {running:"진행 중",success:"작업 성공 · 평가 완료 여부 미확인",failed:"실패",skipped:"건너뜀"}[data.valuation_job.status]}` : "자동 평가 작업 기록 미확보"}<br/>개별 계좌 성과의 확보 여부는 위 NAV 기록을 기준으로 합니다.</p>}
+      <p>화면이 열려 있는 동안 1분마다 저장된 평가 결과를 다시 조회합니다.</p>
+      {data && <ValuationStatus job={data.valuation_job}/>}
+      <p>개별 계좌 성과는 위의 공통 정상 NAV 기록을 기준으로 합니다.</p>
       {!!actual?.excluded_rows && <p>정상 평가 조건을 충족하지 않은 NAV {actual.excluded_rows}건 제외</p>}
     </section>
     <section aria-label="당시 가정의 재검토"><h4>3. 당시 가정의 재검토</h4>

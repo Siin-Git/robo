@@ -218,6 +218,7 @@ def test_execution_status_is_not_valuation_completion(client, env, identity, dec
     assert job['state'] == state
     assert not job['valuation_completed']
     assert job['execution_succeeded'] == (job_status == 'success')
+    assert job['reason_code'] == (stats.get('reason') if stats.get('reason') in {'START_NOT_SCHEDULED','AWAITING_T0','PARTICIPANTS_NOT_READY'} else None)
     assert 'private-' not in str(out)
     assert 'stats_json' not in str(out)
     assert out['actual']['personalized_return'] is None

@@ -29,7 +29,8 @@ def daily_outcome(status, stats):
         if reason == "PARTICIPANTS_NOT_READY":
             state, message = "PARTICIPANTS_NOT_READY", "참가자 준비 부족"
         elif reason in {"START_NOT_SCHEDULED", "AWAITING_T0"}:
-            state, message = "START_WAIT", "공동 운용 시작 대기"
+            state = "START_WAIT"
+            message = "공동 운용 시작일 미지정" if reason == "START_NOT_SCHEDULED" else "지정된 공동 운용 시작일 도달 전"
         else:
             state, message = "OPERATION_WAIT", "운용 조건 확인 대기"
     elif stats.get("price_wait_accounts") or any(
@@ -44,6 +45,7 @@ def daily_outcome(status, stats):
     else:
         state, message = "UNKNOWN", "작업 기록만으로 평가 완료를 확인할 수 없습니다."
     return {"state": state, "message": message,
+            "reason_code": reason if reason in {"START_NOT_SCHEDULED", "AWAITING_T0", "PARTICIPANTS_NOT_READY"} else None,
             "execution_succeeded": status == "success",
             "valuation_completed": state == "NAV_COMPLETE",
             "valuated": valuated,

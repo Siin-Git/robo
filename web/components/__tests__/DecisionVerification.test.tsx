@@ -121,3 +121,12 @@ it("never labels a successful process as completed valuation without server evid
   expect(screen.getByText(/공동 운용 시작 대기/)).toBeInTheDocument();
   expect(screen.queryByText(/작업 성공 · 평가 완료 여부 미확인/)).not.toBeInTheDocument();
 });
+
+
+it("restores the exact legend button that opened the panel",()=>{
+ render(<PortfolioPage/>);
+ const button=screen.getByRole('button',{name:'Base · 판단 보기'});
+ fireEvent.click(button);
+ fireEvent.keyDown(screen.getByRole('complementary'),{key:'Escape'});
+ expect(button).toHaveFocus();
+});

@@ -13,6 +13,7 @@ import {ReturnContribution} from "./ReturnContribution";
 import {HistoricalLedger} from "./HistoricalLedger";
 import {LedgerHistory} from "./LedgerHistory";
 import {ForwardOperations} from "./ForwardOperations";
+import {OperationReadiness} from "./OperationReadiness";
 import {get} from "@/lib/api/client";
 import {getForwardLedger} from "@/lib/api/ledger";
 import {fmtReturn, fmtActivePp, fmtPct, fmtDate} from "@/lib/format";
@@ -29,16 +30,17 @@ export function DarkDashboard(){
  const user=useCurrentUser();
  const [view,setView]=useState<"auto"|"archive"|"forward">(params.get("source")==="forward"?"forward":params.get("source")==="archive"?"archive":"auto");
  const history=useHistoricalPreview();
- const forward=useQuery({queryKey:["dashboard-performance","ALL",false],queryFn:()=>get<Report>("/api/v1/me/performance/dashboard?period=ALL&comparison=individual"),refetchInterval:60_000});
+ const forward=useQuery({queryKey:["dashboard-performance","ALL",false],queryFn:()=>get<Report>("/api/v1/me/performance/dashboard?period=ALL&comparison=individual"),refetchInterval:60_000,refetchIntervalInBackground:false});
  const saved=history.data?.available?history.data.report:undefined;
- const archive=!!saved?.ledger&&(view==="archive"||(view==="auto"&&!forward.isLoading&&!forward.isError&&(forward.data?.series.length??0)<2));
+ const archive=!!saved?.ledger&&(view==="archive"||(view==="auto"&&!forward.isLoading&&!!forward.data&&(forward.data.series.length??0)<2));
  const source=archive?"archive":"forward";
- const ledgerQuery=useQuery({queryKey:["dark-preview-forward-ledger"],queryFn:getForwardLedger,enabled:!archive&&!forward.isLoading});
+ const ledgerQuery=useQuery({queryKey:["dark-preview-forward-ledger"],queryFn:getForwardLedger,enabled:!archive&&!forward.isLoading,refetchInterval:60_000,refetchIntervalInBackground:false});
  const ledger=archive?saved?.ledger:ledgerQuery.data;
  const latest=ledger?.snapshots.at(-1);
  const report=forward.data;
  const loading=view==="auto"?(history.isLoading||forward.isLoading):view==="archive"?history.isLoading:forward.isLoading;
  const error=archive||view==="archive"?history.isError:forward.isError||(view==="auto"&&!forward.isLoading&&(forward.data?.series.length??0)<2&&history.isError);
+ const hasData=archive ? !!saved : !!report && !(view==="auto" && history.isError && !saved && report.series.length<2);
  const points=archive&&saved?saved.series.map(p=>({date:p.date,personal:p.personal_index-100,benchmark:p.core_index-100})):report?reportChartPoints(report):[];
  const ready=points.filter(p=>p.personal!=null).length>1;
  const personal=archive?saved?.summary.personal_return:report?.metrics.cumulative_return;
@@ -59,8 +61,10 @@ export function DarkDashboard(){
   <div className={s.page}>
    <div className={s.preview}><span>PORTFOLIO OVERVIEW <b>내 투자 현황 한눈에 보기</b></span><Link href={originalHref}>상세 분석 <ArrowUpRight size={14}/></Link></div>
    <header className={s.heading}><div><p className={s.eyebrow}>MY INVESTMENT</p><h1>내 투자의 흐름을 한눈에</h1><p>성과부터 보유자산까지, 기록된 숫자로 살펴보세요.</p></div><Link className={s.primary} href="/portfolio">내 포트폴리오 <ArrowUpRight size={17}/></Link></header>
-   <div className={s.toolbar}><div className={s.tabs} role="group" aria-label="운용 기록 선택">{saved?.ledger&&<button aria-pressed={archive} onClick={()=>setView("archive")}>기준일 모의운용</button>}<button aria-pressed={!archive} onClick={()=>setView("forward")}>자동운용</button></div><span className={s.asof}><span/>{end?`${fmtDate(end)} 평가 기준`:"첫 평가 기록 대기"}<button aria-label="기록 새로고침" onClick={retry}><RefreshCw size={14}/></button></span></div>
-   {loading?<section className={s.empty} role="status">운용 기록을 불러오고 있어요.</section>:error?<section className={s.empty} role="alert"><h2>성과 기록을 불러오지 못했어요</h2><button className={s.primary} onClick={retry}>다시 불러오기</button></section>:<>
+   <div className={s.toolbar}><div className={s.tabs} role="group" aria-label="운용 기록 선택">{saved?.ledger&&<button aria-pressed={archive} onClick={()=>setView("archive")}>기준일 모의운용</button>}<button aria-pressed={!archive} onClick={()=>setView("forward")}>자동운용</button></div><span className={s.asof}><span/>{end?`${fmtDate(end)} 평가 기준`:"평가일 미확보"}<button aria-label="기록 새로고침" onClick={retry}><RefreshCw size={14}/></button></span></div>
+   {error&&hasData&&<p role="alert">기록 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button className="btn-secondary" onClick={retry}>다시 조회</button></p>}
+   {!archive && report?.data_kind === "TEST_FIXTURE" && <p role="status">검증용 합성 데이터 · 실제 운용 실적이 아닙니다.</p>}
+   {loading?<section className={s.empty} role="status">운용 기록을 불러오고 있어요.</section>:error&&!hasData?<section className={s.empty} role="alert"><h2>성과 기록을 불러오지 못했어요</h2><button className={s.primary} onClick={retry}>다시 불러오기</button></section>:<>
     <section className={s.metrics} aria-label="성과 요약">
      <div className={s.balance}><span>총 평가자산 <Wallet size={15}/></span><strong>{money(balance)}</strong><small>{sourceLabel}</small></div>
      <div><span>누적 수익률</span><strong className={tone(ready?personal:null)}>{ready?fmtReturn(personal):"—"}</strong><small>{start&&end?`${fmtDate(start)} — ${fmtDate(end)}`:"평가 기록 2개부터 표시"}</small></div>
@@ -70,7 +74,7 @@ export function DarkDashboard(){
     <div className={s.mainGrid}>
      <section className={`${s.card} ${s.chartCard}`}><div className={s.cardHeading}><div><h2>수익률의 흐름</h2><p>내 포트폴리오와 CORE 비교</p></div><span className={s.pill}>전체 기간</span></div>
       <div className={s.legend}><span><i style={{background:COLORS[0]}}/>내 포트폴리오 <b>{ready?fmtReturn(personal):"—"}</b></span><span><i style={{background:"#8a99ad"}}/>CORE <b>{ready?fmtReturn(core):"—"}</b></span></div>
-      {ready?<div className={s.chart} role="img" aria-label={`${start}부터 ${end}까지 누적 수익률. 내 포트폴리오 ${fmtReturn(personal)}, CORE ${fmtReturn(core)}`}><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{top:20,right:16,bottom:8,left:0}} accessibilityLayer><CartesianGrid vertical={false} stroke="#293548" strokeDasharray="3 5"/><XAxis dataKey="date" tickFormatter={v=>v.slice(5).replace("-",".")} tick={{fill:"#91a2b8",fontSize:11}} tickLine={false} axisLine={false} minTickGap={28} dy={12}/><YAxis tickFormatter={v=>`${v.toFixed(1)}%`} tick={{fill:"#91a2b8",fontSize:11}} tickLine={false} axisLine={false} width={52} domain={['auto','auto']}/><Tooltip contentStyle={{background:"#1b293b",border:"1px solid #42526b",borderRadius:12,color:"#edf3fb"}} labelFormatter={v=>fmtDate(String(v))} formatter={(v:number,name:string)=>[`${v>0?"+":""}${v.toFixed(2)}%`,name]} cursor={{stroke:"#58708d",strokeDasharray:"4 4"}}/><ReferenceLine y={0} stroke="#40516b"/><Line type="linear" dataKey="benchmark" name="CORE" stroke="#8a99ad" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false}/><Line type="linear" dataKey="personal" name="내 포트폴리오" stroke={COLORS[0]} strokeWidth={3} dot={{r:3,fill:COLORS[0],stroke:"#122139",strokeWidth:2}} activeDot={{r:5}} connectNulls={false} isAnimationActive={false}/></LineChart></ResponsiveContainer></div>:<div className={s.chartEmpty}><Activity size={30}/><h3>운용 기록을 기다리고 있어요</h3><p>평가액이 두 날짜 이상 기록되면<br/>수익률 그래프를 확인할 수 있어요.</p><Link href="/portfolio">저장된 구성 확인 <ArrowRight size={14}/></Link></div>}
+      {ready?<div className={s.chart} role="img" aria-label={`${start}부터 ${end}까지 누적 수익률. 내 포트폴리오 ${fmtReturn(personal)}, CORE ${fmtReturn(core)}`}><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{top:20,right:16,bottom:8,left:0}} accessibilityLayer><CartesianGrid vertical={false} stroke="#293548" strokeDasharray="3 5"/><XAxis dataKey="date" tickFormatter={v=>v.slice(5).replace("-",".")} tick={{fill:"#91a2b8",fontSize:11}} tickLine={false} axisLine={false} minTickGap={28} dy={12}/><YAxis tickFormatter={v=>`${v.toFixed(1)}%`} tick={{fill:"#91a2b8",fontSize:11}} tickLine={false} axisLine={false} width={52} domain={['auto','auto']}/><Tooltip contentStyle={{background:"#1b293b",border:"1px solid #42526b",borderRadius:12,color:"#edf3fb"}} labelFormatter={v=>fmtDate(String(v))} formatter={(v:number,name:string)=>[`${v>0?"+":""}${v.toFixed(2)}%`,name]} cursor={{stroke:"#58708d",strokeDasharray:"4 4"}}/><ReferenceLine y={0} stroke="#40516b"/><Line type="linear" dataKey="benchmark" name="CORE" stroke="#8a99ad" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false}/><Line type="linear" dataKey="personal" name="내 포트폴리오" stroke={COLORS[0]} strokeWidth={3} dot={{r:3,fill:COLORS[0],stroke:"#122139",strokeWidth:2}} activeDot={{r:5}} connectNulls={false} isAnimationActive={false}/></LineChart></ResponsiveContainer></div>:<div className={s.chartEmpty}><Activity size={30}/>{archive ? <h3>저장된 모의운용 관측 부족</h3> : <OperationReadiness/>}<p>동일 기간의 정상 평가액이 두 날짜 이상 기록되어야 수익률을 표시합니다.</p><Link href="/portfolio">저장된 구성 확인 <ArrowRight size={14}/></Link></div>}
       <div className={s.chartFoot}><span>기록된 평가일 <b>{observations??0}일</b></span><Link href={originalHref}>성과 상세 <ChevronRight size={14}/></Link></div>
      </section>
      <section className={`${s.card} ${s.mixCard}`}><div className={s.cardHeading}><div><h2>지금의 자산 구성</h2><p>{latest?.date?`${fmtDate(latest.date)} · 보유 금액 기준`:"마지막 평가일의 보유 금액 기준"}</p></div><Layers3 size={19}/></div>
@@ -81,7 +85,7 @@ export function DarkDashboard(){
     </div>
     <ReturnContribution report={archive?saved?.performance_report:report}/>
     <div className={s.actions}>
-     <div className={s.action}><span className={s.icon}><Activity size={20}/></span><div><h3>{archive?"기록으로 확인하는 모의운용":"자동운용 기록"}</h3><p>{archive?`평가 ${observations??0}회 · 모의 체결 ${ledger?.trades.length??0}건`:`평가 ${observations??0}회 · ${end?`마지막 평가 ${fmtDate(end)}`:"첫 평가 대기 중"}`}</p></div></div>
+     <div className={s.action}><span className={s.icon}><Activity size={20}/></span><div><h3>{archive?"기록으로 확인하는 모의운용":"자동운용 기록"}</h3><p>{archive?`평가 ${observations??0}회 · 모의 체결 ${ledger?.trades.length??0}건`:`평가 ${observations??0}회 · ${end?`마지막 평가 ${fmtDate(end)}`:"정상 평가일 미확보"}`}</p></div></div>
      <Link className={s.action} href={`/ranking?source=${source}`}><span className={s.icon}><Layers3 size={20}/></span><div><h3>다른 참여자와 비교</h3><p>같은 기간의 성과와 순위를 확인하세요</p></div><ArrowUpRight size={18}/></Link>
      <Link className={s.action} href="/review"><span className={s.icon}><RefreshCw size={20}/></span><div><h3>처음의 판단 돌아보기</h3><p>저장한 예상과 이후의 기록을 함께</p></div><ArrowUpRight size={18}/></Link>
     </div>
