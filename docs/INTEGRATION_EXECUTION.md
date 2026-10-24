@@ -863,3 +863,11 @@ Extend the existing UTC-to-next-Korean-day interaction regression. No financial
 values, account records, operating start or scheduler configuration are changed.
 
 Validation: 123 frontend tests and production build/type checking passed.
+
+## 2026-10-24: 재현 잔액의 자동운용 승계
+
+10/1~10/24 현재 확정 구성의 과거 가격 재현과 10/26 자동 모의운용을 연결한다. 과거 체결/NAV는 보관 이벤트에만 저장하고, 계좌별 수량·현금 인계 이벤트를 기존 실행·평가 엔진이 읽는다. 최초 판단과 초기자본은 유지한다. 초기 대기 주문은 감사 가능한 취소 기록으로 대체한다.
+
+`replay-forward-handoff`는 기본 읽기 전용 계획, 정확한 계획 해시에 한해 원자적 적용을 수행한다. 별도 저장 인프라를 추가하지 않는다. 로그인 소유자의 연속 지수에는 재현/자동운용 구분을 표시한다. 판단 패널은 승계 출처를 알리고 자동운용 NAV만 비교한다. 구체적 데이터 계약과 적용 절차: [REPLAY_FORWARD_HANDOFF.md](REPLAY_FORWARD_HANDOFF.md).
+
+검증: SQLite 전체 719 통과(환경별 57 제외), PostgreSQL 포함 전체에서 775 통과 후 신규 API 날짜 타입 비교 오류 1건 발견·수정. 관련 PostgreSQL/SQLite 29개 재검증 통과. 프런트 126 테스트와 production 빌드 통과. 테스트 중 생성된 기존 보고서·공분산 파일은 변경에 포함하지 않는다. 운영 검증/배포 증거는 실제 적용 후 별도 기록한다.

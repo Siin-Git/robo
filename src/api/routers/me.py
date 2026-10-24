@@ -176,3 +176,9 @@ def me_alerts(limit: int = Query(default=50, ge=1, le=200),
               offset: int = Query(default=0, ge=0),
               db=Depends(get_performance_db), user=Depends(get_current_user)):
     return ledger.alerts(db, _pid(user), limit, offset)
+
+
+@router.get("/performance/continuity", summary="Own replay carryover and subsequent observed paper NAV")
+def me_continuity(db=Depends(get_design_db), user=Depends(get_current_user)):
+    from ..services.continuity_service import own
+    return own(db, _pid(user), user.user_id)

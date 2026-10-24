@@ -223,8 +223,10 @@ def _create_account_orders(con, a, competition, asof, today, ft):
     from src.forward.decision_policy import latest_decision, weights as decision_weights
     from src.forward.db import log_event, now_iso
     import json as _json
+    from .opening import opening
+    inherited = opening(con, a["account_id"], asof)
     decision = latest_decision(con, a["account_id"])
-    if competition["managed"] and not con.execute(
+    if competition["managed"] and not inherited and not con.execute(
             "SELECT 1 FROM trades WHERE account_id=? LIMIT 1", (a["account_id"],)).fetchone():
         decision = initial_decision(con, a["account_id"]) or decision
     if decision:
@@ -237,7 +239,7 @@ def _create_account_orders(con, a, competition, asof, today, ft):
             return
         from src.forward.execution import create_orders, current_weights
         has_trades = con.execute("SELECT trade_id FROM trades WHERE account_id=? LIMIT 1", (a["account_id"],)).fetchone()
-        baseline = current_weights(con, a["account_id"], asof) if has_trades else {}
+        baseline = current_weights(con, a["account_id"], asof) if has_trades or inherited else {}
         create_orders(con, a["account_id"], decision_weights(decision), decision["confirmed_at"], str(decision["effective_date"])[:10],
                       ft["benchmark_version"], a["participant_id"], kind="DECISION", baseline=baseline)
         log_event(con, tag, ft["benchmark_version"], a["participant_id"], a["account_id"], {"decision_id":decision["decision_id"]})
@@ -245,7 +247,7 @@ def _create_account_orders(con, a, competition, asof, today, ft):
         return
     n_orders = con.execute("SELECT COUNT(*) c FROM orders WHERE account_id = ?",
                            (a["account_id"],)).fetchone()["c"]
-    if n_orders or con.execute("SELECT 1 FROM trades WHERE account_id=? LIMIT 1",
+    if inherited or n_orders or con.execute("SELECT 1 FROM trades WHERE account_id=? LIMIT 1",
                                        (a["account_id"],)).fetchone():
         return
     t = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
