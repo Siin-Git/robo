@@ -34,7 +34,7 @@ it("labels retrospective values, saved date in KST, exclusions and the original 
   expect(screen.getByText(/실제 계좌 성과가 아닙니다/)).toBeVisible();
   expect(screen.getByText(/2026. 10. 2./)).toBeVisible();
   expect(screen.getByRole("link", {name: "기존 판단 검토하기"})).toHaveAttribute("href", "/review?decision_id=saved-1");
-  fireEvent.click(screen.getByText("비교한 비중과 계산 기준"));
+  fireEvent.click(screen.getByText("계산 기준과 자료 출처"));
   expect(screen.getByText(/수수료·세금은 제외/)).toBeVisible();
   expect(screen.getByText(/미국 국채·TIPS/)).toBeVisible();
 });
@@ -74,4 +74,29 @@ it("exposes network failure and retries without keeping stale metrics", async ()
   vi.mocked(get).mockResolvedValue(report);
   fireEvent.click(screen.getByRole("button", {name: "다시 조회"}));
   expect(await screen.findByText("12,000,000원")).toBeVisible();
+});
+
+
+it("starts with drawdown and changes the graph without recalculating or losing comparison values", async () => {
+  show(); await screen.findByText("12,000,000원");
+  expect(screen.getByRole("region", {name: "고점 대비 하락률 그래프"})).toBeVisible();
+  expect(screen.getByRole("button", {name: "낙폭"})).toHaveAttribute("aria-pressed", "true");
+  const requests = vi.mocked(get).mock.calls.length;
+  fireEvent.click(screen.getByRole("button", {name: "평가액"}));
+  expect(screen.getByRole("region", {name: "평가액 흐름 그래프"})).toBeVisible();
+  expect(screen.getByRole("button", {name: "평가액"})).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText("-30.00%")).toBeVisible();
+  expect(screen.getByText("12,000,000원")).toBeVisible();
+  expect(get).toHaveBeenCalledTimes(requests);
+  expect(screen.getByRole("link", {name: "내 포트폴리오"})).toHaveAttribute("href", "/portfolio");
+});
+
+it("keeps allocation and assumptions separately inspectable", async () => {
+  show(); await screen.findByText("12,000,000원");
+  fireEvent.click(screen.getByText("비교한 자산 비중"));
+  expect(screen.getByRole("table")).toBeVisible();
+  expect(screen.getByText("인공지능")).toBeVisible();
+  expect(screen.getByText(/수수료·세금은 제외/)).not.toBeVisible();
+  fireEvent.click(screen.getByText("계산 기준과 자료 출처"));
+  expect(screen.getByText(/수수료·세금은 제외/)).toBeVisible();
 });
