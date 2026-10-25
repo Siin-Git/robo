@@ -11,6 +11,7 @@ import { ASSET_META } from "./asset-meta";
 import { THEME_INFO } from "./theme-content";
 import { ReviewData, reviewRows } from "./review-data";
 import { useSetupStyles } from "../style-context";
+import { PreconfirmReview } from "./PreconfirmReview";
 import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
 const THEME_COLORS = ["#baa0f3", "#aa74d6"];
@@ -22,22 +23,31 @@ const GROUPS = [
   { key: "cash", base: "cash", name: "현금", color: "#c2cad6" },
 ];
 
-export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, experiment, rebalanceFrequency }: {
+interface ReviewProps {
   basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean;
   frontierData?: FrontierData;
   rebalanceFrequency?: RebalanceFrequency;
   experiment?: { reason: string; notice: ReactNode };
-}) {
+  onCompleteBase?: () => void;
+  selectionReason?: {value: string; onChange: (value: string) => void};
+}
+export function ReviewStep(props: ReviewProps) {
+  if (props.onCompleteBase && !props.experiment) return <PreconfirmReview {...props} onCompleteBase={props.onCompleteBase}
+    renderDetails={proposal=><LegacyReviewStep {...props} suppliedPreview={proposal} embedded/>}/>;
+  return <LegacyReviewStep {...props}/>;
+}
+function LegacyReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, experiment, rebalanceFrequency, suppliedPreview, embedded }: ReviewProps & {suppliedPreview?: ReviewData; embedded?: boolean}) {
   const { review: s } = useSetupStyles();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [inspectedAssetId, setInspectedAssetId] = useState<string | null>(null);
   const preview = useQuery({
+    enabled: !suppliedPreview,
     queryKey: [experiment ? "experiment-review-preview" : "onboarding-preview", basePoint.frontier_id, themeIds.join(",")],
     queryFn: () => post<ReviewData>(experiment ? "/api/v1/me/experiment/preview" : "/api/v1/me/onboarding/preview", experiment ? {core_id:basePoint.frontier_id, theme_ids:themeIds} : { frontier_id: basePoint.frontier_id, theme_ids: themeIds }),
   });
-  if (preview.isLoading) return <LoadingSkeleton rows={6} />;
-  if (preview.isError || !preview.data) return <div><ErrorState message="최종 구성을 불러오지 못했습니다." onRetry={() => preview.refetch()} /><button className="btn-secondary" onClick={onBack}>테마 다시 고르기</button></div>;
-  const p = preview.data;
+  if (!suppliedPreview && preview.isLoading) return <LoadingSkeleton rows={6} />;
+  if (!suppliedPreview && (preview.isError || !preview.data)) return <div><ErrorState message="최종 구성을 불러오지 못했습니다." onRetry={() => preview.refetch()} /><button className="btn-secondary" onClick={onBack}>테마 다시 고르기</button></div>;
+  const p = suppliedPreview ?? preview.data!;
   const rows = reviewRows(p);
   const allocations = rows.filter(r => r.final > 0);
   const total = allocations.reduce((sum, r) => sum + r.final, 0);
@@ -54,16 +64,16 @@ export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComple
   const limit = p.risk_comparison?.max_increase_pp;
   let offset = 0;
   return <div className={s.page}>
-    <header className={s.header}><div className={s.eyebrow}>BEFORE & AFTER</div><h1>인사이트가 포트폴리오를 어떻게 바꿨나요?</h1>
+    {!embedded&&<header className={s.header}><div className={s.eyebrow}>BEFORE & AFTER</div><h1>인사이트가 포트폴리오를 어떻게 바꿨나요?</h1>
       <p>{p.themes.length ? <>기본 투자 구성에 <strong>{p.themes.map(t => themeName(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 투자 구성입니다."}</p>
-    </header>
-    {rebalanceFrequency && <p aria-label="확정 전 리밸런싱 주기">정기 리밸런싱: <strong>{REBALANCE_LABELS[rebalanceFrequency]}</strong> · 초기 설정에서 선택한 주기로 확정합니다.</p>}
+    </header>}
+    {!embedded && rebalanceFrequency && <p aria-label="확정 전 리밸런싱 주기">정기 리밸런싱: <strong>{REBALANCE_LABELS[rebalanceFrequency]}</strong> · 초기 설정에서 선택한 주기로 확정합니다.</p>}
 
-    <div className="comparison-intro" aria-label="포트폴리오 설계 관계">
+    {!embedded&&<div className="comparison-intro" aria-label="포트폴리오 설계 관계">
       <div><span className="ui-eyebrow">BEFORE</span><h2>기본 포트폴리오</h2><p>선택한 위험 수준에 맞춘 자산배분을 출발점으로 삼습니다.</p></div>
       <div><span className="ui-eyebrow">MY INSIGHT</span><h2>{p.themes.length ? p.themes.map(t => themeName(t.theme_id)).join(" · ") : "기본 구성 유지"}</h2><p>{p.themes.length ? "나의 전망을 기존 주식 비중 안에서 반영합니다." : "추가 테마 없이 선택한 자산배분을 유지합니다."}</p></div>
       <div><span className="ui-eyebrow">AFTER</span><h2>최종 포트폴리오</h2><p>비중과 위험 변화를 확인하고 확정합니다. 성과는 연결된 데이터가 있을 때 표시됩니다.</p></div>
-    </div>
+    </div>}
     {frontierData && p.base.expected_return != null && p.base.volatility != null && <section className={s.changes} aria-label="테마 적용 전후 Efficient Frontier 위치">
       <div className={s.sectionHeading}><div><h2>Efficient Frontier에서의 위치</h2><p>기본 구성과 테마 반영 후 구성을 같은 좌표계에 표시합니다.</p></div></div>
       <FrontierChart points={frontierData.points} assets={frontierData.assets.map(a => ({...a,name:ASSET_META[a.asset_id]?.name ?? a.display_name,cat:ASSET_META[a.asset_id]?.cat ?? "현금"}))}
@@ -120,7 +130,7 @@ export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComple
     <details open className={s.details}><summary>자산별 변경 내역 보기<span>기본 비중 · 최종 비중 · 변화</span></summary><div className={s.tableWrap}><table><thead><tr><th>자산</th><th>기본 비중</th><th>최종 비중</th><th>변화</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} data-theme={row.isTheme}><th scope="row">{row.name}{row.isTheme && <small>선택 테마</small>}</th><td>{fmtPct(row.base)}</td><td>{fmtPct(row.final)}</td><td>{Math.abs(row.change) < 1e-9 ? "변동 없음" : fmtActivePp(row.change)}</td></tr>)}</tbody></table></div></details>
     <p className={s.explanation}>예상 변동성은 모형의 추정치이며 실제 결과와 다를 수 있습니다.{limit != null && ` 테마 반영에 따른 변동성 증가는 같은 모형으로 계산한 기본 구성 대비 ${limit.toFixed(1)}%p 이내로 관리합니다.`}</p>
     {experiment&&<section className="ui-note"><p>선택 이유: {experiment.reason}</p>{experiment.notice}</section>}
-    <footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : experiment ? "포트폴리오 생성" : "포트폴리오 확정 · 성과 확인"}<ArrowRight size={17} /></button></div></footer>
-    {error && <p className={s.error} role="alert">구성을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
+    {!embedded&&<footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : experiment ? "포트폴리오 생성" : "포트폴리오 확정 · 성과 확인"}<ArrowRight size={17} /></button></div></footer>}
+    {!embedded && error && <p className={s.error} role="alert">구성을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
   </div>;
 }
