@@ -18,6 +18,7 @@ export interface Series {
   color: string;
   width: number;
   dataKey: string;
+  dash?: string;
 }
 
 export const MY_LINE = { color: "#74a8ff", width: 2.25 };
@@ -81,6 +82,7 @@ export function PerformanceChart({
                 name={s.label}
                 stroke={s.color}
                 strokeWidth={s.width}
+                strokeDasharray={s.dash}
                 dot={showPoints ? {r:3, fill:s.color, stroke:"var(--surface)", strokeWidth:1.5} : false}
                 activeDot={{ r: 4, fill:s.color }}
                 connectNulls={connectNulls}
