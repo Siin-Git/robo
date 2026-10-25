@@ -18,7 +18,7 @@ for(const [index,choice] of ['base','themes'].entries())test(`real API: compare 
   await expect(ai).toBeVisible();
   if(await ai.getAttribute('aria-pressed')!=='true')await ai.click();
   await page.getByRole('button',{name:'다음: 변경 전·후 비교'}).click();
-  await expect(page.getByRole('heading',{name:'확정하기 전에, 두 구성을 비교해 보세요'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'두 구성 비교'})).toBeVisible();
   const before=counts();
   await expect(page.getByRole('button',{name:'선택한 테마 반영해 확정'})).toBeEnabled();
   await page.getByLabel('비교 기간').selectOption('2022');
@@ -39,11 +39,13 @@ for(const [index,choice] of ['base','themes'].entries())test(`real API: compare 
     await page.setViewportSize({width:320,height:740});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.setViewportSize({width:1440,height:1050});
   }
-  await page.getByText('비중과 예상 위험 자세히 보기',{exact:false}).click();
+  await page.getByText('비중·예상 위험 상세',{exact:false}).click();
   await expect(page.getByRole('heading',{name:'예상 변동성의 변화'})).toBeVisible();
   if(index===0){await page.setViewportSize({width:320,height:740});await page.screenshot({path:path.join(evidence,'details-mobile.png'),fullPage:true});
     await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.setViewportSize({width:1440,height:1050});}
   const reason=`격리 테스트: ${choice} 선택 근거. 실제 운용 판단 아님.`;
+  await expect(page.getByLabel('확정 전 선택 이유')).not.toBeVisible();
+  await page.getByText(/^선택 이유 (남기기|보기·수정)/).click();
   await page.getByLabel('확정 전 선택 이유').fill(reason);
   await page.getByRole('button',{name:choice==='base'?'기본 구성으로 확정':'선택한 테마 반영해 확정',exact:true}).click();
   await expect(page).toHaveURL(/\/portfolio$/);

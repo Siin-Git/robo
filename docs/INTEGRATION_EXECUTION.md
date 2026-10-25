@@ -897,3 +897,10 @@ Validation: 123 frontend tests and production build/type checking passed.
 근거·계약·격리 화면·재현 절차: [PRECONFIRM_REHEARSAL.md](PRECONFIRM_REHEARSAL.md).
 
 검증: SQLite 748 통과(환경별 57 제외), 프런트 146, 실제 API 브라우저 5개, 타입 검사·production 빌드 통과. 390/320px 및 펼친 상세 검증 완료. 테스트가 재생성한 기존 보고서·공분산·기존 화면 증거·Next 선언은 제외했다.
+
+## 2026-10-26 — 확정 전 비교의 문구·시각 위계 정리
+
+중복 제목·설계 배너를 줄이고 관측 개수를 상세로 옮겼다. 선택 이유는 접힌
+선택 입력으로, 테마 수정은 텍스트 버튼으로 표시한다. 확정 버튼 두 개를 묶고
+기존 색상·숫자·금융 계산은 유지했다. 프런트 146개, 실제 API 브라우저 5개,
+타입 검사·production 빌드 통과. 새 화면은 PRECONFIRM_REHEARSAL.md에 기록했다.
