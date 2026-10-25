@@ -17,12 +17,12 @@ function Content(){
   const q=useQuery({queryKey:['strategy-detail',selection.strategy,selection.variant],queryFn:()=>getStrategy(selection.strategy,selection.variant),enabled:!!selection.strategy});
   const d=q.data;
   const points=d?.report?.series.map(p=>({date:p.date,index100:(1+p.personal)*100}));
-  return <AppShell headerTitle="전략 자료 검토" softBackground><div className={`${s.page} review-workspace`}>
-    <header className={s.header}><div><h1>투자 전략 자료실</h1><p>제공된 과거 모델 백테스트입니다. ETF 종가·사용자 확정 이후 실제 운용 실적으로 사용하지 않습니다.</p></div><Link href="/setup/portfolio?step=themes">투자 선택으로 돌아가기</Link></header>
+  return <AppShell headerTitle="투자 전략 자료실" softBackground><div className={`${s.page} review-workspace`}>
+    <header className={s.header}><div><h1>투자 전략 자료실</h1><p>과거 모델의 백테스트 자료입니다. ETF 종가나 실제 계좌 운용 실적이 아닙니다.</p></div><Link className="btn-secondary" href="/setup/portfolio?step=themes">포트폴리오 설계</Link></header>
     {catalog.isError&&<p role="alert">전략 목록 조회 실패 <button onClick={()=>catalog.refetch()}>다시 조회</button></p>}
     <label>전략 <select className="input" aria-label="전략 자료 선택" value={selection.strategy} onChange={e=>setSelection({strategy:e.target.value,variant:''})}><option value="">전략 선택</option>{catalog.data?.items.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
     {catalog.isLoading&&<p role="status">전략 자료를 불러오고 있습니다.</p>}
-    {!selection.strategy&&!!catalog.data?.items.length&&<section className={s.operations}><h2>비교할 전략을 선택하세요</h2><p>각 모델의 구성 종목, 운용 규칙과 제공된 과거 성과를 확인할 수 있습니다.</p><div className="strategy-catalog">{catalog.data.items.map((x,i)=><button key={x.id} onClick={()=>setSelection({strategy:x.id,variant:''})}><span className="strategy-number">0{i+1}</span><strong>{x.label}</strong><span>자료와 구성 살펴보기 →</span></button>)}</div></section>}
+    {!selection.strategy&&!!catalog.data?.items.length&&<section className={s.operations}><h2>전략별 자료</h2><div className="strategy-catalog">{catalog.data.items.map(x=><button key={x.id} onClick={()=>setSelection({strategy:x.id,variant:''})}><strong>{x.label}</strong><span>자료와 구성 살펴보기 →</span></button>)}</div></section>}
     {!catalog.isLoading&&!catalog.isError&&catalog.data?.items.length===0&&<section className={s.empty}><h2>등록된 전략 자료가 없습니다</h2><p>자료가 등록되면 이곳에서 구성과 성과를 확인할 수 있습니다.</p></section>}
     {q.isError&&<p role="alert">전략 상세 조회 실패 <button onClick={()=>q.refetch()}>다시 조회</button></p>}
     {q.isLoading&&<p role="status">전략 상세 조회 중</p>}

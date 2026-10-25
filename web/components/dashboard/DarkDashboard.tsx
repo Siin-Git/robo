@@ -60,8 +60,7 @@ export function DarkDashboard(){
  const retry=()=>{void history.refetch();void forward.refetch();void ledgerQuery.refetch();};
  return <div className={s.theme}><AppShell headerTitle="대시보드" headerRight={<div className={s.account}><UserRound size={15}/>{user?.display_name??user?.participant_id??"내 계정"}</div>}>
   <div className={s.page}>
-   <div className={s.preview}><span>PORTFOLIO OVERVIEW <b>내 투자 현황 한눈에 보기</b></span><Link href={originalHref}>상세 분석 <ArrowUpRight size={14}/></Link></div>
-   <header className={s.heading}><div><p className={s.eyebrow}>MY INVESTMENT</p><h1>내 투자의 흐름을 한눈에</h1><p>성과부터 보유자산까지, 기록된 숫자로 살펴보세요.</p></div><Link className={s.primary} href="/portfolio">내 포트폴리오 <ArrowUpRight size={17}/></Link></header>
+   <header className={s.heading}><div><h1>내 투자 현황</h1></div><div className={s.headingActions}><Link className="btn-secondary" href={originalHref}>상세 분석 <ArrowUpRight size={15}/></Link><Link className="btn-secondary" href="/portfolio">내 포트폴리오 <ArrowUpRight size={15}/></Link></div></header>
    <Continuity/>
    <div className={s.toolbar}><div className={s.tabs} role="group" aria-label="운용 기록 선택">{saved?.ledger&&<button aria-pressed={archive} onClick={()=>setView("archive")}>기준일 모의운용</button>}<button aria-pressed={!archive} onClick={()=>setView("forward")}>자동운용</button></div><span className={s.asof}><span/>{end?`${fmtDate(end)} 평가 기준`:"평가일 미확보"}<button aria-label="기록 새로고침" onClick={retry}><RefreshCw size={14}/></button></span></div>
    {error&&hasData&&<p role="alert">기록 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button className="btn-secondary" onClick={retry}>다시 조회</button></p>}
@@ -87,9 +86,9 @@ export function DarkDashboard(){
     </div>
     <ReturnContribution report={archive?saved?.performance_report:report}/>
     <div className={s.actions}>
-     <div className={s.action}><span className={s.icon}><Activity size={20}/></span><div><h3>{archive?"기록으로 확인하는 모의운용":"자동운용 기록"}</h3><p>{archive?`평가 ${observations??0}회 · 모의 체결 ${ledger?.trades.length??0}건`:`평가 ${observations??0}회 · ${end?`마지막 평가 ${fmtDate(end)}`:"정상 평가일 미확보"}`}</p></div></div>
+     <div className={s.action}><span className={s.icon}><Activity size={20}/></span><div><h3>{archive?"모의운용 기록":"자동운용 기록"}</h3><p>{archive?`평가 ${observations??0}회 · 모의 체결 ${ledger?.trades.length??0}건`:`평가 ${observations??0}회 · ${end?`마지막 평가 ${fmtDate(end)}`:"정상 평가일 미확보"}`}</p></div></div>
      <Link className={s.action} href={`/ranking?source=${source}`}><span className={s.icon}><Layers3 size={20}/></span><div><h3>다른 참여자와 비교</h3><p>같은 기간의 성과와 순위를 확인하세요</p></div><ArrowUpRight size={18}/></Link>
-     <Link className={s.action} href="/review"><span className={s.icon}><RefreshCw size={20}/></span><div><h3>처음의 판단 돌아보기</h3><p>저장한 예상과 이후의 기록을 함께</p></div><ArrowUpRight size={18}/></Link>
+     <Link className={s.action} href="/review"><span className={s.icon}><RefreshCw size={20}/></span><div><h3>판단 기록</h3><p>저장한 예상과 이후의 기록을 함께</p></div><ArrowUpRight size={18}/></Link>
     </div>
     <details id="dark-records" className={s.disclosure}><summary>보유자산과 운용 기록 <span>현금 · 주문 · 체결 <ChevronRight size={16}/></span></summary><div className={s.records}>{archive&&saved?<HistoricalLedger report={saved}/>:<><ForwardOperations latestValuationDate={end??null} observations={observations??null}/><LedgerHistory/></>}</div></details>
     <details className={s.disclosure}><summary>계산 기준과 데이터 확인 <span>출처 · 평가일 · 일별 수치 <ChevronRight size={16}/></span></summary><div className={s.method}>

@@ -54,7 +54,7 @@ export default function AccountPage() {
 
   return (
     <AppShell headerTitle="계정 관리">
-      <PageHeader title="계정 관리" description="내 계정과 세션을 관리합니다." />
+      <PageHeader title="계정 관리" />
       <div className="flex flex-col gap-[32px]">
         <section className="ui-panel">
           <SectionHeader title="내 프로필" />
@@ -68,7 +68,7 @@ export default function AccountPage() {
               ]}
               rows={[
                 { k: "이메일", v: me.data.email },
-                { k: "권한", v: me.data.role },
+                { k: "권한", v: me.data.role === "admin" ? "관리자" : me.data.role === "user" ? "일반 사용자" : me.data.role },
                 { k: "참여자 번호", v: me.data.participant_id ?? "—" },
               ]}
               rowKey={(r) => r.k}
@@ -88,7 +88,7 @@ export default function AccountPage() {
           </form>
         </section>
         <section className="ui-panel">
-          <SectionHeader title="로그인 세션" />
+          <SectionHeader title="로그인 내역" />
           {sessions.isLoading ? <LoadingSkeleton rows={2} /> : !sessions.data ? (
             <ErrorState message="데이터를 불러오지 못했습니다." onRetry={() => sessions.refetch()} />
           ) : sessions.data.items.length === 0 ? (
