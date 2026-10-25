@@ -76,7 +76,7 @@ export function LedgerComparison({participantId}:{participantId?:string}) {
     {key:riskBasis?"volatility":"excess",header:riskBasis?"연율 변동성":"CORE 대비",numeric:true,render:r=><strong className={`${s.secondaryMetric} ${basis==="excess"||basis==="volatility"?s.selectedMetric:""}`}>{riskBasis?fmtPct(r.metrics.volatility):fmtActivePp(r.metrics.difference_pp)}</strong>},
   ];
   return <AppShell headerTitle="참여자 성과 비교" softBackground><div className={`${s.page} ${ui.page}`}>
-    <header className={s.header}><div><h1>참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link className="btn-secondary" href={archived?"/dashboard?view=details&source=archive":`/dashboard?comparison=common&period=${period}&source=forward`}>공통 기간의 내 성과·기여도</Link></header>
+    <header className={s.header}><div><h1>참여자 성과 비교</h1><p className="page-desc">같은 기간의 수익률과 위험을 비교합니다.</p></div><Link className="btn-secondary" href={archived?"/dashboard?view=details&source=archive":`/dashboard?comparison=common&period=${period}&source=forward`}>공통 기간의 내 성과·기여도</Link></header>
     {(hasArchive||data?.archive_available)&&<div className="race-filters" role="group" aria-label="비교 기록 선택"><button aria-pressed={archived} onClick={()=>setSource("archive")}>저장된 모의운용</button><button aria-pressed={!archived} onClick={()=>setSource("forward")}>자동운용</button></div>}
     <div className={ui.context}><div className={ui.contextText}><span className={ui.sourceBadge}>{!data?"기록 확인 중":archived?"모의운용 성과":data?.data_kind==="HISTORICAL_REPLAY"?"과거 가격 모의실험":data?.data_kind==="TEST_FIXTURE"?"검증용 합성 데이터":"실제 시장 가격 모의운용"}</span><span>{fmtDate(data?.start)} — {fmtDate(data?.end)}</span><span>{data?.registered??"—"}명 비교</span></div><label className={ui.period}>조회 기간<select aria-label="조회 기간" className="input" value={period} onChange={e=>setPeriod(e.target.value as Period)}>{PERIODS.map(p=><option key={p.key} value={p.key}>{p.label}</option>)}</select></label></div>
     {q.isLoading?<LoadingSkeleton rows={5}/>:q.isError?<ErrorState message="운용 원장 비교를 불러오지 못했습니다." onRetry={()=>q.refetch()}/>:data&&<>
@@ -98,7 +98,7 @@ export function LedgerComparison({participantId}:{participantId?:string}) {
         <p className={s.sortHint}>{riskBasis?"기록·가격 품질 조건을 충족한 경우에만 위험 순위를 산출합니다.":basis==="return"?"누적수익률이 높은 순서입니다.":"CORE와 같은 기간의 차이가 큰 순서입니다."}</p>
         <p className={`${s.footnote} ${ui.scrollHint}`}>표를 좌우로 밀어 테마와 비교 지표를 확인하세요.</p>
         <DataTable rows={data.items} columns={columns} rowKey={r=>r.participant_id} rowClassName={r=>`${s.row} ${r.rank!=null&&r.rank<=3?s.topRow:""} ${r.participant_id===me.data?.participant_id?"analytics-my-row":""} ${r.participant_id===focus?ui.focusRow:""}`}/>
-        <p className={s.footnote}>현재 정렬 기준의 Top 3를 강조합니다. 대기 중인 지표는 ‘—’로 표시합니다.</p>
+        <p className={s.footnote}>산출할 수 없는 지표는 ‘—’로 표시합니다.</p>
       </section>
       {data.theme_selectors?.length ? <ThemeComparison ledger data={{theme_selectors:data.theme_selectors,comparable:data.items.filter(p=>p.metrics.cumulative_return!=null).length}}/> : <section className="analytics-panel" aria-label="테마별 성과 대기"><h2>편입 테마별 성과</h2><p className="caption">같은 기간의 테마 보유·평가 기록이 쌓이면 참여자 평균을 보여드립니다.</p></section>}
       <details className={`${s.guide} ${ui.guide}`}><summary>비교 기준 보기</summary>

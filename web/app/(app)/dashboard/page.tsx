@@ -67,11 +67,11 @@ function LegacyDashboardPage() {
   const archivedView=!example&&!!saved?.ledger&&(view==="archive"||(view==="auto"&&!ready));
   const sourceSwitch=saved?.ledger&&!example?<div className={s.periods} role="group" aria-label="운용 기록 선택"><button aria-pressed={archivedView} onClick={()=>setView("archive")}>{fmtDate(saved.start)} 기준 모의운용</button><button aria-pressed={!archivedView} onClick={()=>setView("forward")}>자동운용</button></div>:null;
   if(archivedView&&saved)return <AppShell headerTitle="포트폴리오 운용 성과" softBackground><div className={s.page}>
-    <header className={s.header}><div><span className={s.eyebrow}>MY PORTFOLIO</span><h1>내 투자 성과</h1><p>성과와 보유자산·주문·체결 기록을 함께 확인하세요.</p></div><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link></header>
+    <header className={s.header}><div><h1>내 투자 성과</h1><p>성과와 보유자산·주문·체결 기록을 함께 확인하세요.</p></div><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link></header>
     {sourceSwitch}<HistoricalPreview/><ReturnContribution report={saved.performance_report}/><HistoricalLedger report={saved}/>
   </div></AppShell>;
   return <AppShell headerTitle="포트폴리오 운용 성과" softBackground><div className={s.page}>
-    <header className={s.header}><div><span className={s.eyebrow}>MY PORTFOLIO</span><h1>내 투자 성과</h1><p>{report?.replay_context?"선택한 투자 구성이 과거 시장에서 어떻게 움직였는지 살펴보세요.":"내 투자 구성의 변화와 수익에 기여한 자산을 살펴보세요."}</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link><Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
+    <header className={s.header}><div><h1>내 투자 성과</h1><p>{report?.replay_context?"선택한 투자 구성이 과거 시장에서 어떻게 움직였는지 살펴보세요.":"내 투자 구성의 변화와 수익에 기여한 자산을 살펴보세요."}</p></div><div className="ui-actions"><Link className={s.outlineLink} href={portfolioHref}>내 포트폴리오</Link><Link className="btn-primary" href="/setup/portfolio?step=risk">포트폴리오 설계<ArrowRight size={16}/></Link></div></header>
     {sourceSwitch}
     {!example && !saved?.ledger && <HistoricalPreview/>}
     <div className={s.toolbar}><div className={s.measurement}><span className={s.statusDot}/>{example?"화면 예시 · 가상 데이터":report?.replay_context?"과거 가격 모의실험":"모의운용 성과"}<span className={s.date}>{report?.end ? `데이터 기준 ${fmtDate(report.end)}` : "운용 데이터 대기 중"}</span></div><div className={s.periods} role="group" aria-label="성과 조회 기간">{PERIODS.map(p=><button key={p.key} aria-pressed={period===p.key} onClick={()=>{setPeriod(p.key);setSelected(null);}}>{p.label}</button>)}</div></div>
@@ -95,7 +95,7 @@ function LegacyDashboardPage() {
         {base.isError && <button className="btn-secondary" onClick={()=>base.refetch()}>저장 상태 다시 확인</button>}
         <button className="btn-secondary" onClick={()=>setExample(true)}>예시 데이터로 화면 살펴보기<ArrowRight size={17}/></button>
       </section>:<>
-        <PerformancePanels styles={s} report={report!} mode={mode} selected={selected} onSelect={setSelected} onMode={value=>{setMode(value);setSelected(null);}} riskPanel={<details className={s.riskDisclosure}><summary>위험 지표 자세히 보기<span>변동성 · 최대 낙폭 · 산출 조건</span></summary><section className={s.riskSection}><div className={s.sectionHeading}><div><span className={s.eyebrow}>RISK & RETURN</span><h2>수익과 위험 함께 보기</h2><p>{example ? "현재 지표는 시연용 가상 데이터로 계산한 예시입니다." : "선택한 기간의 모의운용 기록으로 계산한 위험 지표입니다."}</p></div></div>
+        <PerformancePanels styles={s} report={report!} mode={mode} selected={selected} onSelect={setSelected} onMode={value=>{setMode(value);setSelected(null);}} riskPanel={<details className={s.riskDisclosure}><summary>위험 지표 자세히 보기<span>변동성 · 최대 낙폭 · 산출 조건</span></summary><section className={s.riskSection}><div className={s.sectionHeading}><div><h2>수익과 위험 함께 보기</h2><p>{example ? "현재 지표는 시연용 가상 데이터로 계산한 예시입니다." : "선택한 기간의 모의운용 기록으로 계산한 위험 지표입니다."}</p></div></div>
           <div className={s.riskMetrics}><div><span>실현 변동성 · 연율</span><strong>{fmtPct(m?.volatility)}</strong><p>수익률이 얼마나 흔들렸는지</p></div><div><span>최대 낙폭</span><strong>{fmtPct(m?.mdd)}</strong><p>유효 평가 2건 이상에서 관측된 최대 하락</p></div><div><span>기록된 평가일</span><strong>{report!.observations}<small>일</small></strong><p>{fmtDate(report!.start)} — {fmtDate(report!.end)}</p></div></div>
           <p className={s.infoNote}>MDD는 관측 기록 기준입니다. 평가 공백에서 발생한 낙폭은 확인할 수 없으며, 연율 변동성과 산출 조건이 다릅니다.</p>{report?.metric_quality?.mdd.reason&&<p className={s.infoNote}>MDD 비교: {ledgerReason(report.metric_quality.mdd.reason)}</p>}
           {m?.volatility==null&&<p className={s.infoNote}>연율 위험 지표는 유효한 수익률 30개 이상이 필요합니다. 누락되거나 오래된 가격이 있는 기간에는 표시하지 않습니다.</p>}

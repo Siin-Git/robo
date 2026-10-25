@@ -374,4 +374,16 @@ input::placeholder,textarea::placeholder { color:var(--text-muted);opacity:.8; }
 .strategy-catalog span { font-size:12px;color:var(--text-secondary); }
 .strategy-catalog .strategy-number { font-size:14px;color:var(--brand);font-weight:700; }
 
-.strategy-catalog button { text-decoration:none; }
+.review-workspace .strategy-catalog button { text-decoration:none; }
+
+/* Page consistency: keep secondary guidance quiet and actions reachable on small screens. */
+.weekly-views { max-width:1100px;min-width:0; }
+.view-rules { margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;color:var(--text-secondary);font-size:13px;line-height:1.8; }
+.view-rules summary { cursor:pointer;width:fit-content; }
+.view-rules p { margin-top:10px;max-width:760px; }
+.view-rules summary:focus-visible { outline:2px solid var(--brand);outline-offset:4px; }
+.strategy-catalog { grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));margin-top:16px; }
+.strategy-catalog button { gap:12px;padding:22px;border-radius:12px; }
+.strategy-catalog strong { font-size:18px; }
+.review-workspace header .ui-actions { flex-shrink:0; }
+@media(max-width:900px) { .review-workspace header { flex-wrap:wrap; }.review-workspace header .ui-actions { flex-shrink:1; } }

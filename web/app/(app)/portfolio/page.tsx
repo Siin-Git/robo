@@ -85,13 +85,13 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
 
   return <div className={s.page}>
     <header className={s.header}>
-      <div><span className={s.eyebrow}>CONFIRMED ALLOCATION</span><h1>{DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"}</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
+      <div><h1>{DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"}</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
       <div className="ui-actions">{DEMO_MODE && <Link className={s.edit} href="/portfolio?source=demo">시연 비교 구성</Link>}<Link className={s.edit} href="/setup/portfolio?step=risk"><SlidersHorizontal size={16} />구성 변경</Link></div>
     </header>
     {p.rebalance_frequency && <p aria-label="저장된 리밸런싱 주기">{p.rebalance_frequency_source === "LEGACY_DEFAULT" ? "기존 판단의 기본 정기 리밸런싱" : "확정한 정기 리밸런싱"}: <strong>{REBALANCE_LABELS[p.rebalance_frequency]}</strong>{p.rebalance_frequency_source === "LEGACY_DEFAULT" && " · 당시 선택 기록 없음"}</p>}
 
     <section className={s.composition} aria-labelledby="portfolio-composition">
-      <div className={s.compositionHeader}><div><h2 id="portfolio-composition">나의 자산 구성</h2><p>자산 위에 커서를 올려 비중을 확인해 보세요.</p></div>
+      <div className={s.compositionHeader}><div><h2 id="portfolio-composition">목표 자산 구성</h2></div>
         <div className={s.metrics}><div><span>현재 구성 예상 변동성</span><strong>{fmtPct(currentVol)}</strong></div><div><span>반영한 테마 비중</span><strong className={s.purple}>{fmtPct(themeTotal)}</strong></div></div>
       </div>
       <div className={s.compositionGrid}>

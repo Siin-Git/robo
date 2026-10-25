@@ -63,9 +63,9 @@ export function ThemeSelector({
   return (
     <div>
       <div
-        className="grid grid-cols-1 gap-[16px] min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        className="grid grid-cols-1 gap-[16px] min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         role="group"
-        aria-label="Theme selection"
+        aria-label="투자 테마 선택"
       >
         {themes.map((t) => (
           <ThemeCard key={t.theme_id} theme={t} selected={selected.includes(t.theme_id)}
