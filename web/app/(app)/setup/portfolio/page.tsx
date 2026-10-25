@@ -337,6 +337,8 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
           rebalanceFrequency={frequency}
           onBack={goBack}
           onComplete={() => mutateComplete.mutate({ frontier_id: selected.frontier_id, theme_ids: selectedThemes, reason, rebalance_frequency: frequency })}
+          onCompleteBase={() => mutateComplete.mutate({ frontier_id: selected.frontier_id, theme_ids: [], reason, rebalance_frequency: frequency })}
+          selectionReason={{value:reason,onChange:setReason}}
           pending={mutateComplete.isPending}
           error={mutateComplete.isError}
         />

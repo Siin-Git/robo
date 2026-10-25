@@ -46,8 +46,28 @@ def rehearsal(session, user_id, decision_id, period="all", initial_amount=10_000
                          "fees_and_taxes_included": False, "cash_interest": 0}}
     base = _weights((decision.provenance_json or {}).get("base_weights"))
     personal = _weights(decision.weights_json)
+    return _calculate(result, base, personal, period, initial_amount)
+
+
+def preview_rehearsal(session, user_id, participant_id, frontier_id, theme_ids, period="all", initial_amount=10_000_000):
+    from .onboarding_service import preview
+    proposal = preview(session, user_id, participant_id, frontier_id, theme_ids)
+    result = {"status": "UNAVAILABLE", "reason": None, "kind": "HISTORICAL_REHEARSAL",
+              "actual_account_history": False, "decision_id": None, "confirmed_at": None,
+              "selection_reason": "", "initial_amount": initial_amount, "currency": "KRW",
+              "periods": [], "period": None, "base": None, "personalized": None,
+              "series": [], "source": None, "proposal": proposal,
+              "method": {"allocation": "UNCONFIRMED_PROPOSAL", "execution": "BUY_AND_HOLD",
+                         "fractional_units": True, "rebalancing": False,
+                         "fees_and_taxes_included": False, "cash_interest": 0}}
+    base = _weights({row["asset_id"]: row["weight"] for row in proposal["base"]["weights"]})
+    personal = _weights({row["asset_id"]: row["weight"] for row in proposal["personalized"]["weights"]})
+    return _calculate(result, base, personal, period, initial_amount)
+
+
+def _calculate(result, base, personal, period, initial_amount):
     if base is None or personal is None:
-        result["reason"] = "확정 당시 두 구성의 유효한 비중이 모두 저장되어 있지 않아 비교할 수 없습니다."
+        result["reason"] = "두 구성의 유효한 비중이 모두 확보되지 않아 비교할 수 없습니다."
         return result
     try:
         prices, meta = market_comparison.bundle()
