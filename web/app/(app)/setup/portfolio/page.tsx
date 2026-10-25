@@ -196,7 +196,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
   const assetWeights = [...selected.weights].sort((a, b) => b.weight - a.weight);
 
   return (
-    <AppShell headerTitle="내 기본 포트폴리오 선택" setup>
+    <AppShell headerTitle={step === "review" ? "포트폴리오 설계" : "내 기본 포트폴리오 선택"} setup hideDesignNotice={step === "review"}>
       <SetupProgress step={step} />
       {step === "risk" && saveError && <p role="alert" className="text-negative">선택 내용을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
       {step === "risk" && (
