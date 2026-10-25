@@ -26,10 +26,12 @@ test('main pages remain readable and browsing does not change investment records
       await rules.locator('summary').press('Enter');await expect(rules).toHaveAttribute('open','');
       await expect(rules).toContainText('위험 한도');await rules.locator('summary').press('Enter');
     }
-    await page.screenshot({path:path.join(evidence,`${route.slice(1)}-desktop.png`),fullPage:true});
+    await page.waitForTimeout(200); // Let Chrome composite route/layout changes before capturing.
+    await page.screenshot({path:path.join(evidence,`${route.slice(1)}-desktop.png`),fullPage:false});
     await page.setViewportSize({width:390,height:844});
     await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),{message:`${route} mobile overflow`}).toBe(true);
-    await page.screenshot({path:path.join(evidence,`${route.slice(1)}-mobile.png`),fullPage:true});
+    await page.waitForTimeout(200);
+    await page.screenshot({path:path.join(evidence,`${route.slice(1)}-mobile.png`),fullPage:false});
   }
   expect(counts()).toEqual(before);expect(errors).toEqual([]);
 });
