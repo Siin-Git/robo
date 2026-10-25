@@ -34,6 +34,7 @@ const GROUPS = [
   ] },
   { label: "성과 분석", items: [
     { href: "/review", label: "판단 기록", icon: History },
+    { href: "/verification", label: "검증 현황", icon: ShieldCheck },
     { href: "/strategies", label: "투자 전략 자료실", icon: Library },
     { href: "/ranking", label: "참여자 비교·랭킹", icon: Trophy },
   ] },

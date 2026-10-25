@@ -922,3 +922,12 @@ Validation: 123 frontend tests and production build/type checking passed.
 기존 원장과 과거 재현/자동운용 선택, 계산 근거, 상세 조회는 유지한다.
 연속 지수 API와 데이터는 수정하지 않는다.
 검증: 기존 프런트 146개 및 production 빌드(타입 검사 포함) 통과.
+
+## 2026-10-26 — 검증 현황 페이지
+
+성과 분석 메뉴에 `/verification`을 추가했다. 소유자의 최신 판단 검증 API를
+읽어 판단 기록·동일 기간 성과·전체 계좌 평가 작업을 분리한다. 근거 펼침과
+3·6개월 상태, 미입증 항목, 버전 고정된 기능 검사 링크를 제공한다.
+갱신 실패는 이전 기록으로 표시하며 기능 검사와 투자 성과를 구분한다.
+프런트 167개, 검증 API 28개, 격리 브라우저 7개, 타입 포함 빌드 통과.
+설계·근거·화면·한계: [VERIFICATION_STATUS.md](VERIFICATION_STATUS.md).
