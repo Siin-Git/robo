@@ -1,0 +1,76 @@
+import {test, expect, type Page} from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+
+const root = path.resolve(__dirname, '../..');
+const fixture = process.env.E2E_OPERATIONS_DATA_DIR!;
+const account = JSON.parse(fs.readFileSync(path.join(fixture, 'accounts.json'), 'utf8')).accounts[0];
+const original = JSON.parse(fs.readFileSync(path.join(fixture, 'original.json'), 'utf8'));
+const evidence = path.join(root, 'docs/evidence/investment-rehearsal');
+const counts = () => JSON.parse(execFileSync(path.join(root, '.venv/bin/python'), [
+  'scripts/seed_verification_ui_fixture.py', '--directory', fixture, '--mode', 'counts'], {cwd: root, encoding: 'utf8'}));
+const won = (value: number) => `${Math.round(value).toLocaleString('ko-KR')}원`;
+async function login(page: Page) {
+  await page.goto('/login');
+  await page.getByLabel('이메일').fill(account.email);
+  await page.getByLabel('비밀번호').fill(account.password);
+  await page.getByRole('button', {name: '로그인', exact: true}).click();
+  await expect(page).toHaveURL(/dashboard/);
+}
+
+test('real API: saved pair, all dates and year/amount controls, review link, mobile and no writes', async ({page}) => {
+  fs.mkdirSync(evidence, {recursive: true});
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  const before = counts();
+  await login(page); await page.goto('/portfolio');
+  await page.getByRole('link', {name: '내 투자 리허설 열기'}).click();
+  const endpoint = `/api/v1/me/decisions/${original.decision_id}/rehearsal`;
+  const all = await (await page.request.get(endpoint)).json();
+  expect(all.status).toBe('AVAILABLE');
+  expect(all.base.weights).toEqual(original.provenance.base_weights);
+  expect(all.personalized.weights).toEqual(original.weights);
+  await expect(page.getByRole('heading', {name: '내 투자 리허설', level: 1, exact: true})).toBeVisible();
+  await expect(page.getByText(won(all.personalized.end_value), {exact: true})).toBeVisible();
+  await expect(page.getByText(/실제 계좌 성과가 아닙니다/)).toBeVisible();
+  await expect(page.locator('.recharts-line-curve')).toHaveCount(4);
+  await page.screenshot({path: path.join(evidence, 'all-period-desktop.png'), fullPage: true});
+  await page.getByLabel('비교 기간').selectOption('2022');
+  await page.getByLabel('가정 투자금').selectOption('1000000');
+  const year = await (await page.request.get(`${endpoint}?period=2022&initial_amount=1000000`)).json();
+  await expect(page.getByText(won(year.personalized.end_value), {exact: true})).toBeVisible();
+  expect(year.series[0].personalized_value).toBeCloseTo(1000000);
+  await page.getByText('비교한 비중과 계산 기준', {exact: true}).click();
+  await expect(page.getByText(/미국 국채·TIPS/)).toBeVisible();
+  await page.screenshot({path: path.join(evidence, 'year-2022-desktop.png'), fullPage: true});
+  await page.setViewportSize({width: 390, height: 844});
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect((await page.getByLabel('비교 기간').boundingBox())!.width).toBeGreaterThan(130);
+  expect((await page.getByLabel('가정 투자금').boundingBox())!.width).toBeGreaterThan(130);
+  await page.screenshot({path: path.join(evidence, 'year-2022-mobile.png'), fullPage: true});
+  await page.getByRole('link', {name: '기존 판단 검토하기'}).click();
+  await expect(page).toHaveURL(new RegExp(`/review\\?decision_id=${original.decision_id}`));
+  expect(counts()).toEqual(before);
+  expect((await (await page.request.get('/api/v1/me/decisions')).json()).items[0]).toEqual(original);
+  expect(errors).toEqual([]);
+});
+
+test('real API: loading, request failure and retry never attach old values to new controls', async ({page}) => {
+  await login(page);
+  await page.goto(`/portfolio/rehearsal?decision_id=${original.decision_id}`);
+  await expect(page.getByRole('heading', {name: '같은 투자금의 평가액 흐름'})).toBeVisible();
+  let release!: () => void;
+  const barrier = new Promise<void>(resolve => {release = resolve;});
+  await page.route('**/rehearsal?period=2022*', async route => {await barrier; await route.abort('failed');});
+  await page.getByLabel('비교 기간').selectOption('2022');
+  await expect(page.getByLabel('Loading')).toBeVisible();
+  await expect(page.getByRole('heading', {name: '같은 투자금의 평가액 흐름'})).toHaveCount(0);
+  release(); await expect(page.getByRole('main').getByRole('alert')).toContainText('리허설을 불러오지 못했습니다');
+  await page.screenshot({path: path.join(evidence, 'request-failure.png'), fullPage: true});
+  await page.unroute('**/rehearsal?period=2022*');
+  await page.getByRole('button', {name: '다시 조회'}).click();
+  await expect(page.getByRole('heading', {name: '같은 투자금의 평가액 흐름'})).toBeVisible();
+  await page.getByLabel('가정 투자금').focus(); await expect(page.getByLabel('가정 투자금')).toBeFocused();
+  await page.goto('/portfolio/rehearsal');
+  await expect(page.getByRole('status')).toContainText('저장된 판단을 선택');
+});

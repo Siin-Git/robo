@@ -123,6 +123,10 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       </div>
     </section>
 
+    {p.decision_id && <section className={s.frontierPanel} aria-labelledby="rehearsal-entry"><h2 id="rehearsal-entry">내 선택은 과거에 어떻게 움직였을까?</h2>
+      <p>확정 당시 기본 구성과 내 구성을 같은 과거 기간·투자금으로 비교합니다. 실제 계좌 성과가 아닌 가정 계산입니다.</p>
+      <Link className="btn-secondary" href={`/portfolio/rehearsal?decision_id=${encodeURIComponent(p.decision_id)}`}>내 투자 리허설 열기<ArrowRight size={16}/></Link>
+    </section>}
     <PortfolioFrontier key={p.decision_id ?? "unrecorded"} data={p}/>
 
     <section className={s.themes} aria-labelledby="chosen-themes"><div className={s.sectionTitle}><h2 id="chosen-themes">내가 선택한 테마</h2><span>{themes.length}개 테마 · {fmtPct(themeTotal)}</span></div>
