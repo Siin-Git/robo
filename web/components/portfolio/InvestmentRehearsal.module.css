@@ -1,0 +1,27 @@
+.page{display:grid;gap:22px;min-width:0;padding:8px 0 32px;color:var(--text-primary)}
+.page h1{font-size:var(--page-title-size);font-weight:750;letter-spacing:-.04em}
+.page h2{font-size:18px;font-weight:650;margin-bottom:16px}
+.page p{font-size:14px;line-height:1.8;color:var(--text-secondary);margin:8px 0 12px;overflow-wrap:anywhere}
+.eyebrow{display:block;color:var(--text-secondary);font-size:12px;letter-spacing:.06em;margin-bottom:8px}
+.notice,.card{background:var(--surface);border:1px solid var(--panel-border);border-radius:var(--radius-card);padding:24px;min-width:0}
+.notice{border-left:3px solid #74a8ff}
+.controls{display:flex;flex-wrap:wrap;gap:16px;align-items:end}
+.controls label{display:grid;gap:8px;font-size:13px;font-weight:600}
+.controls select{color:var(--text-primary);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-control);padding:12px;min-width:180px}
+.controls>span{font-size:13px;color:var(--text-secondary);padding-bottom:12px}
+.page :is(select,a,button,summary):focus-visible{outline:2px solid #74a8ff;outline-offset:4px}
+.context{margin:0!important}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.metrics .card:first-child{border-top:2px solid #c7d3e6}
+.metrics .card:last-child{border-top:2px solid #74a8ff}
+.metrics dl{display:grid;gap:15px}
+.metrics dl>div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
+.metrics dt{font-size:13px;color:var(--text-secondary)}
+.metrics dd{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.page summary{cursor:pointer;font-size:15px;font-weight:650}
+.table{overflow-x:auto;margin:20px 0}
+.table table{width:100%;font-size:13px;border-collapse:collapse}
+.table caption{text-align:left;color:var(--text-secondary);padding-bottom:12px;line-height:1.7}
+.table :is(th,td){padding:10px 4px;border-bottom:1px solid var(--border);text-align:right}
+.table th:first-child{text-align:left}
+@media(max-width:640px){.metrics{grid-template-columns:1fr;gap:12px}.notice,.card{padding:18px 12px}.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.controls label{min-width:0}.controls select{min-width:0;width:100%;font-size:13px}.controls>span{grid-column:1/-1;padding:0}.metrics dd{font-size:19px}}

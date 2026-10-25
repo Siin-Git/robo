@@ -36,6 +36,7 @@ export function PerformanceChart({
   showPoints = false,
   framed = true,
   showLegend = true,
+  yAxisWidth = 56,
 }: {
   data: Record<string, number | string | null>[];
   series: Series[];
@@ -47,6 +48,7 @@ export function PerformanceChart({
   showPoints?: boolean;
   framed?: boolean;
   showLegend?: boolean;
+  yAxisWidth?: number;
 }) {
   return (
     <div className={framed ? "border border-border bg-surface p-[20px]" : ""}>
@@ -63,7 +65,7 @@ export function PerformanceChart({
             <YAxis
               tick={{ fontSize: 12, fill: "var(--text-secondary)" }}
               tickFormatter={yFormat}
-              width={56}
+              width={yAxisWidth}
               domain={["auto", "auto"]}
             />
             <Tooltip
