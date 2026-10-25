@@ -10,6 +10,7 @@ import { PerformanceChart, CORE_LINE, MY_LINE } from "@/components/dashboard/Per
 import { ASSET_META } from "@/app/(app)/setup/portfolio/asset-meta";
 import { THEME_INFO } from "@/app/(app)/setup/portfolio/theme-content";
 import s from "./InvestmentRehearsal.module.css";
+import {rehearsalHref,type RehearsalContext} from "@/lib/rehearsal-context";
 
 type Period = { id: string; label: string; start: string; end: string; observations: number };
 type Result = { weights: Record<string, number>; end_value: number; cumulative_return: number; max_drawdown: number };
@@ -26,11 +27,11 @@ const won = (v: number) => `${Math.round(v).toLocaleString("ko-KR")}원`;
 const name = (id: string) => ASSET_META[id]?.name ?? THEME_INFO[id.replace(/^theme:/, "")]?.name ?? id;
 type View = "drawdown" | "value";
 
-export function InvestmentRehearsal({ decisionId }: { decisionId: string }) {
-  const [period, setPeriod] = useState("all");
-  const [amount, setAmount] = useState(10_000_000);
+export function InvestmentRehearsal({ decisionId, initialContext = {period: "all", amount: 10_000_000} }: { decisionId: string; initialContext?: RehearsalContext }) {
+  const [period, setPeriod] = useState(initialContext.period);
+  const [amount, setAmount] = useState(initialContext.amount);
   const [view, setView] = useState<View>("drawdown");
-  const [periodOptions, setPeriodOptions] = useState<{id: string; label: string}[]>([{id: "all", label: "전체 자료 기간"}]);
+  const [periodOptions, setPeriodOptions] = useState<{id: string; label: string}[]>([{id: "all", label: "전체 자료 기간"}, ...(initialContext.period === "all" ? [] : [{id: initialContext.period, label: `${initialContext.period}년` }])]);
   const query = useQuery({ queryKey: ["investment-rehearsal", decisionId, period, amount],
     queryFn: () => get<Rehearsal>(`/api/v1/me/decisions/${encodeURIComponent(decisionId)}/rehearsal?period=${period}&initial_amount=${amount}`),
     staleTime: 60_000, retry: 1 });
@@ -92,7 +93,7 @@ export function InvestmentRehearsal({ decisionId }: { decisionId: string }) {
         <div><span className={s.reviewEyebrow}>다음으로 살펴볼 것</span><h2 id="rehearsal-review">이 차이가 내 선택 이유와 맞나요?</h2>
           <p>확정 당시 이유: {data.selection_reason || "저장된 이유 없음"}</p>
           <span className={s.reviewHint}>이 기간의 결과와 당시 선택 근거를 함께 검토하세요.</span></div>
-        <Link className={s.reviewLink} href={`/review?decision_id=${encodeURIComponent(data.decision_id)}`}>기존 판단 검토하기<ArrowUpRight size={16} aria-hidden/></Link>
+        <Link className={s.reviewLink} href={rehearsalHref(data.decision_id, {period, amount}, true)}>기존 판단 검토하기<ArrowUpRight size={16} aria-hidden/></Link>
       </section>
       <div className={s.detailHeading}><span>저장 판단 · {new Date(data.confirmed_at).toLocaleDateString("ko-KR", {timeZone: "Asia/Seoul"})} (한국시간)</span><span>확정 당시 비중으로 비교</span></div>
       <div className={s.details}>
