@@ -4,7 +4,7 @@ import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
 import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, SlidersHorizontal, Layers3 } from "lucide-react";
@@ -68,6 +68,11 @@ function DesignPortfolioPage() {
 
 function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  useEffect(() => {
+    if (window.location.hash !== "#portfolio-check" || !p.decision_id) return;
+    document.getElementById("portfolio-check")?.scrollIntoView({block:"start"});
+    document.getElementById("rehearsal-entry")?.focus({preventScroll:true});
+  }, [p.decision_id]);
   const rows = reviewRows(p);
   const allocations = rows.filter(r => r.final > 0);
   const total = allocations.reduce((sum, r) => sum + r.final, 0);
@@ -123,7 +128,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       </div>
     </section>
 
-    {p.decision_id && <section id="portfolio-check" className={`${s.frontierPanel} ${s.checkEntry}`} aria-labelledby="rehearsal-entry"><h2 id="rehearsal-entry">하락장 리허설</h2>
+    {p.decision_id && <section id="portfolio-check" className={`${s.frontierPanel} ${s.checkEntry}`} aria-labelledby="rehearsal-entry"><h2 id="rehearsal-entry" tabIndex={-1}>하락장 리허설</h2>
       <p>기본 구성과 내 구성의 과거 하락 폭을 비교합니다.</p>
       <Link className="btn-secondary" href={`/portfolio/rehearsal?decision_id=${encodeURIComponent(p.decision_id)}`}>내 투자 리허설 열기<ArrowRight size={16}/></Link>
     </section>}
