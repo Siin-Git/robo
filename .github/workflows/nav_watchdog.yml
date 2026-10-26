@@ -1,0 +1,58 @@
+name: nav-watchdog
+
+on:
+  schedule:
+    # 18:43 / 20:43 / 22:43 KST. Delays are possible; the CLI uses actual KST time.
+    - cron: '43 9,11,13 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      repair:
+        description: 'Allow bounded missing-NAV recovery (default: read-only audit)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Same queue as daily/monthly/weekly: never overlap financial jobs or cancel them.
+concurrency:
+  group: forward-jobs
+  cancel-in-progress: false
+
+jobs:
+  verify-and-recover:
+    if: ${{ github.ref == 'refs/heads/release/public-operation' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Verify actual NAV and recover safely
+        env:
+          APP_PROFILE: local
+          CAPSTONE_DEMO: '1'
+          FORWARD_EXECUTOR: ${{ vars.FORWARD_EXECUTOR }}
+          FORWARD_DAILY_ENABLED: ${{ vars.FORWARD_DAILY_ENABLED }}
+          DATABASE_BACKEND: postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          TZ: Asia/Seoul
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          REPAIR: ${{ github.event_name == 'schedule' || inputs.repair == true }}
+        run: |
+          args=(--output "$RUNNER_TEMP/nav-watchdog.json")
+          if [ "$REPAIR" = "true" ]; then args+=(--repair); fi
+          python -m src.forward.nav_watchdog "${args[@]}"
+      - name: Preserve NAV verification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nav-watchdog-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/nav-watchdog.json
+            ${{ runner.temp }}/recovery-prices.json
+          retention-days: 14
