@@ -1,7 +1,7 @@
 import {render,screen,fireEvent,cleanup,within,waitFor} from '@testing-library/react';
 import {afterEach,beforeEach,it,expect,vi} from 'vitest';
 import {VerificationStatus} from '../verification/VerificationStatus';
-import {canCompare,jobStatus,koreaTime} from '../verification/status';
+import {canCompare,hasTodayJob,jobStatus,koreaTime} from '../verification/status';
 import type {DecisionVerification} from '../portfolio/DecisionVerificationPanel';
 const state=vi.hoisted(()=>({decisions:{} as any,evidence:{} as any}));
 vi.mock('../layout/AppShell',()=>({AppShell:({children}:any)=><>{children}</>}));
@@ -24,7 +24,7 @@ it('separates recorded judgment, missing performance and globally waiting valuat
   render(<VerificationStatus/>);
   expect(within(screen.getByRole('region',{name:'판단 보존'})).getByText('저장 기록 확인')).toBeVisible();
   expect(within(screen.getByRole('region',{name:'성과 비교'})).getByText('비교 미확보')).toBeVisible();
-  expect(within(screen.getByRole('region',{name:'운용 기록'})).getByText('공동 운용 시작일 미지정')).toBeVisible();
+  expect(within(screen.getByRole('region',{name:'운용 기록'})).getByText('최근 결과 · 공동 운용 시작일 미지정')).toBeVisible();
   expect(screen.queryByText('최근 평가 완료')).not.toBeInTheDocument();
   expect(screen.queryByText('0.00%')).not.toBeInTheDocument();
   fireEvent.click(screen.getByText('운용 기록 근거 보기'));
@@ -89,4 +89,24 @@ it('does not treat calendar arrival or a recorded review as proof of investment 
 it('formats evidence dates in Korean time without substituting now for missing timestamps',()=>{
   expect(koreaTime(null)).toBe('미확보');expect(koreaTime('invalid')).toBe('미확보');
   expect(koreaTime('2026-10-25T18:21:54Z')).toContain('26.');expect(koreaTime('2026-10-25T18:21:54Z')).toContain('03:21');
+});
+
+it('separates yesterday start wait from today rather than claiming the start is still in the future',()=>{
+  state.evidence.data.valuation_job.reason_code='AWAITING_T0';
+  render(<VerificationStatus/>);
+  expect(screen.getByText('최근 결과 · 당시 시작일 도달 전')).toBeVisible();
+  expect(screen.getByText('오늘 평가 · 기록 미확보')).toBeVisible();
+  expect(screen.queryByText('지정된 공동 운용 시작일 도달 전')).not.toBeInTheDocument();
+});
+it('uses the Korean calendar date of the successful response and never assumes execution from elapsed time',()=>{
+  const job={...makeData().valuation_job!,scheduled_for:'2026-10-26'};
+  expect(hasTodayJob(job,Date.parse('2026-10-25T14:59:59Z'))).toBe(false);
+  expect(hasTodayJob(job,Date.parse('2026-10-25T15:00:00Z'))).toBe(true);
+  expect(hasTodayJob({...job,scheduled_for:'2026-10-25'},Date.parse('2026-10-26T14:00:00Z'))).toBe(false);
+  expect(hasTodayJob(null,Date.parse('2026-10-26T14:00:00Z'))).toBe(false);
+});
+it.each([['RUNNING',false,'평가 작업 진행 중'],['EVALUATION_FAILED',false,'평가 실패'],['NAV_COMPLETE',true,'최근 평가 완료']])('shows today recorded state %s without hiding failures',(status,completed,label)=>{
+  state.evidence.data.valuation_job={...makeData().valuation_job!,scheduled_for:'2026-10-26',state:status,valuation_completed:completed};
+  render(<VerificationStatus/>);
+  expect(screen.getByText(`오늘 평가 · ${label}`)).toBeVisible();
 });
