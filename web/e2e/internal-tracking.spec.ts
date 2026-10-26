@@ -26,7 +26,7 @@ for(const width of [1440,390])test(`internal tracking authority, persistence and
  const frontier=page.locator('details').filter({has:page.locator('summary').filter({hasText:'확정 당시 Frontier 좌표'})});
  await frontier.locator('summary').click();await expect(frontier.getByRole('row')).toHaveCount(51);
  expect(await page.getByLabel('로컬 과거 재생 시연').count()).toBe(0);
- await expect(page.getByText(/과거 가격 재생은 이 추적과 3·6개월 관측에 포함하지 않습니다/)).toBeVisible();
+ await expect(page.getByText(/과거 재현은 3·6개월 관측에서 제외합니다/)).toBeVisible();
  const endpoint=`/api/v1/admin/tracking/${fixture.new_decision_id}`;
  const before=await(await page.request.get(endpoint)).json();
  expect(before.snapshot_status).toBe('RECORDED');expect(before.snapshot.frontier.points).toHaveLength(50);
@@ -36,13 +36,13 @@ for(const width of [1440,390])test(`internal tracking authority, persistence and
  await page.getByLabel('검토 방향').selectOption('REVISION_REVIEW');
  const reason=`LOCAL VALIDATION ${width} ${Date.now()}: 최초 전망 정의와 실제 관측 부족을 검토함`;
  await page.getByLabel('검토 근거').fill(reason);
- await page.getByRole('button',{name:'내부 검토 기록 저장',exact:true}).click();
+ await page.getByRole('button',{name:'검토 기록 저장',exact:true}).click();
  await expect(page.getByText('내부 검토 기록을 저장했습니다.',{exact:true})).toBeVisible();
  await expect(page.getByRole('listitem').getByText(reason,{exact:true})).toBeVisible();
  const saved=await(await page.request.get(endpoint)).json();
  expect(saved.snapshot).toEqual(before.snapshot);expect(saved.actual_ledger).toEqual(before.actual_ledger);
  expect(saved.reviews.filter((r:any)=>r.reason===reason)).toHaveLength(1);
- await page.getByRole('button',{name:'내부 검토 기록 저장',exact:true}).click();
+ await page.getByRole('button',{name:'검토 기록 저장',exact:true}).click();
  await page.reload();await page.getByLabel('추적할 판단').selectOption(fixture.new_decision_id);
  await expect(page.getByRole('listitem').getByText(reason,{exact:true})).toBeVisible();
  expect((await(await page.request.get(endpoint)).json()).reviews.filter((r:any)=>r.reason===reason)).toHaveLength(1);
@@ -64,7 +64,7 @@ for(const width of [1440,390])test(`internal tracking authority, persistence and
  expect(JSON.stringify(review)).not.toContain(reason);expect(review.actual.observations).toBe(0);
  await page.goto('/admin/tracking');
  await expect(page.getByText(/관리자 권한이 필요합니다/)).toBeVisible();
- expect(await page.getByRole('button',{name:'내부 검토 기록 저장',exact:true}).count()).toBe(0);
+ expect(await page.getByRole('button',{name:'검토 기록 저장',exact:true}).count()).toBe(0);
  await page.screenshot({path:path.join(output,`denied-${width}.png`),fullPage:true});
  expect(errors).toEqual([]);
 });

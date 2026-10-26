@@ -126,3 +126,54 @@ def test_handoff_refuses_changed_inputs_and_synthetic_prices(build):
     x.con.commit()
     with pytest.raises(ValueError, match="UNVERIFIED_PRICE_SOURCE"):
         snapshot(x.con, "2026-10-01", "2026-10-06", "2026-10-07")
+
+
+def test_continuity_preserves_lineage_gaps_and_stored_nav(build):
+    from src.api.services.continuity_service import own
+    x, plan = prepare(build)
+    apply(x.con, plan, digest(plan))
+    member = plan["source"]["members"][0]
+    aid = member["personal_account_id"]
+    core = next(a for a in member["account_ids"] if a != aid)
+    x.prices("2026-10-07")
+    x.con.execute("UPDATE prices_daily SET source='ISOLATED_PRICE_TEST'")
+    x.con.commit()
+    x.clock["now"] = datetime(2026, 10, 7, tzinfo=gate.KST)
+    assert _execute_daily(x.con, x.cfg, "2026-10-07", use_stored_prices=True)[0] == 0
+    def read():
+        with x.operation() as session:
+            return own(session, member["participant_id"], member["user_id"])
+    before = [tuple(r) for r in x.con.execute("SELECT * FROM nav_daily ORDER BY account_id,date")]
+    report = read()
+    assert report["summary"]["end"] == "2026-10-07"
+    assert report["snapshot"]["date"] == report["summary"]["end"]
+    assert report["summary"]["personal_return"] == pytest.approx(
+        report["series"][-1]["personal_nav"] / report["series"][0]["personal_nav"] - 1)
+    assert report["snapshot"]["nav"] == pytest.approx(report["snapshot"]["cash_balance"] + sum(h["market_value"] for h in report["snapshot"]["holdings"]))
+    assert report["forward_observations"] == 1
+    # The price date is known but BOTH accounts have no NAV: retain a visible gap.
+    x.prices("2026-10-08")
+    x.con.commit()
+    report = read()
+    assert report["summary"]["missing_observations"] == 1
+    assert report["series"][-1]["personal_nav"] is None
+    assert report["summary"]["end"] == "2026-10-07"
+    assert not any(p["date"] == "2026-10-10" for p in report["series"])
+    assert before == [tuple(r) for r in x.con.execute("SELECT * FROM nav_daily ORDER BY account_id,date")]
+    # One invalid account must not produce a misleading paired return.
+    x.con.execute("UPDATE nav_daily SET stale_price_flag=true WHERE account_id=?", (core,))
+    x.con.commit()
+    assert read()["forward_observations"] == 0
+    x.con.execute("UPDATE nav_daily SET stale_price_flag=false WHERE account_id=?", (core,))
+    x.con.execute("UPDATE holdings_daily SET market_value=market_value+1000 WHERE account_id=?", (aid,))
+    x.con.commit()
+    assert read()["forward_observations"] == 0
+    x.con.execute("UPDATE holdings_daily SET market_value=market_value-1000 WHERE account_id=?", (aid,))
+    x.con.commit()
+    # Matching provenance is necessary even when the numerical NAV is valid.
+    event = x.con.execute("SELECT event_id,payload_json FROM events WHERE event_type='NAV_CALCULATED' AND account_id=?", (aid,)).fetchone()
+    payload = json.loads(event["payload_json"])
+    payload["data_kind"] = "HISTORICAL_REPLAY"
+    x.con.execute("UPDATE events SET payload_json=? WHERE event_id=?", (json.dumps(payload), event["event_id"]))
+    x.con.commit()
+    assert read()["forward_observations"] == 0

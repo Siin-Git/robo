@@ -45,7 +45,7 @@ it("opens three sections from each point, preserves historical coordinates, clos
   expect(within(panel).getByText("2026. 9. 2.")).toBeInTheDocument();
   expect(within(panel).getByText(/성과 비교 미확보/)).toBeInTheDocument();
   expect(within(panel).getByText("검증 진행 중")).toBeInTheDocument();
-  expect(within(panel).getByText("내 선택이 바꾼 예상 위험")).toBeInTheDocument();
+  expect(within(panel).getByText("기본 구성과 예상 위험 비교")).toBeInTheDocument();
   expect(within(panel).getByText("+1.00%p")).toBeInTheDocument();
   expect(within(panel).getByText("3개월 점검 · 2026.12.03")).toBeInTheDocument();
   expect(within(panel).getByText("6개월 점검 · 2027.03.03")).toBeInTheDocument();
@@ -86,7 +86,7 @@ it("does not invent a historical risk difference or review outcome from incomple
   render(<PortfolioPage/>);
   fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
   const panel=screen.getByRole("complementary");
-  expect(within(panel).getByText(/두 위험 값이 없어 변화량을 표시할 수 없습니다/)).toBeInTheDocument();
+  expect(within(panel).getByText(/확정 당시 비교할 위험 값이 저장되지 않았습니다/)).toBeInTheDocument();
   expect(within(panel).getByText("관측 자료 대기")).toBeInTheDocument();
   expect(within(panel).queryByText("+1.00%p")).not.toBeInTheDocument();
 });

@@ -66,7 +66,7 @@ export function DecisionVerificationPanel({ point, data, onClose }: {
           <div><dt>효력일</dt><dd>{fmtDate(data.effective_date)}</dd></div>
         </dl>
         <div className={s.riskChange} aria-label="확정 당시 기본 구성 대비 예상 위험 변화">
-          <h5>내 선택이 바꾼 예상 위험</h5>
+          <h5>기본 구성과 예상 위험 비교</h5>
           {data.risk_change?.status === "AVAILABLE" ? <>
             <dl className={s.metrics}>
               <div><dt>기본 구성 · Base</dt><dd>{percent(data.risk_change.base_volatility)}</dd></div>
@@ -74,7 +74,7 @@ export function DecisionVerificationPanel({ point, data, onClose }: {
             </dl>
             <p>기본 구성 대비 <strong>{fmtActivePp(data.risk_change.difference_pp! / 100)}</strong> · 연율화 변동성 추정치</p>
             <small>{fmtDate(data.risk_change.as_of)} 자료 · {data.risk_change.method} 모형</small>
-          </> : <p>확정 당시 같은 기준으로 계산한 두 위험 값이 없어 변화량을 표시할 수 없습니다.</p>}
+          </> : <p>확정 당시 비교할 위험 값이 저장되지 않았습니다.</p>}
           <p>예상 변동성 변화는 실제 손실이나 향후 수익을 뜻하지 않습니다.</p>
         </div>
         {!Object.values(estimate!.weights).some(value => value > 0) && <p>당시 자산 비중 미확보</p>}
@@ -93,30 +93,30 @@ export function DecisionVerificationPanel({ point, data, onClose }: {
           <tbody><tr><th scope="row">Personalized</th><td>{fmtPct(actual.personalized_return)}</td></tr><tr><th scope="row">CORE</th><td>{fmtPct(actual.core_return)}</td></tr><tr><th scope="row">차이</th><td>{fmtActivePp(actual.difference_pp)}</td></tr></tbody></table>
         <p className={s.nav}>Personalized NAV: {nav(actual.personalized_nav?.start)} → {nav(actual.personalized_nav?.end)}<br/>CORE NAV: {nav(actual.core_nav?.start)} → {nav(actual.core_nav?.end)}</p>
       </> : <p>성과 비교 미확보{actual?.reason && ` · ${actual.reason}`}</p>}
-      <p>화면이 열려 있는 동안 1분마다 저장된 평가 결과를 다시 조회합니다.</p>
+
       {data && <ValuationStatus job={data.valuation_job}/>}
-      {data?.opening_context&&<p>{fmtDate(data.opening_context.forward_start)}부터 과거 재현의 보유자산·현금을 승계한 모의운용입니다. 이 비교에는 시작일 이후의 정상 NAV만 포함하며 과거 재현 수익률은 포함하지 않습니다.</p>}
-      <p>개별 계좌 성과는 위의 공통 정상 NAV 기록을 기준으로 합니다.</p>
+      {data?.opening_context&&<p>{fmtDate(data.opening_context.forward_start)}부터 이어받은 보유자산·현금으로 모의운용합니다. 아래 성과 검증에서 과거 재현 수익률은 제외합니다.</p>}
+
       {!!actual?.excluded_rows && <p>정상 평가 조건을 충족하지 않은 NAV {actual.excluded_rows}건 제외</p>}
     </section>
     <section aria-label="당시 가정의 재검토"><h4>3. 당시 가정의 재검토</h4>
       <strong className={s.status}>{data?.review.status === "REVIEW_REQUIRED" ? "재검토 필요" : "검증 진행 중"}</strong>
       <p>{data?.review.basis ?? "당시 가정과 이후 관측을 연결할 판단 기록이 필요합니다."}</p>
       {data && <>
-        {point === "personalized" ? <>
-          <p>{data.original.return_basis?.includes("themes inherit") ? "테마의 독립 전망은 적용하지 않고 조달한 주식의 기대수익률을 사용했습니다." : data.original.return_basis ? `기대수익률 산출 근거: ${data.original.return_basis}` : "기대수익률의 당시 산출 근거 미확보"}</p>
+        <details><summary>당시 계산 기준</summary>{point === "personalized" ? <>
+          <p>{data.original.return_basis?.includes("themes inherit") ? "테마에는 별도 전망 대신 편입 자금을 가져온 주식 자산군의 예상 수익률을 적용했습니다." : data.original.return_basis ? `기대수익률 산출 근거: ${data.original.return_basis}` : "기대수익률의 당시 산출 근거 미확보"}</p>
           <p>{data.original.risk_basis === "5Y weekly Ledoit-Wolf annualized covariance" ? "변동성은 최근 5년 주간 수익률의 Ledoit–Wolf 공분산을 연율화해 추정했습니다." : data.original.risk_basis ? `변동성 산출 근거: ${data.original.risk_basis}` : "변동성의 당시 산출 근거 미확보"}</p>
         </> : <p>Base는 확정 당시 선택한 기본 구성의 저장값입니다. 아래 예상 기간은 Personalized 판단 기준입니다.</p>}
-        <p>자료 기준일: {data.original.price_data_as_of ? fmtDate(data.original.price_data_as_of) : "미확보"}{data.review.horizon_end && <><br/>당시 예상 기간 종료일: {fmtDate(data.review.horizon_end)}</>}</p>
+        <p>자료 기준일: {data.original.price_data_as_of ? fmtDate(data.original.price_data_as_of) : "미확보"}{data.review.horizon_end && <><br/>당시 예상 기간 종료일: {fmtDate(data.review.horizon_end)}</>}</p></details>
         {data.review_plan && <div className={s.reviewPlan} aria-label="재검토 일정">
-          <h5>언제 다시 살펴볼까요?</h5>
-          <p>{fmtDate(data.review_plan.basis_date)} 기준 달력상 점검일입니다. 점검일이 왔다고 판단의 적중 여부가 정해지지는 않습니다.</p>
+          <h5>다음 점검일</h5>
+          <p>{fmtDate(data.review_plan.basis_date)} 기준입니다. 점검일은 예측의 적중 여부를 판정하는 날이 아닙니다.</p>
           <ul>{data.review_plan.checkpoints.map(item => <li key={item.months}>
             <span>{item.months}개월 점검 · {fmtDate(item.date)}</span><strong>{reviewState[item.state]}</strong>
           </li>)}</ul>
-          <p>선택 이유나 감수할 수 있는 위험이 달라졌다면 날짜 전에도 근거를 검토하세요. 이 변화는 자동으로 감지하지 않습니다.</p>
+          <p>선택 이유나 감수할 위험이 달라졌다면 점검일 전에도 검토할 수 있습니다.</p>
         </div>}
-        {choice ? <p>사용자 재검토: {choice.action === "KEEP" ? "유지" : "재설계 검토"} · {fmtDate(choice.recorded_at)}<br/>{choice.reason}</p> : <p>사용자 재검토 기록 미확보</p>}
+        {choice ? <p>사용자 재검토: {choice.action === "KEEP" ? "유지" : "재설계 검토"} · {fmtDate(choice.recorded_at)}<br/>{choice.reason}</p> : <p>아직 검토 기록이 없습니다.</p>}
         <p><Link href={`/review?decision_id=${encodeURIComponent(data.decision_id)}`}>이 판단의 검토 기록 보기</Link></p>
         {data.superseded_effective_date && <p>{fmtDate(data.superseded_effective_date)}부터 후속 판단이 적용되어 관측 구간을 종료했습니다.</p>}
       </>}

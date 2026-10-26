@@ -65,7 +65,7 @@ test('real API: saved pair, all dates and year/amount controls, review link, mob
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.getByRole('button',{name:'낙폭',exact:true})).toBeVisible();
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole('link', {name: '기존 판단 검토하기'}).click();
+  await page.getByRole('link', {name: '유지·조정 이유 남기기'}).click();
   await expect(page).toHaveURL(new RegExp(`/review\\?decision_id=${original.decision_id}`));
   expect(counts()).toEqual(before);
   expect((await (await page.request.get('/api/v1/me/decisions')).json()).items[0]).toEqual(original);
@@ -102,7 +102,7 @@ test('real API: review retains the scenario, saves only a review record and retu
   await expect(page.getByLabel('가정 투자금')).toHaveValue('1000000');
   const response=await(await page.request.get(`/api/v1/me/decisions/${original.decision_id}/rehearsal?period=2022&initial_amount=1000000`)).json();
   await expect(page.getByText(won(response.personalized.end_value),{exact:true})).toBeVisible();
-  await page.getByRole('link',{name:'기존 판단 검토하기',exact:true}).click();
+  await page.getByRole('link',{name:'유지·조정 이유 남기기',exact:true}).click();
   await expect(page).toHaveURL(/period=2022&initial_amount=1000000&source=rehearsal/);
   const review=page.url();
   await expect(page.getByRole('heading',{name:'내 선택 다시 살펴보기',level:1})).toBeVisible();

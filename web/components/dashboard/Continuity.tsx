@@ -4,7 +4,11 @@ import {get} from '@/lib/api/client';
 import {ResponsiveContainer,LineChart,Line,XAxis,YAxis,Tooltip,ReferenceLine} from 'recharts';
 import {fmtDate} from '@/lib/format';
 import s from './DarkDashboard.module.css';
-export type ContinuityData={available:boolean;historical_start:string;historical_end:string;forward_start:string;decision_confirmed_at:string;forward_observations:number;opening:{as_of:string;nav:number;cash_balance:number;holdings:{asset_id:string;quantity:number}[]};series:{date:string;personal_index:number|null;core_index:number|null;data_kind:string}[]};
+export type ContinuityData={available:boolean;historical_start:string;historical_end:string;forward_start:string;decision_confirmed_at:string;forward_observations:number;opening:{as_of:string;nav:number;cash_balance:number;holdings:{asset_id:string;quantity:number}[]};
+ summary?:{start:string;end:string;observations:number;personal_return:number;core_return:number;difference_pp:number;missing_observations:number};
+ snapshot?:{date:string;nav:number;cash_balance:number;holdings:{asset_id:string;quantity:number;market_value:number}[]};
+ series:{date:string;personal_nav:number|null;core_nav:number|null;personal_index:number|null;core_index:number|null;data_kind:string;valid?:boolean}[]};
+export function useContinuity(){return useQuery({queryKey:['own-continuity'],queryFn:()=>get<ContinuityData>('/api/v1/me/performance/continuity'),refetchInterval:60_000,refetchIntervalInBackground:false,staleTime:30_000,retry:1});}
 export function Continuity(){
  const q=useQuery({queryKey:['own-continuity'],queryFn:()=>get<ContinuityData>('/api/v1/me/performance/continuity'),refetchInterval:60_000,staleTime:30_000,retry:1});
  const d=q.data;
