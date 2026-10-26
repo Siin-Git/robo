@@ -3,18 +3,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PortfolioPage from "@/app/(app)/portfolio/page";
 vi.mock("next/navigation",()=>({useSearchParams:()=>new URLSearchParams()}));
 
-const state = vi.hoisted(() => ({ data: {
+const state = vi.hoisted(() => ({ loading:false, data: {
   base: { frontier_id: "F036", expected_return: .0578, volatility: .0851, weights: [{asset_id:"us_equity",weight:.6},{asset_id:"us_treasury",weight:.4}], groups:{equity:.6,fixed_income:.4} },
   personalized: {volatility:.0957,tracking_error:.0193,weights:[{asset_id:"us_equity",weight:.52},{asset_id:"us_treasury",weight:.4},{asset_id:"semiconductor",weight:.08}],groups:{broad_equity:.52,fixed_income:.4,themes:.08}},
   themes:[{theme_id:"semiconductor",ticker:"SOXX",weight:.08}],
   risk_comparison:{base_volatility:.0857 as number|null,personalized_volatility:.0957 as number|null,as_of:"2026-09-11",method:"5Y weekly Ledoit-Wolf"},
-} as {base:{frontier_id:string;expected_return:number;volatility:number;weights:{asset_id:string;weight:number}[];groups:Record<string,number>};personalized:{expected_return?:number;volatility:number;tracking_error:number;weights:{asset_id:string;weight:number}[];groups:Record<string,number>};themes:{theme_id:string;ticker:string;weight:number}[];risk_comparison:{base_volatility:number|null;personalized_volatility:number|null;as_of:string;method:string}} }));
+} as {decision_id?:string;base:{frontier_id:string;expected_return:number;volatility:number;weights:{asset_id:string;weight:number}[];groups:Record<string,number>};personalized:{expected_return?:number;volatility:number;tracking_error:number;weights:{asset_id:string;weight:number}[];groups:Record<string,number>};themes:{theme_id:string;ticker:string;weight:number}[];risk_comparison:{base_volatility:number|null;personalized_volatility:number|null;as_of:string;method:string}} }));
 const frontier = {points:[{frontier_id:"F036",index:0,expected_return:.0578,volatility:.0851,sharpe:.5,weights:[]}],assets:[],frontier_version:"v1",benchmark_frontier_id:"F036",min_variance_frontier_id:"F036",tangency_frontier_id:"F036"};
-vi.mock("@tanstack/react-query", () => ({useQuery:({queryKey}:{queryKey:string[]})=>({data:queryKey[0]==="frontier"?frontier:state.data,isLoading:false,isError:false})}));
+vi.mock("@tanstack/react-query", () => ({useQuery:({queryKey}:{queryKey:string[]})=>({data:queryKey[0]==="frontier"?frontier:queryKey[0]==="decision-verification"?undefined:state.data,isLoading:queryKey[0]==="summary-portfolio"&&state.loading,isError:false})}));
 vi.mock("@/components/layout/AppShell",()=>({AppShell:({children}:{children:React.ReactNode})=><div>{children}</div>}));
 describe("portfolio dashboard",()=>{
-  afterEach(cleanup);
-  beforeEach(()=>{state.data.risk_comparison.base_volatility=.0857;state.data.risk_comparison.personalized_volatility=.0957;delete state.data.personalized.expected_return;vi.stubGlobal("ResizeObserver",class {observe(){} disconnect(){}});});
+  afterEach(()=>{cleanup();window.history.replaceState(null,"","/");vi.restoreAllMocks();});
+  beforeEach(()=>{state.loading=false;delete state.data.decision_id;state.data.risk_comparison.base_volatility=.0857;state.data.risk_comparison.personalized_volatility=.0957;delete state.data.personalized.expected_return;vi.stubGlobal("ResizeObserver",class {observe(){} disconnect(){}});});
+  it("moves to the requested check after the portfolio finishes loading",()=>{
+    state.loading=true;state.data.decision_id="saved-decision";
+    window.history.replaceState(null,"","/portfolio#portfolio-check");
+    const scroll=vi.fn();Element.prototype.scrollIntoView=scroll;
+    const view=render(<PortfolioPage/>);
+    expect(scroll).not.toHaveBeenCalled();
+    state.loading=false;view.rerender(<PortfolioPage/>);
+    expect(scroll).toHaveBeenCalledWith({block:"start"});
+    expect(screen.getByRole("heading",{name:"하락장 리허설"})).toHaveFocus();
+  });
   it("connects chart and list with actual theme holdings and keeps detail collapsed",()=>{
     render(<PortfolioPage/>);
     const chart=screen.getByRole("group",{name:"현재 자산 구성 도넛 차트"});
