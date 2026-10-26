@@ -30,3 +30,4 @@
 .panel a{text-decoration:underline;text-underline-offset:3px}
 .panel :is(button,h3,a):focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 @media(max-width:1100px){.panel{max-height:none;overflow-y:visible}}
+.panel details{margin:12px 0;color:var(--text-secondary);font-size:12px}.panel summary{cursor:pointer;color:var(--text-primary);padding:8px 0}.panel summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px}

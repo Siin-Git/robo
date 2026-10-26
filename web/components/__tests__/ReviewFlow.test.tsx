@@ -32,7 +32,7 @@ it('keeps the selected retrospective comparison visible beside the review and se
   show();expect(await screen.findByText('-16.00%')).toBeVisible();
   expect(screen.getByText('2022.01.03 ~ 2022.12.30 · 각 1,000,000원')).toBeVisible();
   expect(screen.getByText(/실제 운용 관측 0개/)).toBeVisible();
-  expect(screen.getByText(/미래 손실 한도/)).toBeVisible();
+  expect(screen.getByText(/앞으로 더 큰 손실/)).toBeVisible();
   expect(screen.getByLabelText('선택 이유')).toBeVisible();
   expect(screen.getByRole('button',{name:'구성 유지 선택'})).toBeDisabled();
   expect(screen.getByRole('link',{name:'← 같은 조건의 리허설로 돌아가기'})).toHaveAttribute('href','/portfolio/rehearsal?decision_id=new&period=2022&initial_amount=1000000');

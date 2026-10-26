@@ -40,7 +40,7 @@ describe("internal tracking", () => {
     open();
     expect(await screen.findByText(/관리자 권한이 필요합니다/)).toBeInTheDocument();
     expect(getTrackingReport).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "내부 검토 기록 저장" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "검토 기록 저장" })).not.toBeInTheDocument();
   });
   it("separates price gains from missing ledger results and keeps graph gaps", async () => {
     open();
@@ -50,12 +50,12 @@ describe("internal tracking", () => {
     expect(screen.getByTestId("price-curve")).toHaveTextContent('"index100":null');
     expect(screen.getByText(/독립적인 테마 전망은 아닙니다/)).toBeInTheDocument();
     expect(screen.getByText(/동일 기간·산출 정의가 정해지지 않아 비교 보류/)).toBeInTheDocument();
-    expect(screen.getByText(/과거 가격 재생은 이 추적과 3·6개월 관측에 포함하지 않습니다/)).toBeInTheDocument();
+    expect(screen.getByText(/과거 재현은 3·6개월 관측에서 제외합니다/)).toBeInTheDocument();
   });
   it("stores internal review direction and trimmed reason, preserving the retry key", async () => {
     vi.mocked(saveTrackingReview).mockRejectedValueOnce(new Error("network error")).mockResolvedValueOnce({ review_id: "R1", recorded_at: "2026-10-04", reviewer_id: "A1", asset_id: "theme:ai", action: "REVISION_REVIEW", reason: "검토 필요", observation: { as_of: "2026-10-04", observations: 2, price_return: .05, data_kind: "TEST_FIXTURE" } });
     open();
-    const save = await screen.findByRole("button", { name: "내부 검토 기록 저장" });
+    const save = await screen.findByRole("button", { name: "검토 기록 저장" });
     expect(save).toBeDisabled();
     fireEvent.change(screen.getByLabelText("검토 방향"), { target: { value: "REVISION_REVIEW" } });
     fireEvent.change(screen.getByLabelText("검토 근거"), { target: { value: "  검토 필요  " } });

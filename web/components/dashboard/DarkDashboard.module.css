@@ -37,3 +37,5 @@
 
 .headingActions{display:flex;flex-wrap:wrap;gap:10px}.headingActions a{display:inline-flex;align-items:center;gap:8px}
 @media(max-width:600px){.heading{flex-wrap:wrap;margin:0 0 24px}.headingActions{width:100%}.headingActions a{flex:1;font-size:12px}.metrics strong,.metrics .balance strong{font-size:clamp(17px,5.5vw,23px)}}
+
+.continuityNote{margin:-8px 0 0;color:var(--muted,#9daec4);font-size:13px;line-height:1.6}.continuityNote strong{color:#ddbf83;margin-left:8px;font-weight:500}

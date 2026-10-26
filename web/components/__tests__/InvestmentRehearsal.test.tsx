@@ -33,7 +33,7 @@ it("labels retrospective values, saved date in KST, exclusions and the original 
   expect(screen.getByText("-30.00%")).toBeVisible();
   expect(screen.getByText(/실제 계좌 성과가 아닙니다/)).toBeVisible();
   expect(screen.getByText(/2026. 10. 2./)).toBeVisible();
-  expect(screen.getByRole("link", {name: "기존 판단 검토하기"})).toHaveAttribute("href", "/review?decision_id=saved-1&period=all&initial_amount=10000000&source=rehearsal");
+  expect(screen.getByRole("link", {name: "유지·조정 이유 남기기"})).toHaveAttribute("href", "/review?decision_id=saved-1&period=all&initial_amount=10000000&source=rehearsal");
   fireEvent.click(screen.getByText("계산 기준과 자료 출처"));
   expect(screen.getByText(/수수료·세금은 제외/)).toBeVisible();
   expect(screen.getByText(/미국 국채·TIPS/)).toBeVisible();
