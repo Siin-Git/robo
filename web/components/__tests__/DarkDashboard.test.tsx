@@ -94,14 +94,15 @@ function connected(){
 it('defaults to server-verified continuity without a duplicate chart or attribution from another period',()=>{
  connected();render(<DarkDashboard/>);
  expect(screen.getByRole('group',{name:'운용 기록 선택'})).not.toBeVisible();
- expect(screen.getByText('모의운용',{exact:true,selector:'span'})).toBeVisible();
+ expect(screen.getByRole('link',{name:'내 선택 점검'})).toHaveAttribute('href','/portfolio#portfolio-check');
  expect(screen.getByRole('region',{name:'성과 요약'})).toHaveTextContent('96,000,000원');
  expect(screen.getByRole('region',{name:'성과 요약'})).toHaveTextContent('-4.00%');
- expect(screen.getByText(/과거 재현 포함 · 2026.10.26/)).toBeVisible();
+ expect(screen.getByText(/저장된 구성을 과거 가격에 적용한 결과/)).not.toBeVisible();
  expect(screen.getAllByRole('img',{name:/누적 수익률/})).toHaveLength(1);
  expect(screen.queryByRole('img',{name:/누적 기여도/})).not.toBeInTheDocument();
  fireEvent.click(screen.getByRole('link',{name:'기간별 평가액'}));
  expect(screen.getByRole('table',{name:'저장된 NAV · 원'})).toBeVisible();
+ expect(screen.getByText(/저장된 구성을 과거 가격에 적용한 결과/)).toBeVisible();
  fireEvent.click(screen.getByRole('button',{name:'시작 이후 기록'}));
  expect(screen.queryByText('96,000,000원')).not.toBeInTheDocument();
  expect(screen.getByText('서버가 확인한 운용 대기 사유')).toBeVisible();
@@ -123,5 +124,5 @@ it('does not silently fall back when an explicit combined record is unavailable'
 });
 it('marks missing valuation dates instead of claiming complete daily coverage',()=>{
  connected();state.continuity.data.summary.missing_observations=1;render(<DarkDashboard/>);
- expect(screen.getByText('평가 미확보 1일')).toBeVisible();
+ expect(screen.getByText(/평가 미확보 1일/)).toBeVisible();
 });

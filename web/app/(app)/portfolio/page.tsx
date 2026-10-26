@@ -123,8 +123,8 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       </div>
     </section>
 
-    {p.decision_id && <section className={s.frontierPanel} aria-labelledby="rehearsal-entry"><h2 id="rehearsal-entry">내 선택은 과거에 어떻게 움직였을까?</h2>
-      <p>확정 당시 기본 구성과 내 구성을 같은 과거 기간·투자금으로 비교합니다. 실제 계좌 성과가 아닌 가정 계산입니다.</p>
+    {p.decision_id && <section id="portfolio-check" className={`${s.frontierPanel} ${s.checkEntry}`} aria-labelledby="rehearsal-entry"><h2 id="rehearsal-entry">하락장 리허설</h2>
+      <p>기본 구성과 내 구성의 과거 하락 폭을 비교합니다.</p>
       <Link className="btn-secondary" href={`/portfolio/rehearsal?decision_id=${encodeURIComponent(p.decision_id)}`}>내 투자 리허설 열기<ArrowRight size={16}/></Link>
     </section>}
     <PortfolioFrontier key={p.decision_id ?? "unrecorded"} data={p}/>
@@ -181,7 +181,7 @@ function PortfolioFrontier({data}:{data:PortfolioSummary}) {
     if(opener.current && host.current?.contains(opener.current)) {opener.current.focus();return;}
     host.current?.querySelector<SVGGElement>(`[data-portfolio-point="${inspectedPortfolio}"]`)?.focus();
   };
-  return <section ref={host} className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>Efficient Frontier에서의 위치</h2>
+  return <section ref={host} className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>기본 구성과 예상 위험 비교</h2>
     {decisionId && verification.isLoading ? <LoadingSkeleton rows={3}/> : decisionId && (!stored) ?
       <ErrorState message="판단 기록을 불러오지 못했습니다." onRetry={()=>verification.refetch()}/> :
       <div className={s.verificationLayout} data-open={!!inspectedPortfolio}>
@@ -205,7 +205,7 @@ function PortfolioFrontier({data}:{data:PortfolioSummary}) {
               selected={base} personalized={personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}
               onPortfolioInspect={inspect} inspectedPortfolio={inspectedPortfolio}/></SetupStyleProvider>}
           {!personalized && <p>Personalized 예상 좌표 미확보. 다른 구성의 값으로 대체하지 않습니다.</p>}
-          <p>Base 또는 Personalized 점을 선택하면 확정 당시 위험 변화와 3·6개월 재검토 시점, 이후 계좌 기록을 확인할 수 있습니다.</p>
+          <p>점을 선택해 당시 예상과 이후 기록을 확인하세요.</p>
         </div>
         {inspectedPortfolio && <DecisionVerificationPanel point={inspectedPortfolio} data={stored} onClose={close}/>}
       </div>}

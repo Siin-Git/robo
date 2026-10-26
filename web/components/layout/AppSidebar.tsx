@@ -109,7 +109,7 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
   return <>
     <button className="mobile-menu btn-secondary" onClick={() => setMobileOpen(v => !v)} aria-expanded={mobileOpen} aria-controls="mobile-navigation">{mobileOpen ? "메뉴 닫기" : "메뉴 열기"}</button>
     <aside className="app-sidebar">
-      <Link href="/dashboard" className="sidebar-brand"><b aria-hidden>RA</b><div>Robo Advisor<span>인사이트 기반 모의운용</span></div></Link>
+      <Link href="/dashboard" className="sidebar-brand"><b aria-hidden>RA</b><div>Robo Advisor</div></Link>
       {nav}{accountActions}
     </aside>
     {mobileOpen && <div id="mobile-navigation" className="mobile-navigation" onKeyDown={e => { if (e.key === "Escape") setMobileOpen(false); }}>
