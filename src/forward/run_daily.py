@@ -101,7 +101,11 @@ def main(argv=None) -> int:
                     help="장중이어도 실행한다(잠정가가 종가로 저장될 수 있다)")
     ap.add_argument("--use-stored-prices", action="store_true",
                     help="Reuse collected prices; skip refresh_live without changing execution rules")
+    ap.add_argument("--missing-nav-only", action="store_true",
+                    help="Recover missing current-day NAV only; preserve verified accounts")
     args = ap.parse_args(argv)
+    if args.missing_nav_only and not args.use_stored_prices:
+        ap.error("--missing-nav-only requires --use-stored-prices")
     # 장중에는 수집하지 않는다. 가격을 받은 뒤 거르는 것이 아니라 시작을 막는다.
     # dry-run and stored-price valuation fetch no prices. Only refresh_live needs
     # the wall-clock guard; completed-session collection has its own per-bar filter.
@@ -117,6 +121,12 @@ def main(argv=None) -> int:
     from src.forward.runtime import kst_today
     today = kst_today().isoformat()
     ctx = job_context(args, today)
+    if args.missing_nav_only:
+        from .nav_watchdog import audit
+        report = audit(con, cfg, today)
+        if ctx['scheduled_for'] != today or ctx['jobs_db_url'] or report['state'] != 'NAV_MISSING':
+            print(f"Missing-NAV recovery blocked: {report['state']}")
+            return 0 if report['state'] == 'NAV_COMPLETE' else 2
     job_id, decision = enter_job(db_path, "daily", ctx)
     if decision == "dry":
         code = _dry_run_daily(con, cfg, today)
@@ -125,7 +135,7 @@ def main(argv=None) -> int:
         print(f"daily job {decision} for {ctx['scheduled_for']}; nothing to do.")
         return finish_job(db_path, None, decision, 0, {}, ctx)
     try:
-        code, stats = _execute_daily(con, cfg, today, use_stored_prices=args.use_stored_prices)
+        code, stats = _execute_daily(con, cfg, today, use_stored_prices=args.use_stored_prices, missing_nav_only=args.missing_nav_only)
     except Exception as e:  # noqa: BLE001 - must record failure loudly
         import traceback
         traceback.print_exc()
@@ -272,7 +282,7 @@ def _create_account_orders(con, a, competition, asof, today, ft):
 
 
 @guarded_batch
-def _execute_daily(con, cfg, today, *, use_stored_prices=False):
+def _execute_daily(con, cfg, today, *, use_stored_prices=False, missing_nav_only=False):
     from src.forward.competition import policy
     current = policy(con)
     if current.get("reason") == "REPLAY_SCOPED_EXECUTION_REQUIRED":
@@ -334,6 +344,17 @@ def _execute_daily(con, cfg, today, *, use_stored_prices=False):
         stage = "orders"
         try:
             with _account_transaction(con, aid) as tx:
+                if missing_nav_only:
+                    from .nav_evidence import normal_forward_nav
+                    saved = tx.execute('SELECT 1 FROM nav_daily WHERE account_id=? AND date=?', (aid, maxdate)).fetchone()
+                    if saved:
+                        verified = normal_forward_nav(tx, aid, maxdate, ft['benchmark_version'])
+                        pending = tx.execute("SELECT 1 FROM orders WHERE account_id=? AND status='pending' AND effective_at<=? LIMIT 1",
+                                             (aid, asof)).fetchone()
+                        if not verified or pending:
+                            raise RuntimeError('Existing NAV requires review')
+                        results[aid] = verified
+                        continue
                 if not blocked:
                     _create_account_orders(tx, a, competition, asof, today, ft)
                 stage = "execution"
