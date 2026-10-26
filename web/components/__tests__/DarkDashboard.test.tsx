@@ -29,7 +29,7 @@ it('uses saved server values and preserves provenance, not demo gains',()=>{
  expect(screen.getByRole('link',{name:'상세 분석'})).toHaveAttribute('href','/dashboard?view=details&source=archive');
 });
 it('switches to empty forward without substituting saved results',()=>{
- render(<DarkDashboard/>);fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
+ render(<DarkDashboard/>);fireEvent.click(screen.getByText('계산 기준과 데이터 확인'));fireEvent.click(screen.getByRole('button',{name:'시작 이후 기록'}));
  expect(screen.getByText('서버가 확인한 운용 대기 사유')).toBeVisible();
  expect(screen.queryByText('99,100,000원')).not.toBeInTheDocument();
  expect(screen.getByRole('link',{name:'상세 분석'})).toHaveAttribute('href','/dashboard?view=details&source=forward');
@@ -46,7 +46,7 @@ it('waits for source selection before rendering numbers',()=>{
 });
 it('honors an explicit forward link when archived results exist',()=>{
  state.source='forward';render(<DarkDashboard/>);
- expect(screen.getByRole('button',{name:'자동운용'})).toHaveAttribute('aria-pressed','true');
+ fireEvent.click(screen.getByText('계산 기준과 데이터 확인'));expect(screen.getByRole('button',{name:'시작 이후 기록'})).toHaveAttribute('aria-pressed','true');
  expect(screen.queryByText('99,100,000원')).not.toBeInTheDocument();
 });
 
@@ -65,7 +65,7 @@ it('shows archived server attribution and toggles asset groups without mixing fo
  fireEvent.click(screen.getByRole('button',{name:'개별 자산'}));
  expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/미국주식 \+6.00%p/);
  expect(screen.getByRole('img',{name:/누적 기여도:/})).toHaveAccessibleName(/한국주식 \+3.00%p/);
- fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
+ fireEvent.click(screen.getByText('계산 기준과 데이터 확인'));fireEvent.click(screen.getByRole('button',{name:'시작 이후 기록'}));
  expect(screen.queryByRole('img',{name:/누적 기여도:/})).not.toBeInTheDocument();
 });
 it('does not fabricate archived contribution when only summary NAV exists',()=>{
@@ -93,7 +93,8 @@ function connected(){
 }
 it('defaults to server-verified continuity without a duplicate chart or attribution from another period',()=>{
  connected();render(<DarkDashboard/>);
- expect(screen.getByRole('button',{name:'전체 기록'})).toHaveAttribute('aria-pressed','true');
+ expect(screen.getByRole('group',{name:'운용 기록 선택'})).not.toBeVisible();
+ expect(screen.getByText('모의운용',{exact:true,selector:'span'})).toBeVisible();
  expect(screen.getByRole('region',{name:'성과 요약'})).toHaveTextContent('96,000,000원');
  expect(screen.getByRole('region',{name:'성과 요약'})).toHaveTextContent('-4.00%');
  expect(screen.getByText(/과거 재현 포함 · 2026.10.26/)).toBeVisible();
@@ -101,13 +102,13 @@ it('defaults to server-verified continuity without a duplicate chart or attribut
  expect(screen.queryByRole('img',{name:/누적 기여도/})).not.toBeInTheDocument();
  fireEvent.click(screen.getByRole('link',{name:'기간별 평가액'}));
  expect(screen.getByRole('table',{name:'저장된 NAV · 원'})).toBeVisible();
- fireEvent.click(screen.getByRole('button',{name:'자동운용'}));
+ fireEvent.click(screen.getByRole('button',{name:'시작 이후 기록'}));
  expect(screen.queryByText('96,000,000원')).not.toBeInTheDocument();
  expect(screen.getByText('서버가 확인한 운용 대기 사유')).toBeVisible();
 });
 it('does not replace an explicit forward view with the combined curve',()=>{
  connected();state.source='forward';render(<DarkDashboard/>);
- expect(screen.getByRole('button',{name:'자동운용'})).toHaveAttribute('aria-pressed','true');
+ fireEvent.click(screen.getByText('계산 기준과 데이터 확인'));expect(screen.getByRole('button',{name:'시작 이후 기록'})).toHaveAttribute('aria-pressed','true');
  expect(screen.queryByText('96,000,000원')).not.toBeInTheDocument();
 });
 it('keeps the selected combined record and clearly marks refresh failure',()=>{
