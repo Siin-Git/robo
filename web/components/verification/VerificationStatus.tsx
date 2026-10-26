@@ -10,7 +10,7 @@ import {get} from '@/lib/api/client';
 import {getDecisions} from '@/lib/api/decisions';
 import {fmtActivePp,fmtDate,fmtPct} from '@/lib/format';
 import type {DecisionVerification} from '@/components/portfolio/DecisionVerificationPanel';
-import {canCompare,checkpointLabels,finite,jobStatus,koreaTime,originalComplete,type Tone} from './status';
+import {canCompare,checkpointLabels,finite,hasTodayJob,jobStatus,koreaTime,originalComplete,type Tone} from './status';
 import {evidenceRecord,evidenceLinks} from './evidence-record';
 import s from './verification-status.module.css';
 
@@ -42,6 +42,7 @@ export function VerificationStatus() {
   const comparable=!!actual&&canCompare(actual);
   const job=data?.valuation_job;
   const operation=jobStatus(job);
+  const todayJob=hasTodayJob(job,query.dataUpdatedAt);
   const complete=!!data&&originalComplete(data);
   async function refresh(){
     const result=await decisions.refetch();
@@ -80,13 +81,14 @@ export function VerificationStatus() {
         <div className={s.figure}>{actual?.observations??0}<span>공통 평가일</span></div><p>{comparable?'같은 기간의 두 계좌 기록을 비교할 수 있습니다.':'비교 조건을 충족한 기록이 필요합니다. 수익률을 0으로 대체하지 않습니다.'}</p>
         <small>출처 · Personalized·CORE 정상 NAV</small>
       </EvidenceCard>
-      <EvidenceCard title="운용 기록" icon={<Activity size={19}/>} label={operation.label} tone={operation.tone} stale={failed} detail={<>
+      <EvidenceCard title="운용 기록" icon={<Activity size={19}/>} label={`최근 결과 · ${operation.label}`} tone={operation.tone} stale={failed} detail={<>
         <dl className={s.rows}><div><dt>작업 범위</dt><dd>전체 계좌</dd></div><div><dt>최근 작업 기준일</dt><dd>{fmtDate(job?.scheduled_for)}</dd></div><div><dt>완료 시각 · 한국 시간</dt><dd>{koreaTime(job?.completed_at)}</dd></div><div><dt>평가 기록 계좌 수</dt><dd>{job?.valuated??'미확보'}</dd></div><div><dt>준비 인원</dt><dd>{job?.ready!=null&&job?.required!=null?`${job.ready} / ${job.required}명`:'미확보'}</dd></div></dl>
         <p>작업 성공과 정상 평가액 저장은 별도로 확인합니다. 전체 계좌의 작업 상태가 내 계좌의 비교 자료 확보를 보장하지는 않습니다.</p>
         <p>화면 새로고침은 저장된 결과만 조회하며 운용을 실행하지 않습니다.</p>
         <Link href="/dashboard?source=forward">자동운용 기록 보기 <ArrowUpRight size={14}/></Link>
       </>}>
-        <div className={`${s.figure} ${s.dateFigure}`}>{job?.scheduled_for?fmtDate(job.scheduled_for):'—'}<span>최근 작업 기준일</span></div><p>전체 계좌의 최근 평가 작업입니다. 내 계좌의 비교 가능 여부는 성과 비교에서 확인합니다.</p><small>출처 · 일일 작업 기록·저장 NAV</small>
+        <div className={`${s.figure} ${s.dateFigure}`}>{job?.scheduled_for?fmtDate(job.scheduled_for):'—'}<span>최근 작업 기준일</span></div>
+        <p><strong>{failed?'오늘 평가 · 갱신 실패':todayJob?`오늘 평가 · ${operation.label}`:'오늘 평가 · 기록 미확보'}</strong><br/>{todayJob?'전체 계좌의 작업 결과입니다. 내 계좌의 비교 자료는 성과 비교에서 확인합니다.':'아래 근거는 최근 작업 당시의 결과입니다. 오늘 실행 여부는 이 기록만으로 알 수 없습니다.'}</p><small>출처 · 일일 작업 기록·저장 NAV</small>
       </EvidenceCard>
     </div>}
     <section className={s.remaining} aria-labelledby="remaining-title">
