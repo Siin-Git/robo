@@ -1027,3 +1027,7 @@ The verification page previously showed only the latest decision's post-effectiv
 - Acceptance: a full-period return remains visible even when the latest judgment has fewer than two common dates; outages remain explicit; 320/390px layouts do not overflow.
 - Local validation: frontend 193 passed; production build/type check passed; replay-handoff SQLite tests 3 passed (PostgreSQL variants skipped locally). Browser checks recorded separately in task output; the new full-period browser scenario uses an explicit synthetic API contract, not operating results.
 - Browser validation completed: 4 scenarios passed (existing real-API read-only flow, responsive/keyboard, decision-query failure recovery, synthetic full-period contract with independent failure recovery). Production account evidence stays local and is not included in GitHub artifacts.
+
+### 2026-10-28 · Remove decision-period comparison card
+
+Removed the requested '현재 판단 이후 비교' card, its empty/error placeholder and references directing users to it. The full-period comparison remains. Remaining evidence cards span the available width. API calculation and original judgment/observation records are unchanged. Updated existing UI assertions to reflect two evidence cards; synthetic-evidence exclusion remains checked at the API level.

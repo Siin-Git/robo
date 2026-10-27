@@ -2,22 +2,20 @@
 
 import type {ReactNode} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import {Activity,ArrowUpRight,ClipboardCheck,GitCompareArrows,RefreshCw} from 'lucide-react';
+import {Activity,ArrowUpRight,ClipboardCheck,RefreshCw} from 'lucide-react';
 import {AppShell} from '@/components/layout/AppShell';
 import {LoadingSkeleton} from '@/components/shared/ui';
 import {get} from '@/lib/api/client';
 import {getDecisions} from '@/lib/api/decisions';
-import {fmtActivePp,fmtDate,fmtPct} from '@/lib/format';
+import {fmtDate} from '@/lib/format';
 import type {DecisionVerification} from '@/components/portfolio/DecisionVerificationPanel';
-import {canCompare,checkpointLabels,finite,hasTodayJob,jobStatus,koreaTime,originalComplete,type Tone} from './status';
+import {checkpointLabels,hasTodayJob,jobStatus,koreaTime,originalComplete,type Tone} from './status';
 import {evidenceRecord,evidenceLinks,verificationMethods} from './evidence-record';
 import s from './verification-status.module.css';
 import {SavedJudgment} from './SavedJudgment';
 import {AccountComparison} from './AccountComparison';
 
 const poll={refetchInterval:60_000,refetchIntervalInBackground:false};
-const won=(n:number|null|undefined)=>finite(n)?`${Math.round(n).toLocaleString('ko-KR')}원`:'미확보';
-const pct=(n:number|null|undefined)=>finite(n)?fmtPct(n):'미확보';
 function Badge({tone,children}:{tone:Tone;children:ReactNode}) {
   return <span className={`${s.badge} ${s[tone]}`}><i aria-hidden/>{children}</span>;
 }
@@ -39,8 +37,6 @@ export function VerificationStatus() {
   const failed=decisions.isError||(!!id&&query.isError);
   const busy=decisions.isFetching||query.isFetching;
   const updated=data?Math.min(decisions.dataUpdatedAt,query.dataUpdatedAt):!id?decisions.dataUpdatedAt:0;
-  const actual=data?.actual;
-  const comparable=!!actual&&canCompare(actual);
   const job=data?.valuation_job;
   const operation=jobStatus(job);
   const todayJob=hasTodayJob(job,query.dataUpdatedAt);
@@ -67,7 +63,7 @@ export function VerificationStatus() {
     <AccountComparison/>
     <div className={s.sectionHeading} id="saved-judgment"><h2>01 · 최초 판단과 현재 관측</h2><p>내 계정 기록 · 1분마다 갱신</p></div>
     {loading&&!data?<LoadingSkeleton rows={5}/>:!data?<div className={s.cards}>
-      {['판단 보존','현재 판단 이후 비교','운용 기록'].map(title=><section key={title} className={s.card} aria-label={title}><h2>{title}</h2><Badge tone={failed?'attention':'missing'}>{failed?'조회 실패':id?'검증 근거 미확보':'확정 판단 미확보'}</Badge><p className={s.emptyCopy}>{failed?'조회 오류로 상태를 판단할 수 없습니다.':id?'해당 판단의 근거를 확보하지 못했습니다.':'확정된 판단이 있어야 이 계정의 근거를 연결할 수 있습니다.'}</p></section>)}
+      {['판단 보존','운용 기록'].map(title=><section key={title} className={s.card} aria-label={title}><h2>{title}</h2><Badge tone={failed?'attention':'missing'}>{failed?'조회 실패':id?'검증 근거 미확보':'확정 판단 미확보'}</Badge><p className={s.emptyCopy}>{failed?'조회 오류로 상태를 판단할 수 없습니다.':id?'해당 판단의 근거를 확보하지 못했습니다.':'확정된 판단이 있어야 이 계정의 근거를 연결할 수 있습니다.'}</p></section>)}
     </div>:<div className={s.cards}>
       <EvidenceCard title="판단 보존" icon={<ClipboardCheck size={19}/>} label={complete?'저장 기록 확인':'일부 기록 미확보'} tone={complete?'confirmed':'missing'} stale={failed} detail={<>
         <p>확정 당시 저장값입니다. 누락된 값은 현재 모형으로 채우지 않습니다. 이 조회만으로 기록의 불변성을 다시 검사한 것은 아닙니다.</p>
@@ -77,17 +73,6 @@ export function VerificationStatus() {
         <SavedJudgment data={data}/>
         <small>출처 · 확정 판단 기록</small>
       </EvidenceCard>
-      <EvidenceCard title="현재 판단 이후 비교" icon={<GitCompareArrows size={19}/>} label={comparable?'판단 이후 비교 가능':'판단 이후 기록 수집 중'} tone={comparable?'confirmed':'missing'} stale={failed} detail={<>
-        <p>{comparable?`${fmtDate(actual!.start)} — ${fmtDate(actual!.end)} · 공통 정상 평가액 기준`:(actual?.reason||'비교에 필요한 기간·평가액·수익률이 충분하지 않습니다.')}</p>
-        {comparable&&<><dl className={s.rows}><div><dt>내 선택 · Personalized</dt><dd>{fmtPct(actual!.personalized_return)}</dd></div><div><dt>기준 계좌 · CORE</dt><dd>{fmtPct(actual!.core_return)}</dd></div><div><dt>기간 수익률 차이</dt><dd>{fmtActivePp(actual!.difference_pp)}</dd></div><div><dt>Personalized 평가액</dt><dd>{won(actual!.personalized_nav?.start)} → {won(actual!.personalized_nav?.end)}</dd></div><div><dt>CORE 평가액</dt><dd>{won(actual!.core_nav?.start)} → {won(actual!.core_nav?.end)}</dd></div></dl></>}
-        <p>동일 날짜의 정상 NAV가 두 시점 이상 있어야 비교합니다. CORE는 기본 구성 Base나 시장지수와 다릅니다.</p>
-        <p>정상 조건을 충족하지 않은 평가 기록 {actual?.excluded_rows??0}건 제외. 합성·과거 재생 자료는 운용 성과에 포함하지 않습니다.</p>
-        {data.opening_context&&<p>{fmtDate(data.opening_context.forward_start)}부터 과거 재현의 보유자산·현금을 승계한 모의운용입니다. 위 비교에는 시작일 이후 정상 평가 기록만 포함합니다.</p>}
-
-      </>}>
-        <div className={s.figure}>{actual?.observations??0}<span>공통 평가일</span></div><p>{comparable?'같은 기간의 두 계좌 기록을 비교할 수 있습니다.':'위의 전체 기간 비교와 범위가 다릅니다. 현재 판단의 효력일 이후 공통 정상 NAV가 두 날짜 이상 필요합니다.'}</p>
-        <small>출처 · Personalized·CORE 정상 NAV</small>
-      </EvidenceCard>
       <EvidenceCard title="운용 기록" icon={<Activity size={19}/>} label={`최근 결과 · ${operation.label}`} tone={operation.tone} stale={failed} detail={<>
         <dl className={s.rows}><div><dt>작업 범위</dt><dd>전체 계좌</dd></div><div><dt>작업 예정일</dt><dd>{fmtDate(job?.scheduled_for)}</dd></div><div><dt>완료 시각 · 한국 시간</dt><dd>{koreaTime(job?.completed_at)}</dd></div><div><dt>평가 대상일</dt><dd>{job?.valuation_date?fmtDate(job.valuation_date):'미확보'}</dd></div><div><dt>정상 NAV 계좌 수</dt><dd>{job?.normal_nav_accounts??'미확보'}</dd></div><div><dt>가격 지연 NAV 계좌 수</dt><dd>{job?.stale_nav_accounts??'미확보'}</dd></div><div><dt>평가 대상 계좌 수</dt><dd>{job?.expected_nav_accounts??'미확보'}</dd></div><div><dt>준비 인원</dt><dd>{job?.ready!=null&&job?.required!=null?`${job.ready} / ${job.required}명`:'미확보'}</dd></div></dl>
         <p>작업 성공과 정상 평가액 저장은 별도로 확인합니다. 전체 계좌의 작업 상태가 내 계좌의 비교 자료 확보를 보장하지는 않습니다.</p>
@@ -95,7 +80,7 @@ export function VerificationStatus() {
 
       </>}>
         <div className={`${s.figure} ${s.dateFigure}`}>{job?.scheduled_for?fmtDate(job.scheduled_for):'—'}<span>작업 예정일</span></div>
-        <p><strong>{failed?'오늘 예정 작업 · 갱신 실패':todayJob?`오늘 예정 작업 · ${operation.label}`:'오늘 예정 작업 · 기록 미확보'}</strong><br/>{todayJob?'전체 계좌의 작업 결과입니다. 내 계좌의 비교 자료는 현재 판단 이후 비교에서 확인합니다.':'아래 근거는 최근 작업 당시의 결과입니다. 오늘 실행 여부는 이 기록만으로 알 수 없습니다.'}</p><small>작업 예정일과 평가 대상일은 다를 수 있습니다. 정상 NAV 수는 평가 대상일의 저장 기록으로 확인합니다.</small><small>출처 · 일일 작업 기록·저장 NAV</small>
+        <p><strong>{failed?'오늘 예정 작업 · 갱신 실패':todayJob?`오늘 예정 작업 · ${operation.label}`:'오늘 예정 작업 · 기록 미확보'}</strong><br/>{todayJob?'전체 계좌의 작업 결과입니다. 내 계좌의 성과는 위 전체 기간 비교에서 확인합니다.':'아래 근거는 최근 작업 당시의 결과입니다. 오늘 실행 여부는 이 기록만으로 알 수 없습니다.'}</p><small>작업 예정일과 평가 대상일은 다를 수 있습니다. 정상 NAV 수는 평가 대상일의 저장 기록으로 확인합니다.</small><small>출처 · 일일 작업 기록·저장 NAV</small>
       </EvidenceCard>
     </div>}
     <section id="review-evidence" className={s.remaining} aria-labelledby="remaining-title">
