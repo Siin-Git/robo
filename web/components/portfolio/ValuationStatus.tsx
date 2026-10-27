@@ -21,9 +21,14 @@ export function valuationLabel(job?: ValuationJob | null): string {
 export function ValuationStatus({job}:{job?:ValuationJob|null}) {
   return <div aria-label="최근 자동 평가 결과">
     <p>전체 계좌 평가 작업 · {valuationLabel(job)}</p>
-    {job && <p>최근 작업 기준일: {fmtDate(job.scheduled_for)}
+    {job && <p>작업 예정일: {fmtDate(job.scheduled_for)}
       {job.ready != null && job.required != null && <> · 준비 인원: {job.ready}/{job.required}명</>}
-      {job.valuated != null && <> · NAV 저장: {job.valuated}개 계좌</>}
+
+    </p>}
+    {job && <p>평가 대상일: {job.valuation_date ? fmtDate(job.valuation_date) : "미확보"}
+      {" · 정상 NAV: "}{job.normal_nav_accounts == null ? "미확보" : `${job.normal_nav_accounts}개 계좌`}
+      {" · 가격 지연 NAV: "}{job.stale_nav_accounts == null ? "미확보" : `${job.stale_nav_accounts}개 계좌`}
+      {job.expected_nav_accounts != null && <> · 평가 대상: {job.expected_nav_accounts}개 계좌</>}
     </p>}
     <p>화면은 저장된 결과를 조회합니다. 화면 갱신으로 운용 작업이 실행되지는 않습니다.</p>
   </div>;

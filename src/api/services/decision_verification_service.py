@@ -189,24 +189,32 @@ def _valuation_job(session):
             break
     if latest is None:
         return None
-    result = daily_outcome(job.status, job.stats_json or {})
+    stats = job.stats_json or {}
+    result = daily_outcome(job.status, stats)
+    # The scheduled slot is not the valuation date. Never substitute one for
+    # the other, or treat a legacy attempted/stale counter as normal NAV.
+    try:
+        asof = C.as_date(stats.get("asof"))
+    except (ValueError, TypeError, AttributeError):
+        asof = None
+    rows = session.scalars(select(NavDaily).where(NavDaily.date == asof)).all() if asof else []
+    normal = {r.account_id for r in rows if r.nav_status == "OK" and not r.stale_price_flag
+              and _number(r.nav) is not None and _number(r.nav) > 0}
+    stale = {r.account_id for r in rows if r.nav_status == "STALE_PRICE" or r.stale_price_flag}
+    expected = set((stats.get("account_results") or {}).keys())
+    # Without an account list the batch's scope cannot be reconstructed safely.
+    # Keep unknown distinct from zero, including during a rolling deployment.
+    scoped = bool(asof and expected)
     if result["valuation_completed"]:
-        # Check persisted normal NAV as well as the batch's claims. Historical
-        # counters alone (or deleted/stale rows) cannot establish completion.
-        stats = job.stats_json or {}
-        try:
-            asof = C.as_date(stats.get("asof"))
-        except (ValueError, TypeError, AttributeError):
-            asof = None
-        rows = session.scalars(select(NavDaily).where(NavDaily.date == asof)).all() if asof else []
-        normal = {r.account_id for r in rows if r.nav_status == "OK" and not r.stale_price_flag
-                  and _number(r.nav) is not None and _number(r.nav) > 0}
-        expected = set((stats.get("account_results") or {}).keys())
         if (not normal or len(normal) < result["valuated"]
                 or (expected and not expected.issubset(normal))):
             result.update(state="PARTIAL", message="정상 NAV 저장 확인 미완료", valuation_completed=False)
     return {"status": job.status, "latest_attempt_status": latest.status, "scope": "ALL_ACCOUNTS",
             "scheduled_for": C.as_date(job.scheduled_for).isoformat(),
+            "valuation_date": asof.isoformat() if asof else None,
+            "normal_nav_accounts": len(normal & expected) if scoped else None,
+            "stale_nav_accounts": len(stale & expected) if scoped else None,
+            "expected_nav_accounts": len(expected) if expected else None,
             "completed_at": C.as_aware_utc(job.completed_at).isoformat() if job.completed_at else None,
             **result}
 

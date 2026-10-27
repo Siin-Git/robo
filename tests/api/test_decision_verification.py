@@ -351,3 +351,64 @@ def test_core_version_mismatch_cannot_be_used(client, env, identity, decision, m
         db.commit()
     actual = read(client, identity, decision).json()['actual']
     assert actual['status'] == 'UNAVAILABLE' and actual['observations'] == 0
+
+
+def test_job_date_is_not_valuation_date_and_stale_counts_are_not_normal(client, env, identity, decision):
+    from src.db.models.scheduled_job import ScheduledJob
+    start = date.fromisoformat(decision['target_effective_date'])
+    navs(env, decision, [(0,100,'STALE_PRICE')], [(0,1000,'OK')])
+    with env.factory() as db:
+        accounts = list(db.scalars(select(NavDaily.account_id)))
+        db.add(ScheduledJob(job_id='price-wait-date', job_type='daily', scheduled_for=start+timedelta(days=1),
+            started_at=C.now_utc(), completed_at=C.now_utc(), status='success', stats_json={
+                'asof':str(start), 'status':'PASS', 'valuated':30,
+                'account_results':{aid:{'status':'STALE_PRICE'} for aid in accounts}}))
+        db.commit()
+    job = read(client, identity, decision).json()['valuation_job']
+    assert job['scheduled_for'] == str(start+timedelta(days=1))
+    assert job['valuation_date'] == str(start)
+    assert (job['normal_nav_accounts'],job['stale_nav_accounts'],job['expected_nav_accounts']) == (1,1,2)
+    assert job['state'] == 'PRICE_WAIT' and not job['valuation_completed']
+    assert not any(aid in str(job) for aid in accounts)
+
+
+@pytest.mark.parametrize('asof', [None,'invalid','2026-99-99'])
+def test_missing_valuation_date_never_uses_scheduled_date_or_legacy_counter(client, env, identity, decision, asof):
+    from src.db.models.scheduled_job import ScheduledJob
+    start = date.fromisoformat(decision['target_effective_date'])
+    navs(env, decision, [(0,100,'OK')], [(0,1000,'OK')])
+    with env.factory() as db:
+        db.add(ScheduledJob(job_id='unknown-date', job_type='daily', scheduled_for=start,
+            started_at=C.now_utc(), status='success', stats_json={'asof':asof,'status':'PASS','valuated':30}))
+        db.commit()
+    job = read(client, identity, decision).json()['valuation_job']
+    assert job['valuation_date'] is None
+    assert job['normal_nav_accounts'] is None and job['stale_nav_accounts'] is None
+    assert not job['valuation_completed']
+
+
+def test_persisted_counts_exclude_accounts_outside_job_and_preserve_zero(client, env, identity, decision):
+    from src.db.models.scheduled_job import ScheduledJob
+    start = date.fromisoformat(decision['target_effective_date'])
+    navs(env, decision, [(0,100,'NAV_INCOMPLETE')], [(0,1000,'OK')])
+    with env.factory() as db:
+        db.add(ScheduledJob(job_id='scope', job_type='daily', scheduled_for=start,
+            started_at=C.now_utc(), status='success', stats_json={'asof':str(start),'status':'PASS',
+                'valuated':1,'account_results':{decision['account_id']:{'status':'OK'}}}))
+        db.commit()
+    job = read(client, identity, decision).json()['valuation_job']
+    assert (job['normal_nav_accounts'],job['stale_nav_accounts'],job['expected_nav_accounts']) == (0,0,1)
+    assert job['state'] == 'PARTIAL' and not job['valuation_completed']
+
+
+def test_legacy_job_without_account_list_does_not_claim_scoped_counts(client, env, identity, decision):
+    from src.db.models.scheduled_job import ScheduledJob
+    start = date.fromisoformat(decision['target_effective_date'])
+    navs(env, decision, [(0,100,'OK')], [(0,1000,'OK')])
+    with env.factory() as db:
+        db.add(ScheduledJob(job_id='legacy-scope', job_type='daily', scheduled_for=start,
+            started_at=C.now_utc(), status='success', stats_json={'asof':str(start),'status':'PASS','valuated':2}))
+        db.commit()
+    job = read(client, identity, decision).json()['valuation_job']
+    assert job['valuation_date'] == str(start)
+    assert job['normal_nav_accounts'] is None and job['expected_nav_accounts'] is None

@@ -148,3 +148,18 @@ it("restores the exact legend button that opened the panel",()=>{
  fireEvent.keyDown(screen.getByRole('complementary'),{key:'Escape'});
  expect(button).toHaveFocus();
 });
+
+
+it("explains different stored Base risk values without replacing the original coordinate",()=>{
+  state.record!.original.base.volatility=.0782912403656556;
+  state.record!.risk_change!.base_volatility=.0788553619517587;
+  render(<PortfolioPage/>);
+  fireEvent.click(screen.getByRole("button",{name:"Base · 판단 보기"}));
+  const panel=screen.getByRole("complementary");
+  expect(within(panel).getByText("7.83%")).toBeVisible();
+  expect(within(panel).getByText("7.89%")).toBeVisible();
+  expect(within(panel).getByText("예상 변동성 · 확정 당시 저장값")).toBeVisible();
+  expect(within(panel).getByText(/동일 자산 범위·모형/)).toBeVisible();
+  expect(within(panel).getByText(/Base의 예상 변동성도 달라질 수/)).toBeVisible();
+  expect(state.record!.original.base.volatility).toBe(.0782912403656556);
+});
