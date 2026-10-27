@@ -9,7 +9,7 @@ import {get} from '@/lib/api/client';
 import {getDecisions} from '@/lib/api/decisions';
 import {fmtDate} from '@/lib/format';
 import type {DecisionVerification} from '@/components/portfolio/DecisionVerificationPanel';
-import {checkpointLabels,hasTodayJob,jobStatus,koreaTime,originalComplete,type Tone} from './status';
+import {hasTodayJob,jobStatus,koreaTime,originalComplete,type Tone} from './status';
 import {evidenceRecord,evidenceLinks,verificationMethods} from './evidence-record';
 import s from './verification-status.module.css';
 import {SavedJudgment} from './SavedJudgment';
@@ -49,15 +49,15 @@ export function VerificationStatus() {
     <header className={s.header}><div><h1>검증 현황</h1><p>처음 판단부터 재검토까지, 구현한 내용과 확인한 근거를 한곳에서 봅니다.</p></div>
       <button className="btn-secondary" onClick={refresh} disabled={busy}><RefreshCw size={15} aria-hidden className={busy?s.spinning:undefined}/>{busy?'조회 중':'기록 새로고침'}</button>
     </header>
-    <div className={s.context}><span>내 계정{data&&<> · 최신 판단 <b>v{data.version}</b> · 확정 {koreaTime(data.confirmed_at)}</>}</span><span>{updated?`마지막 성공 조회 ${koreaTime(updated)} · 한국 시간`:failed?'성공한 조회 기록 없음':loading?'저장된 기록 조회 중':'조회 시각 미확보'}</span></div>
+    <div className={s.context}><span>내 계정{data&&<> · 최신 판단 <b>v{data.version}</b></>}</span><span>{updated?`마지막 성공 조회 ${koreaTime(updated)} · 한국 시간`:failed?'성공한 조회 기록 없음':loading?'저장된 기록 조회 중':'조회 시각 미확보'}</span></div>
     {failed&&<p role="alert" className={s.alert}>{data?'기록 갱신에 실패했습니다. 아래 계정 근거는 이전 조회 결과입니다.':'계정 근거를 불러오지 못했습니다. 기록 새로고침으로 다시 확인해 주세요.'}</p>}
     <nav className={s.flow} aria-label="검증 흐름">
       <a href="#saved-judgment"><span>01 · 처음 판단</span><strong>무엇을 예상했는가</strong><small>저장값·비중과 보존 검사</small></a>
-      <a href="#review-evidence"><span>02 · 경과와 재검토</span><strong>언제 다시 판단하는가</strong><small>관측 상태·점검일·검토 이유</small></a>
+      <a href="#review-evidence"><span>02 · 내부 판단 검토</span><strong>무엇을 다시 검토하는가</strong><small>자산별 최초 예상·경과·수정 검토</small></a>
       <a href="#tests-title"><span>03 · 개발 검증</span><strong>어떻게 확인했는가</strong><small>검사 방법·수정 내역·남은 과제</small></a>
     </nav>
     <section className={s.scope} aria-label="구현과 검증 범위">
-      <div><span className={s.scopeLabel}>구현·기능 검사 확인</span><p>최초 판단 보존 · 자산별 경과 추적 · 검토 이유 기록</p></div>
+      <div><span className={s.scopeLabel}>구현·기능 검사 확인</span><p>최초 판단 보존 · 자산별 경과 추적 · 내부 검토 기록</p></div>
       <div><span className={s.scopeLabel}>관측·합의가 필요한 부분</span><p>실제 3·6개월 판단 검토 · 모형 수정 기준 · 장기 운용 안정성</p></div>
     </section>
     <AccountComparison/>
@@ -84,16 +84,17 @@ export function VerificationStatus() {
       </EvidenceCard>
     </div>}
     <section id="review-evidence" className={s.remaining} aria-labelledby="remaining-title">
-      <div className={s.sectionHeading}><h2 id="remaining-title">02 · 경과 확인과 Revision 검토</h2><p>기록된 검토와 아직 필요한 판단을 구분합니다.</p></div>
-      <div className={s.reviewGrid}><div className={s.reviewPlan}><h3>3·6개월 경과 검토</h3>
-        {data?.review_plan?<><p>{fmtDate(data.review_plan.basis_date)} 기준 점검 일정</p><ul>{data.review_plan.checkpoints.map(item=><li key={item.months}><div><strong>{item.months}개월</strong><span>{fmtDate(item.date)}</span></div><Badge tone={failed?'attention':item.state==='UPCOMING'?'pending':item.state==='DUE'?'attention':'missing'}>{failed?'갱신 실패':checkpointLabels[item.state]??'상태 미확보'}</Badge></li>)}</ul></>:<p>{failed?'조회 실패로 점검 상태를 확인할 수 없습니다.':'점검 일정을 연결할 판단 근거가 없습니다.'}</p>}
-        <small>점검일 도달이나 검토 기록만으로 판단의 적중을 판정하지 않습니다.</small>
-        <section className={s.reviewNote} aria-label="최근 검토 기록"><h3>최근 검토 기록</h3>
-          {data?.review.choice?<><strong>{data.review.choice.action==='KEEP'?'구성 유지':'구성 조정 검토'}</strong><p>{data.review.choice.reason}</p><small>{koreaTime(data.review.choice.recorded_at)} · 한국 시간{failed?' · 이전 조회 결과':''}</small></>:<p>{failed?'조회 실패로 최신 검토 기록을 확인할 수 없습니다.':data?'아직 저장된 검토 이유가 없습니다.':'판단 기록을 확보하면 검토 이유를 연결합니다.'}</p>}
-          <p>검토 이유를 추가해도 최초 판단은 보존됩니다. 이 기록만으로 모형이나 주문이 바뀌지는 않습니다.</p>
-        </section>
+      <div className={s.sectionHeading}><h2 id="remaining-title">02 · 내부 판단 검증과 Revision</h2><p>자산별 최초 예상이 실제 경과와 얼마나 달랐는지 검토합니다.</p></div>
+      <div className={s.reviewGrid}><div className={s.reviewPlan}>
+        <h3>검토 대상과 순서</h3>
+        <ol className={s.internalSteps}>
+          <li><strong>자산별 최초 예상</strong><p>처음 정한 예상값과 판단 근거를 보존합니다.</p></li>
+          <li><strong>3·6개월 경과 대조</strong><p>같은 자산의 관측값을 추적하고, 비교 기간과 기준이 맞는지 확인합니다.</p></li>
+          <li><strong>최초 판단의 수정 여부 검토</strong><p>차이가 생긴 이유를 검토한 뒤, 최초 예상이나 그 근거를 수정할지 내부적으로 판단합니다.</p></li>
+        </ol>
+        <p>이 페이지는 검증 범위의 요약입니다. 자산별 추적과 검토 기록은 관리자용 내부 판단 추적에서 다룹니다.</p>
       </div><div className={s.limits}>
-        <article><div><h3>Revision 범위</h3><span className={s.scopeLabel}>기록 기능 확인 · 수정 기준 미합의</span></div><p>관측을 보고 유지·조정 이유를 남기는 구조를 마련했습니다. 어떤 결과에서 투자 구성이나 모형을 바꿀지는 별도 기준이 필요합니다.</p></article>
+        <article><div><h3>Revision 검증 상태</h3><Badge tone="missing">실제 판단 수정 미검증</Badge></div><p>자산별 추적·내부 검토 기록 기능은 격리 환경에서 검사했습니다. 실제 3·6개월 관측을 바탕으로 최초 판단을 수정했는지는 아직 확인하지 않았습니다.</p><p>최초 예상이 없거나 비교 기준이 맞지 않으면 대조를 보류합니다. 사용자의 구성 유지·조정 기록은 이 내부 검토의 완료 근거가 아닙니다.</p></article>
         <article><div><h3>지속적 초과성과·예측 정확도</h3><Badge tone="missing">미입증</Badge></div><p>기간 수익률 차이만으로 지속적 우위나 판단 적중을 결론내리지 않습니다. 연간 예상과 단기 실현수익률도 직접 빼서 평가하지 않습니다.</p></article>
         <article><div><h3>반복 사용·지불 의사</h3><Badge tone="missing">근거 미등록</Badge></div><p>처음 선택한 이유와 위험 변화를 함께 보고 유지·재검토를 판단하도록 돕는 것이 목표입니다. 실제로 판단이 쉬워지는지, 계속 사용하거나 지불할 의사가 있는지는 아직 확인하지 않았습니다.</p></article>
       </div></div>

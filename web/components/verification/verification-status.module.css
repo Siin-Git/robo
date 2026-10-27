@@ -57,3 +57,4 @@
 .comparisonNote{font-size:13px;line-height:1.7;color:#b0c0d4}
 @media(max-width:600px){.accountComparison{padding:18px}.comparisonMetrics{gap:12px}.comparisonMetrics>div+div{padding-left:12px}.comparisonMetrics dd{font-size:20px}.comparisonMetrics dt{font-size:12px}}
 @media(max-width:360px){.comparisonMetrics{grid-template-columns:1fr}.comparisonMetrics>div+div{border-left:0;padding-left:0;border-top:1px solid #31435b;padding-top:12px}}
+.internalSteps{padding-left:22px;margin:20px 0}.internalSteps li{padding:0 0 16px 6px;color:var(--text)}.internalSteps li p{margin:6px 0 0;color:var(--muted);line-height:1.7;font-size:13px}
