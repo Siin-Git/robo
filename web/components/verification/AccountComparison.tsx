@@ -21,7 +21,6 @@ export function AccountComparison(){
     {ready&&summary&&d?<>
       <div className={s.comparisonPeriod}><strong>{fmtDate(summary.start)} — {fmtDate(summary.end)}</strong><span>{summary.observations}개 공통 평가일{q.isError?' · 이전 조회':''}</span></div>
       <dl className={s.comparisonMetrics}><div><dt>내 포트폴리오</dt><dd>{fmtPct(summary.personal_return)}</dd></div><div><dt>CORE</dt><dd>{fmtPct(summary.core_return)}</dd></div><div><dt>수익률 차이</dt><dd>{fmtActivePp(summary.difference_pp)}</dd></div></dl>
-      <p className={s.comparisonNote}>{fmtDate(d.historical_start)}–{fmtDate(d.historical_end)}은 저장된 구성을 과거 가격에 적용한 구간이며, {fmtDate(d.forward_start)}부터 이어받은 평가 기록을 포함합니다. 이 전체 기간 결과만으로 현재 판단의 적중 여부를 판정하지 않습니다.</p>
       {!!summary.missing_observations&&<p role="status">평가 미확보 {summary.missing_observations}일 · 해당 날짜의 값을 채우거나 정상 평가로 세지 않았습니다.</p>}
       <details className={s.evidence}><summary>전체 기간 계산 근거와 일별 평가액</summary><div className={s.evidenceBody}>
         <p>조회 성공 {koreaTime(q.dataUpdatedAt)} · 한국 시간. 저장된 정상 평가액만 사용하며 원장이나 최초 판단을 변경하지 않습니다.</p>

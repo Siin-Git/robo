@@ -1040,3 +1040,7 @@ Removed the requested full-period explanatory paragraph, confirmation timestamps
 
 Validation: frontend 193 tests and production build/typecheck; isolated browser validation is recorded in task output. The presentation should describe Revision as an internal reconsideration of initial asset estimates/grounds, not a customer portfolio choice.
 - Completed: frontend 193 passed, production build/typecheck passed, isolated browser 4 scenarios passed including revised internal-verification section and 320/390px layout.
+
+### 2026-10-28 · Remove full-period explanatory paragraph
+
+Removed the user-selected paragraph under the full-period return metrics. The existing expandable daily NAV table retains per-row historical-price/forward source labels. Calculations, stored records and the internal Revision section are unchanged. Existing frontend checks and production build/typecheck verify the removal.
