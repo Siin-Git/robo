@@ -1031,3 +1031,12 @@ The verification page previously showed only the latest decision's post-effectiv
 ### 2026-10-28 · Remove decision-period comparison card
 
 Removed the requested '현재 판단 이후 비교' card, its empty/error placeholder and references directing users to it. The full-period comparison remains. Remaining evidence cards span the available width. API calculation and original judgment/observation records are unchanged. Updated existing UI assertions to reflect two evidence cards; synthetic-evidence exclusion remains checked at the API level.
+
+### 2026-10-28 · Clarify internal Revision and trim requested copy
+
+Re-read the meeting transcript at 00:00: retain the initial estimate, follow each asset at 3/6 months internally, and consider revising an initially wrong judgment. Customer KEEP/ADJUST choices and their review schedules are not evidence of this internal Revision process. Removed those customer records from this page's internal-verification section; the summary now states the intended asset-level process and separates isolated feature checks from unverified real observation/revision outcomes. Existing admin tracking and customer-review APIs/storage are unchanged.
+
+Removed the requested full-period explanatory paragraph, confirmation timestamps in the header and judgment card, and verbose risk-comparison caveats. Compact headings still distinguish Frontier values from the theme-inclusive risk comparison. Historical/forward provenance remains in the full-period card. No financial calculations or records changed.
+
+Validation: frontend 193 tests and production build/typecheck; isolated browser validation is recorded in task output. The presentation should describe Revision as an internal reconsideration of initial asset estimates/grounds, not a customer portfolio choice.
+- Completed: frontend 193 passed, production build/typecheck passed, isolated browser 4 scenarios passed including revised internal-verification section and 320/390px layout.

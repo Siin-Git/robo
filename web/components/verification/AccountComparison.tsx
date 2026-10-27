@@ -24,7 +24,6 @@ export function AccountComparison(){
       <p className={s.comparisonNote}>{fmtDate(d.historical_start)}–{fmtDate(d.historical_end)}은 저장된 구성을 과거 가격에 적용한 구간이며, {fmtDate(d.forward_start)}부터 이어받은 평가 기록을 포함합니다. 이 전체 기간 결과만으로 현재 판단의 적중 여부를 판정하지 않습니다.</p>
       {!!summary.missing_observations&&<p role="status">평가 미확보 {summary.missing_observations}일 · 해당 날짜의 값을 채우거나 정상 평가로 세지 않았습니다.</p>}
       <details className={s.evidence}><summary>전체 기간 계산 근거와 일별 평가액</summary><div className={s.evidenceBody}>
-        <p>각 계좌의 같은 시작일 평가액을 기준으로 계산한 수익률입니다. CORE는 시장지수가 아닙니다. 과거 구간에 적용한 구성의 확정 시각: {koreaTime(d.decision_confirmed_at)} · 한국 시간.</p>
         <p>조회 성공 {koreaTime(q.dataUpdatedAt)} · 한국 시간. 저장된 정상 평가액만 사용하며 원장이나 최초 판단을 변경하지 않습니다.</p>
         <div className={s.methodTable}><table><caption>전체 기간의 저장 평가액</caption><thead><tr><th>평가일</th><th>자료 구분</th><th>내 포트폴리오</th><th>CORE</th></tr></thead><tbody>{d.series.map(row=><tr key={row.date}><th scope="row">{fmtDate(row.date)}</th><td>{row.data_kind==='HISTORICAL_REPLAY'?'과거 가격 적용':'시작 이후 기록'}</td><td>{money(row.personal_nav)}</td><td>{money(row.core_nav)}</td></tr>)}</tbody></table></div>
       </div></details>

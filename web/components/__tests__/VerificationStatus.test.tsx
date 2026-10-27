@@ -78,11 +78,15 @@ it('never carries the old judgment evidence to a newly selected latest decision'
   state.decisions.data.items=[{decision_id:'decision-2'}];render(<VerificationStatus/>);
   expect(screen.queryByText('저장 기록 확인')).not.toBeInTheDocument();expect(screen.queryByText('v1')).not.toBeInTheDocument();
 });
-it('does not treat calendar arrival or a recorded review as proof of investment accuracy',()=>{
-  state.evidence.data.review_plan.checkpoints[0].state='RECORDED';state.evidence.data.review_plan.checkpoints[1].state='DUE';
-  render(<VerificationStatus/>);expect(screen.getByText('검토 기록 있음')).toBeVisible();expect(screen.getByText('재검토 시점')).toBeVisible();
-  expect(screen.getByText('미입증')).toBeVisible();expect(screen.getByText('근거 미등록')).toBeVisible();
-  expect(screen.getByText(/최신 검사 자동 연동 아님/)).toBeVisible();
+it('does not use user review dates or choices as evidence of internal Revision',()=>{
+  state.evidence.data.review_plan.checkpoints[0].state='RECORDED';
+  state.evidence.data.review_plan.checkpoints[1].state='DUE';
+  render(<VerificationStatus/>);
+  expect(screen.queryByText('검토 기록 있음')).not.toBeInTheDocument();
+  expect(screen.getByText('실제 판단 수정 미검증')).toBeVisible();
+  expect(screen.getByText('자산별 최초 예상')).toBeVisible();
+  expect(screen.getByText('3·6개월 경과 대조')).toBeVisible();
+  expect(screen.getByText('최초 판단의 수정 여부 검토')).toBeVisible();
 });
 it('formats evidence dates in Korean time without substituting now for missing timestamps',()=>{
   expect(koreaTime(null)).toBe('미확보');expect(koreaTime('invalid')).toBe('미확보');
@@ -134,20 +138,24 @@ it('keeps saved forecasts, paired risk and weights on this page without requirin
  expect(flow.getAllByRole('link').map(a=>a.getAttribute('href'))).toEqual(['#saved-judgment','#review-evidence','#tests-title']);
  expect(screen.queryByRole('link',{name:/당시 비중·위험 근거 보기|검토 이유·기록 보기|이 판단의 성과 상세/})).not.toBeInTheDocument();
 });
-it('shows the actual stored review reason and time without offering a write action',()=>{
+it('omits requested timestamps and prose and does not relabel customer review as internal Revision',()=>{
  state.evidence.data.review.choice={action:'ADJUST',reason:'위험 허용 범위를 다시 검토',recorded_at:'2026-10-25T18:00:00Z'};
+ state.evidence.data.risk_change={status:'AVAILABLE',base_volatility:.08,personalized_volatility:.09,difference_pp:1,as_of:'2026-09-11',method:'saved'};
  render(<VerificationStatus/>);
- const review=within(screen.getByRole('region',{name:'최근 검토 기록'}));
- expect(review.getByText('구성 조정 검토')).toBeVisible();expect(review.getByText('위험 허용 범위를 다시 검토')).toBeVisible();
- expect(review.getByText(/2026. 10. 26./)).toBeVisible();expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
- expect(screen.getByText(/모형이나 주문이 바뀌지는 않습니다/)).toBeVisible();
+ expect(screen.queryByRole('region',{name:'최근 검토 기록'})).not.toBeInTheDocument();
+ expect(screen.queryByText('위험 허용 범위를 다시 검토')).not.toBeInTheDocument();
+ expect(screen.queryByText(/확정 2026/)).not.toBeInTheDocument();
+ expect(screen.queryByText(/테마를 포함한 동일 자산 범위/)).not.toBeInTheDocument();
+ expect(screen.queryByText(/예상 변동성 차이는 실제 손실/)).not.toBeInTheDocument();
+ expect(screen.getByText('기본 구성 · Frontier')).toBeVisible();
+ expect(screen.getByText('테마 포함 기준의 예상 위험 변화')).toBeVisible();
 });
 it('separates verified test methods, synthetic arithmetic examples and unverified investment outcomes',()=>{
  render(<VerificationStatus/>);
  expect(screen.getByRole('table',{name:/완료된 검사/})).toBeVisible();
  expect(screen.getByText(/계산 검사용 가상 입력입니다/)).toBeVisible();
  expect(screen.getByText('863개 통과')).toBeVisible();expect(screen.getByText('182개 통과')).toBeVisible();
- expect(screen.getByText('기록 기능 확인 · 수정 기준 미합의')).toBeVisible();
+ expect(screen.getByText('실제 판단 수정 미검증')).toBeVisible();
  expect(screen.getByText(/실제로 판단이 쉬워지는지/)).toBeVisible();
  expect(screen.getByText('자산별 3·6개월 추적')).toBeVisible();
 });
