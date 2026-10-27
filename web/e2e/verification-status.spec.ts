@@ -25,13 +25,13 @@ test('verification evidence: real owner API, transparent waiting, retry, mobile,
   await expect(page.getByRole('heading',{name:'검증 현황',level:1})).toBeVisible();
   await expect(page.getByText('저장 기록 확인',{exact:true})).toBeVisible();
   const original=page.getByRole('region',{name:'판단 보존',exact:true});
-  await original.locator('summary').focus();await page.keyboard.press('Enter');
+  await original.getByText('판단 보존 근거 보기',{exact:true}).focus();await page.keyboard.press('Enter');
   await expect(original).toContainText(data.reason);
-  await expect(original.getByRole('link',{name:/당시 비중/})).toHaveAttribute('href',`/portfolio?decision_id=${data.decision_id}&inspect=personalized`);
+  await expect(original.getByRole('table',{name:'확정 당시 예상 수익률과 변동성'})).toBeVisible();
   const comparison=page.getByRole('region',{name:'성과 비교',exact:true});
   await comparison.locator('summary').click();await expect(comparison).toContainText(data.actual.reason);
   await expect(comparison).toContainText('비교 미확보');
-  await original.locator('summary').click();await comparison.locator('summary').click();
+  await original.getByText('판단 보존 근거 보기',{exact:true}).click();await comparison.locator('summary').click();
   await page.waitForTimeout(200);await page.screenshot({path:path.join(evidence,'overview-desktop.png')});
   for(const width of [390,320]){
     await page.setViewportSize({width,height:844});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -45,7 +45,7 @@ test('verification evidence: real owner API, transparent waiting, retry, mobile,
   await page.unroute(`**${endpoint}`);
   await page.getByRole('button',{name:'기록 새로고침',exact:true}).click();
   await expect(page.getByText('저장 기록 확인',{exact:true})).toBeVisible();await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
-  await page.getByRole('region',{name:'기록된 기능 검사',exact:true}).screenshot({path:path.join(evidence,'functional-evidence.png')});
+  await page.getByRole('region',{name:'03 · 개발하면서 확인한 것',exact:true}).screenshot({path:path.join(evidence,'functional-evidence.png')});
   expect(counts()).toEqual(before);
   // Explicit synthetic rows may exist in a fixture; the live API must still refuse performance evidence.
   seed('nav');const afterSeed=counts();
@@ -54,5 +54,5 @@ test('verification evidence: real owner API, transparent waiting, retry, mobile,
   await expect(comparison).not.toContainText('0.00%');
   await page.screenshot({path:path.join(evidence,'synthetic-excluded.png')});
   expect(counts()).toEqual(afterSeed);expect(mutations).toEqual([]);expect(errors).toEqual([]);
-  await expect(page.getByRole('link',{name:'실제 검사 결과',exact:true})).toHaveAttribute('href','https://github.com/MinchoLover/robo/actions/runs/40219993587');
+  await expect(page.getByRole('link',{name:'실제 검사 결과',exact:true})).toHaveAttribute('href','https://github.com/MinchoLover/robo/actions/runs/40442696571');
 });

@@ -74,7 +74,7 @@ it('does not show account success on an initial error or a missing judgment',()=
   state.evidence.isError=false;state.decisions.data={items:[]};view.rerender(<VerificationStatus/>);
   expect(screen.getAllByText('확정 판단 미확보')).toHaveLength(3);
   expect(screen.queryByText('조회 실패')).not.toBeInTheDocument();
-  expect(screen.getByRole('link',{name:/실제 검사 결과/})).toHaveAttribute('href','https://github.com/MinchoLover/robo/actions/runs/40219993587');
+  expect(screen.getByRole('link',{name:/실제 검사 결과/})).toHaveAttribute('href','https://github.com/MinchoLover/robo/actions/runs/40442696571');
 });
 it('never carries the old judgment evidence to a newly selected latest decision',()=>{
   state.decisions.data.items=[{decision_id:'decision-2'}];render(<VerificationStatus/>);
@@ -121,4 +121,35 @@ it('displays separate evidence for a current scheduled job using a prior valuati
  expect(region.getByText('정상 NAV 계좌 수').parentElement).toHaveTextContent('0');
  expect(region.getByText('가격 지연 NAV 계좌 수').parentElement).toHaveTextContent('30');
  expect(region.queryByText('최근 평가 완료')).not.toBeInTheDocument();
+});
+
+it('keeps saved forecasts, paired risk and weights on this page without requiring a portfolio visit',()=>{
+ state.evidence.data.original.base.volatility=.07829124;
+ state.evidence.data.risk_change={status:'AVAILABLE',base_volatility:.07885536,personalized_volatility:.08885536,difference_pp:1,as_of:'2026-09-11',method:'saved model'};
+ render(<VerificationStatus/>);
+ const original=within(screen.getByRole('table',{name:'확정 당시 예상 수익률과 변동성'}));
+ expect(original.getByText('7.83%')).toBeVisible();
+ expect(screen.getByText('7.89%')).toBeVisible();expect(screen.getByText('+1.00%p')).toBeVisible();
+ fireEvent.click(screen.getByText('확정 당시 비중 보기'));
+ expect(screen.getByRole('table',{name:'확정 당시 자산 비중'})).toBeVisible();
+ const flow=within(screen.getByRole('navigation',{name:'검증 흐름'}));
+ expect(flow.getAllByRole('link').map(a=>a.getAttribute('href'))).toEqual(['#saved-judgment','#review-evidence','#tests-title']);
+ expect(screen.queryByRole('link',{name:/당시 비중·위험 근거 보기|검토 이유·기록 보기|이 판단의 성과 상세/})).not.toBeInTheDocument();
+});
+it('shows the actual stored review reason and time without offering a write action',()=>{
+ state.evidence.data.review.choice={action:'ADJUST',reason:'위험 허용 범위를 다시 검토',recorded_at:'2026-10-25T18:00:00Z'};
+ render(<VerificationStatus/>);
+ const review=within(screen.getByRole('region',{name:'최근 검토 기록'}));
+ expect(review.getByText('구성 조정 검토')).toBeVisible();expect(review.getByText('위험 허용 범위를 다시 검토')).toBeVisible();
+ expect(review.getByText(/2026. 10. 26./)).toBeVisible();expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+ expect(screen.getByText(/모형이나 주문이 바뀌지는 않습니다/)).toBeVisible();
+});
+it('separates verified test methods, synthetic arithmetic examples and unverified investment outcomes',()=>{
+ render(<VerificationStatus/>);
+ expect(screen.getByRole('table',{name:/완료된 검사/})).toBeVisible();
+ expect(screen.getByText(/계산 검사용 가상 입력입니다/)).toBeVisible();
+ expect(screen.getByText('863개 통과')).toBeVisible();expect(screen.getByText('182개 통과')).toBeVisible();
+ expect(screen.getByText('기록 기능 확인 · 수정 기준 미합의')).toBeVisible();
+ expect(screen.getByText(/실제로 판단이 쉬워지는지/)).toBeVisible();
+ expect(screen.getByText('자산별 3·6개월 추적')).toBeVisible();
 });
