@@ -1016,3 +1016,14 @@ AI는 코드·검사·설명 작성에 사용했으며 투자 판단이나 과�
 가상 검산 예시의 명시, 읽기 전후 테스트 원장 불변.
 프런트 185개 및 타입 검사 포함 production 빌드 통과. 서버·DB·계산은 변경하지 않음.
 AI는 화면·문구·검사 정리에 사용했다.
+
+### 2026-10-28 · Verification full-period comparison
+
+The verification page previously showed only the latest decision's post-effective-date NAV window. Account history already shown on the dashboard was absent, so a valid full-period comparison appeared unavailable.
+
+- Reuse the owner-scoped `/api/v1/me/performance/continuity` summary and daily NAV in a primary full-period card. Financial results remain server-calculated.
+- Keep latest-decision comparison and review dates separate. Historical-price results are not attributed to a decision made later; disclose the historical/forward boundary and original configuration timestamp.
+- Independent loading, retry, cached-error labels and missing-value display. No ledger, trading, decision, or backend changes.
+- Acceptance: a full-period return remains visible even when the latest judgment has fewer than two common dates; outages remain explicit; 320/390px layouts do not overflow.
+- Local validation: frontend 193 passed; production build/type check passed; replay-handoff SQLite tests 3 passed (PostgreSQL variants skipped locally). Browser checks recorded separately in task output; the new full-period browser scenario uses an explicit synthetic API contract, not operating results.
+- Browser validation completed: 4 scenarios passed (existing real-API read-only flow, responsive/keyboard, decision-query failure recovery, synthetic full-period contract with independent failure recovery). Production account evidence stays local and is not included in GitHub artifacts.

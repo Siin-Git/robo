@@ -1,5 +1,6 @@
 import {render,screen,fireEvent,cleanup,within,waitFor} from '@testing-library/react';
 import {afterEach,beforeEach,it,expect,vi} from 'vitest';
+vi.mock('../verification/AccountComparison',()=>({AccountComparison:()=>null}));
 import {VerificationStatus} from '../verification/VerificationStatus';
 import {canCompare,hasTodayJob,jobStatus,koreaTime} from '../verification/status';
 import type {DecisionVerification} from '../portfolio/DecisionVerificationPanel';
@@ -23,7 +24,7 @@ beforeEach(()=>{
 it('separates recorded judgment, missing performance and globally waiting valuation',()=>{
   render(<VerificationStatus/>);
   expect(within(screen.getByRole('region',{name:'판단 보존'})).getByText('저장 기록 확인')).toBeVisible();
-  expect(within(screen.getByRole('region',{name:'성과 비교'})).getByText('비교 미확보')).toBeVisible();
+  expect(within(screen.getByRole('region',{name:'현재 판단 이후 비교'})).getByText('판단 이후 기록 수집 중')).toBeVisible();
   expect(within(screen.getByRole('region',{name:'운용 기록'})).getByText('최근 결과 · 공동 운용 시작일 미지정')).toBeVisible();
   expect(screen.queryByText('최근 평가 완료')).not.toBeInTheDocument();
   expect(screen.queryByText('0.00%')).not.toBeInTheDocument();
@@ -33,8 +34,8 @@ it('separates recorded judgment, missing performance and globally waiting valuat
 });
 it('shows genuine zero returns only when both dates and both NAV series are available',()=>{
   state.evidence.data.actual=available();render(<VerificationStatus/>);
-  expect(screen.getByText('비교 자료 확보')).toBeVisible();
-  fireEvent.click(screen.getByText('성과 비교 근거 보기'));
+  expect(screen.getByText('판단 이후 비교 가능')).toBeVisible();
+  fireEvent.click(screen.getByText('현재 판단 이후 비교 근거 보기'));
   expect(screen.getAllByText('0.00%')).toHaveLength(2);
   expect(screen.getByText('0.00%p')).toBeVisible();
   expect(screen.getByText('미입증')).toBeVisible();
@@ -45,7 +46,7 @@ it.each([
 ])('does not display comparison values for incomplete evidence %j',(patch)=>{
   const actual={...available(),...patch} as DecisionVerification['actual'];expect(canCompare(actual)).toBe(false);
   state.evidence.data.actual=actual;render(<VerificationStatus/>);
-  expect(screen.getByText('비교 미확보')).toBeVisible();expect(screen.queryByText('0.00%')).not.toBeInTheDocument();
+  expect(screen.getByText('판단 이후 기록 수집 중')).toBeVisible();expect(screen.queryByText('0.00%')).not.toBeInTheDocument();
 });
 it('does not replace missing original forecasts with current values',()=>{
   state.evidence.data.original.base.expected_return=null;state.evidence.data.original.personalized.weights={};
@@ -63,7 +64,7 @@ it('marks cached evidence stale on refresh failure and retries without losing it
   state.evidence.data.actual=available();state.evidence.isError=true;render(<VerificationStatus/>);
   expect(screen.getByRole('alert')).toHaveTextContent('이전 조회 결과');
   expect(screen.getAllByText('갱신 실패 · 이전 조회')).toHaveLength(3);
-  expect(screen.queryByText('비교 자료 확보')).not.toBeInTheDocument();
+  expect(screen.queryByText('판단 이후 비교 가능')).not.toBeInTheDocument();
   expect(screen.getByText(/마지막 성공 조회/)).toHaveTextContent('10:00');
   fireEvent.click(screen.getByRole('button',{name:'기록 새로고침'}));
   await waitFor(()=>expect(state.evidence.refetch).toHaveBeenCalled());
