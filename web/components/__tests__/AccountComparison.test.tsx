@@ -7,7 +7,7 @@ const fixture=()=>({available:true,historical_start:'2026-10-01',historical_end:
 beforeEach(()=>{state.query={data:fixture(),isLoading:false,isError:false,isFetching:false,dataUpdatedAt:Date.parse('2026-10-28T00:00:00Z'),refetch:vi.fn()};});
 afterEach(cleanup);
 it('shows the server account-wide comparison regardless of the latest decision window',()=>{
- render(<AccountComparison/>);expect(screen.getByText('2026.10.01 — 2026.10.26')).toBeVisible();expect(screen.getByText('-4.00%')).toBeVisible();expect(screen.getByText('-5.00%')).toBeVisible();expect(screen.getByText('+1.00%p')).toBeVisible();expect(screen.getByText(/18개/)).toBeVisible();expect(screen.getByText(/저장된 구성을 과거 가격/)).toBeVisible();
+ render(<AccountComparison/>);expect(screen.getByText('2026.10.01 — 2026.10.26')).toBeVisible();expect(screen.getByText('-4.00%')).toBeVisible();expect(screen.getByText('-5.00%')).toBeVisible();expect(screen.getByText('+1.00%p')).toBeVisible();expect(screen.getByText(/18개/)).toBeVisible();expect(screen.queryByText(/저장된 구성을 과거 가격/)).not.toBeInTheDocument();
  fireEvent.click(screen.getByText('전체 기간 계산 근거와 일별 평가액'));const table=screen.getByRole('table');expect(within(table).getAllByText('미확보')).toHaveLength(2);expect(within(table).getByText('과거 가격 적용')).toBeVisible();expect(screen.getByText(/평가 미확보 1일/)).toBeVisible();
 });
 it('keeps a failed refresh explicitly stale and offers its own retry',()=>{state.query.isError=true;render(<AccountComparison/>);expect(screen.getByRole('alert')).toHaveTextContent('이전 조회');expect(screen.getByText('-4.00%')).toBeVisible();fireEvent.click(screen.getByRole('button'));expect(state.query.refetch).toHaveBeenCalledOnce();});
