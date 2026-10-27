@@ -25,6 +25,7 @@ export interface DecisionVerification {
     date: string; state: "UPCOMING" | "DATA_PENDING" | "DUE" | "RECORDED" | "ENDED" }[] };
   valuation_job?: { status: "running" | "success" | "failed" | "skipped"; scheduled_for: string; completed_at: string | null;
     state?: string; reason_code?: "START_NOT_SCHEDULED" | "AWAITING_T0" | "PARTICIPANTS_NOT_READY" | null; message?: string; execution_succeeded?: boolean; valuation_completed?: boolean;
+    valuation_date?: string | null; normal_nav_accounts?: number | null; stale_nav_accounts?: number | null; expected_nav_accounts?: number | null;
     valuated?: number | null; ready?: number | null; required?: number | null; retryable?: boolean;
   } | null;
   opening_context?: {forward_start:string;historical_start:string;historical_end:string} | null;
@@ -61,18 +62,20 @@ export function DecisionVerificationPanel({ point, data, onClose }: {
       {!data ? <p>확정 당시 판단 기록 미확보</p> : <>
         <dl className={s.metrics}>
           <div><dt>예상 연수익률</dt><dd>{percent(estimate!.expected_return)}</dd></div>
-          <div><dt>예상 변동성 · 연율</dt><dd>{percent(estimate!.volatility)}</dd></div>
+          <div><dt>예상 변동성 · 확정 당시 저장값</dt><dd>{percent(estimate!.volatility)}</dd></div>
           <div><dt>판단 날짜 · 한국시간</dt><dd>{new Date(data.confirmed_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</dd></div>
           <div><dt>효력일</dt><dd>{fmtDate(data.effective_date)}</dd></div>
         </dl>
         <div className={s.riskChange} aria-label="확정 당시 기본 구성 대비 예상 위험 변화">
           <h5>기본 구성과 예상 위험 비교</h5>
           {data.risk_change?.status === "AVAILABLE" ? <>
+            <p>테마를 포함한 동일 자산 범위·모형으로 계산해, 확정 당시 저장한 비교값입니다.</p>
             <dl className={s.metrics}>
               <div><dt>기본 구성 · Base</dt><dd>{percent(data.risk_change.base_volatility)}</dd></div>
               <div><dt>내 선택 · Personalized</dt><dd>{percent(data.risk_change.personalized_volatility)}</dd></div>
             </dl>
             <p>기본 구성 대비 <strong>{fmtActivePp(data.risk_change.difference_pp! / 100)}</strong> · 연율화 변동성 추정치</p>
+            <p>Frontier의 Base 좌표는 기본 자산군으로 산출합니다. 여기서는 테마까지 포함해 함께 추정하므로 Base의 예상 변동성도 달라질 수 있습니다.</p>
             <small>{fmtDate(data.risk_change.as_of)} 자료 · {data.risk_change.method} 모형</small>
           </> : <p>확정 당시 비교할 위험 값이 저장되지 않았습니다.</p>}
           <p>예상 변동성 변화는 실제 손실이나 향후 수익을 뜻하지 않습니다.</p>

@@ -82,13 +82,13 @@ export function VerificationStatus() {
         <small>출처 · Personalized·CORE 정상 NAV</small>
       </EvidenceCard>
       <EvidenceCard title="운용 기록" icon={<Activity size={19}/>} label={`최근 결과 · ${operation.label}`} tone={operation.tone} stale={failed} detail={<>
-        <dl className={s.rows}><div><dt>작업 범위</dt><dd>전체 계좌</dd></div><div><dt>최근 작업 기준일</dt><dd>{fmtDate(job?.scheduled_for)}</dd></div><div><dt>완료 시각 · 한국 시간</dt><dd>{koreaTime(job?.completed_at)}</dd></div><div><dt>평가 기록 계좌 수</dt><dd>{job?.valuated??'미확보'}</dd></div><div><dt>준비 인원</dt><dd>{job?.ready!=null&&job?.required!=null?`${job.ready} / ${job.required}명`:'미확보'}</dd></div></dl>
+        <dl className={s.rows}><div><dt>작업 범위</dt><dd>전체 계좌</dd></div><div><dt>작업 예정일</dt><dd>{fmtDate(job?.scheduled_for)}</dd></div><div><dt>완료 시각 · 한국 시간</dt><dd>{koreaTime(job?.completed_at)}</dd></div><div><dt>평가 대상일</dt><dd>{job?.valuation_date?fmtDate(job.valuation_date):'미확보'}</dd></div><div><dt>정상 NAV 계좌 수</dt><dd>{job?.normal_nav_accounts??'미확보'}</dd></div><div><dt>가격 지연 NAV 계좌 수</dt><dd>{job?.stale_nav_accounts??'미확보'}</dd></div><div><dt>평가 대상 계좌 수</dt><dd>{job?.expected_nav_accounts??'미확보'}</dd></div><div><dt>준비 인원</dt><dd>{job?.ready!=null&&job?.required!=null?`${job.ready} / ${job.required}명`:'미확보'}</dd></div></dl>
         <p>작업 성공과 정상 평가액 저장은 별도로 확인합니다. 전체 계좌의 작업 상태가 내 계좌의 비교 자료 확보를 보장하지는 않습니다.</p>
         <p>화면 새로고침은 저장된 결과만 조회하며 운용을 실행하지 않습니다.</p>
         <Link href="/dashboard?source=forward">자동운용 기록 보기 <ArrowUpRight size={14}/></Link>
       </>}>
-        <div className={`${s.figure} ${s.dateFigure}`}>{job?.scheduled_for?fmtDate(job.scheduled_for):'—'}<span>최근 작업 기준일</span></div>
-        <p><strong>{failed?'오늘 평가 · 갱신 실패':todayJob?`오늘 평가 · ${operation.label}`:'오늘 평가 · 기록 미확보'}</strong><br/>{todayJob?'전체 계좌의 작업 결과입니다. 내 계좌의 비교 자료는 성과 비교에서 확인합니다.':'아래 근거는 최근 작업 당시의 결과입니다. 오늘 실행 여부는 이 기록만으로 알 수 없습니다.'}</p><small>출처 · 일일 작업 기록·저장 NAV</small>
+        <div className={`${s.figure} ${s.dateFigure}`}>{job?.scheduled_for?fmtDate(job.scheduled_for):'—'}<span>작업 예정일</span></div>
+        <p><strong>{failed?'오늘 예정 작업 · 갱신 실패':todayJob?`오늘 예정 작업 · ${operation.label}`:'오늘 예정 작업 · 기록 미확보'}</strong><br/>{todayJob?'전체 계좌의 작업 결과입니다. 내 계좌의 비교 자료는 성과 비교에서 확인합니다.':'아래 근거는 최근 작업 당시의 결과입니다. 오늘 실행 여부는 이 기록만으로 알 수 없습니다.'}</p><small>작업 예정일과 평가 대상일은 다를 수 있습니다. 정상 NAV 수는 평가 대상일의 저장 기록으로 확인합니다.</small><small>출처 · 일일 작업 기록·저장 NAV</small>
       </EvidenceCard>
     </div>}
     <section className={s.remaining} aria-labelledby="remaining-title">

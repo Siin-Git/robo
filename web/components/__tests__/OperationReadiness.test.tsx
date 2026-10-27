@@ -13,7 +13,7 @@ it('uses the server reason, readiness and date without interpreting success as N
  render(<OperationReadiness/>);
  expect(screen.getByRole('heading',{name:'공동 운용 시작일 미지정'})).toBeVisible();
  expect(screen.getByText(/준비 인원: 15\/15명/)).toBeVisible();
- expect(screen.getByText(/최근 작업 기준일: 2026.10.23/)).toBeVisible();
+ expect(screen.getByText(/작업 예정일: 2026.10.23/)).toBeVisible();
  expect(screen.queryByText('정상 NAV 저장 완료')).not.toBeInTheDocument();
  expect(screen.getByText(/화면 갱신으로 운용 작업이 실행되지는 않습니다/)).toBeVisible();
 });
@@ -48,4 +48,19 @@ it('requires both NAV_COMPLETE and valuation_completed',()=>{
  expect(valuationLabel(job)).toBe('정상 NAV 저장 확인 미완료');
  expect(valuationLabel({...job,valuation_completed:true})).toBe('정상 NAV 저장 완료');
  expect(valuationLabel({...job,state:undefined})).toContain('평가 완료 여부 미확인');
+});
+
+it('separates scheduled date, valuation date and persisted normal/stale counts',()=>{
+ Object.assign(state.evidence.data.valuation_job,{state:'PRICE_WAIT',scheduled_for:'2026-10-27',valuation_date:'2026-10-26',valuated:30,normal_nav_accounts:0,stale_nav_accounts:30,expected_nav_accounts:30});
+ render(<OperationReadiness/>);
+ expect(screen.getByText(/작업 예정일: 2026.10.27/)).toBeVisible();
+ expect(screen.getByText(/평가 대상일: 2026.10.26/)).toHaveTextContent('정상 NAV: 0개 계좌 · 가격 지연 NAV: 30개 계좌');
+ expect(screen.queryByText(/NAV 저장: 30/)).not.toBeInTheDocument();
+ expect(screen.queryByText('정상 NAV 저장 완료')).not.toBeInTheDocument();
+});
+it('keeps legacy missing counts unknown instead of using valuated or zero',()=>{
+ state.evidence.data.valuation_job.valuated=30;
+ render(<OperationReadiness/>);
+ expect(screen.getByText(/평가 대상일: 미확보/)).toHaveTextContent('정상 NAV: 미확보 · 가격 지연 NAV: 미확보');
+ expect(screen.queryByText(/30개 계좌/)).not.toBeInTheDocument();
 });

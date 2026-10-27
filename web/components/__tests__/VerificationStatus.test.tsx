@@ -95,7 +95,7 @@ it('separates yesterday start wait from today rather than claiming the start is 
   state.evidence.data.valuation_job.reason_code='AWAITING_T0';
   render(<VerificationStatus/>);
   expect(screen.getByText('최근 결과 · 당시 시작일 도달 전')).toBeVisible();
-  expect(screen.getByText('오늘 평가 · 기록 미확보')).toBeVisible();
+  expect(screen.getByText('오늘 예정 작업 · 기록 미확보')).toBeVisible();
   expect(screen.queryByText('지정된 공동 운용 시작일 도달 전')).not.toBeInTheDocument();
 });
 it('uses the Korean calendar date of the successful response and never assumes execution from elapsed time',()=>{
@@ -108,5 +108,17 @@ it('uses the Korean calendar date of the successful response and never assumes e
 it.each([['RUNNING',false,'평가 작업 진행 중'],['EVALUATION_FAILED',false,'평가 실패'],['NAV_COMPLETE',true,'최근 평가 완료']])('shows today recorded state %s without hiding failures',(status,completed,label)=>{
   state.evidence.data.valuation_job={...makeData().valuation_job!,scheduled_for:'2026-10-26',state:status,valuation_completed:completed};
   render(<VerificationStatus/>);
-  expect(screen.getByText(`오늘 평가 · ${label}`)).toBeVisible();
+  expect(screen.getByText(`오늘 예정 작업 · ${label}`)).toBeVisible();
+});
+
+it('displays separate evidence for a current scheduled job using a prior valuation date',()=>{
+ Object.assign(state.evidence.data.valuation_job,{state:'PRICE_WAIT',scheduled_for:'2026-10-26',valuation_date:'2026-10-25',valuated:30,normal_nav_accounts:0,stale_nav_accounts:30,expected_nav_accounts:30});
+ render(<VerificationStatus/>);
+ expect(screen.getByText('오늘 예정 작업 · 가격 확보 대기 · 평가 미완료')).toBeVisible();
+ fireEvent.click(screen.getByText('운용 기록 근거 보기'));
+ const region=within(screen.getByRole('region',{name:'운용 기록'}));
+ expect(region.getByText('평가 대상일').parentElement).toHaveTextContent('2026.10.25');
+ expect(region.getByText('정상 NAV 계좌 수').parentElement).toHaveTextContent('0');
+ expect(region.getByText('가격 지연 NAV 계좌 수').parentElement).toHaveTextContent('30');
+ expect(region.queryByText('최근 평가 완료')).not.toBeInTheDocument();
 });
