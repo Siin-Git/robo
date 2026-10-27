@@ -46,3 +46,14 @@
 @media(max-width:850px){.cards{grid-template-columns:1fr}.judgmentGrid{grid-template-columns:1fr}.riskSummary{border-left:0;border-top:1px solid var(--border);padding:20px 0 0}.scope{grid-template-columns:1fr;gap:14px}.flow a{padding:14px}.flow strong{font-size:13px}.flow small{display:none}.example{align-items:flex-start;flex-direction:column;gap:10px}.methodTable table{font-size:11px}.methodTable th,.methodTable td{padding:12px 10px}.methodTable tbody th{width:23%}}
 @media(max-width:480px){.flow{grid-template-columns:1fr}.flow a{flex-direction:row;align-items:center;gap:14px}.flow span{min-width:104px}.fixes>div{grid-template-columns:1fr}.methodTable{overflow-x:auto}.methodTable table{min-width:510px}.judgment table{font-size:11px}.riskPair{gap:15px}}
 @media print{.flow,.header button,.testRecord>.sectionHeading>a{display:none}.page{color:#111}.card,.reviewPlan,.limits,.example,.flow a{background:white;color:#111}.cards,.reviewGrid{display:block}.card,.reviewPlan,.limits{margin-bottom:16px;break-inside:avoid}.methodTable{overflow:visible}.page details{display:block}.page details>*{display:block!important}}
+
+.accountComparison{padding:24px;margin:24px 0;background:#152237;border:1px solid #2b3d56;border-radius:16px}
+.comparisonPeriod{display:flex;gap:16px;flex-wrap:wrap;align-items:center;color:#a4b6cc;margin:20px 0}
+.comparisonPeriod strong{color:#edf3fb;font-size:17px}
+.comparisonMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin:0 0 20px}
+.comparisonMetrics>div+div{border-left:1px solid #31435b;padding-left:20px}
+.comparisonMetrics dt{font-size:13px;color:#a4b6cc;margin-bottom:10px}
+.comparisonMetrics dd{margin:0;font-size:28px;font-weight:650;color:#d7e6ff}
+.comparisonNote{font-size:13px;line-height:1.7;color:#b0c0d4}
+@media(max-width:600px){.accountComparison{padding:18px}.comparisonMetrics{gap:12px}.comparisonMetrics>div+div{padding-left:12px}.comparisonMetrics dd{font-size:20px}.comparisonMetrics dt{font-size:12px}}
+@media(max-width:360px){.comparisonMetrics{grid-template-columns:1fr}.comparisonMetrics>div+div{border-left:0;padding-left:0;border-top:1px solid #31435b;padding-top:12px}}

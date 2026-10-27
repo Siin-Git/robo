@@ -28,9 +28,9 @@ test('verification evidence: real owner API, transparent waiting, retry, mobile,
   await original.getByText('판단 보존 근거 보기',{exact:true}).focus();await page.keyboard.press('Enter');
   await expect(original).toContainText(data.reason);
   await expect(original.getByRole('table',{name:'확정 당시 예상 수익률과 변동성'})).toBeVisible();
-  const comparison=page.getByRole('region',{name:'성과 비교',exact:true});
+  const comparison=page.getByRole('region',{name:'현재 판단 이후 비교',exact:true});
   await comparison.locator('summary').click();await expect(comparison).toContainText(data.actual.reason);
-  await expect(comparison).toContainText('비교 미확보');
+  await expect(comparison).toContainText('판단 이후 기록 수집 중');
   await original.getByText('판단 보존 근거 보기',{exact:true}).click();await comparison.locator('summary').click();
   await page.waitForTimeout(200);await page.screenshot({path:path.join(evidence,'overview-desktop.png')});
   for(const width of [390,320]){
@@ -50,7 +50,7 @@ test('verification evidence: real owner API, transparent waiting, retry, mobile,
   // Explicit synthetic rows may exist in a fixture; the live API must still refuse performance evidence.
   seed('nav');const afterSeed=counts();
   await page.getByRole('button',{name:'기록 새로고침',exact:true}).click();await comparison.locator('summary').click();
-  await expect(comparison).toContainText('합성');await expect(comparison).toContainText('비교 미확보');
+  await expect(comparison).toContainText('합성');await expect(comparison).toContainText('판단 이후 기록 수집 중');
   await expect(comparison).not.toContainText('0.00%');
   await page.screenshot({path:path.join(evidence,'synthetic-excluded.png')});
   expect(counts()).toEqual(afterSeed);expect(mutations).toEqual([]);expect(errors).toEqual([]);
