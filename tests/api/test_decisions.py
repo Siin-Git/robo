@@ -118,3 +118,46 @@ def test_review_excludes_future_valuations_and_does_not_reach_fake_horizons(clie
     result=client.get(f'/api/v1/me/decisions/{d_id}/review',cookies=cookies).json()
     assert result['actual']['observations']==0
     assert all(h['status']=='NOT_REACHED' and h['cumulative_return'] is None for h in result['horizons'])
+
+
+@pytest.mark.parametrize("change",[None,"reason","frequency","theme","changed_live_view"])
+def test_reopened_identical_confirmation_with_pending_orders_uses_immutable_decision(client,env,identity,change):
+    from src.db.models.onboarding import OnboardingDraft
+    from src.db.models import Event
+    from sqlalchemy import func
+    first=confirm(client,identity).json()['decision_id']
+    cookies,headers=identity
+    d=client.get('/api/v1/me/decisions',cookies=cookies).json()['items'][0]
+    with env.factory() as db:
+        db.add(Order(order_id='reopen-pending',account_id=d['account_id'],asset_id='us_equity',side='buy',target_weight=.1,
+            submitted_at=datetime.now(timezone.utc),effective_at=date.fromisoformat(d['target_effective_date']),status='pending',created_at=datetime.now(timezone.utc)))
+        db.commit()
+    body={'frontier_id':d['provenance']['frontier_id'],'theme_ids':['ai'],'reason':'original','rebalance_frequency':'monthly'}
+    assert client.put('/api/v1/me/onboarding/draft',cookies=cookies,headers=headers,json={**body,'current_step':'review'}).status_code==200
+    with env.factory() as db:
+        assert db.get(OnboardingDraft,d['user_id']).completed_at is None
+        before=[db.scalar(select(func.count()).select_from(model)) for model in (Order,NavDaily,Holding,Event)]
+    if change=='reason': body['reason']='different grounds'
+    elif change=='frequency': body['rebalance_frequency']='quarterly'
+    elif change in ('theme','changed_live_view'):
+        body['theme_ids']=['semiconductor']
+        if change=='changed_live_view':
+            from src.db.models import View
+            with env.factory() as db:
+                view=db.scalar(select(View).where(View.participant_id==d['participant_id'],View.end_at.is_(None)))
+                view.theme_id='semiconductor'
+                db.commit()
+    result=client.post('/api/v1/me/onboarding/complete',cookies=cookies,headers=headers,json={**body,'expected_decision_id':first})
+    if change:
+        assert result.status_code==409,result.text
+        assert result.json()['error']['code']=='PENDING_ORDERS'
+    else:
+        assert result.status_code==200,result.text
+        assert result.json()['already_completed'] is True
+        assert result.json()['decision_id']==first
+        with env.factory() as db:
+            assert db.get(OnboardingDraft,d['user_id']).completed_at is not None
+    assert client.get('/api/v1/me/decisions',cookies=cookies).json()['items']==[d]
+    with env.factory() as db:
+        assert [db.scalar(select(func.count()).select_from(model)) for model in (Order,NavDaily,Holding,Event)]==before
+        assert db.get(Order,'reopen-pending').status=='pending'

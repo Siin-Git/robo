@@ -126,3 +126,17 @@ it('marks missing valuation dates instead of claiming complete daily coverage',(
  connected();state.continuity.data.summary.missing_observations=1;render(<DarkDashboard/>);
  expect(screen.getByText(/평가 미확보 1일/)).toBeVisible();
 });
+
+it('shows stored residual cash with pending-order context and opens its history',()=>{
+ connected();state.continuity.data.snapshot.cash_balance=520.1554;
+ state.ledger.data.orders=[{status:'pending'},{status:'filled'},{status:'pending'}];
+ render(<DarkDashboard/>);
+ const metric=screen.getByText('미투자 현금').parentElement!;
+ expect(metric).toHaveTextContent('520원');expect(metric).toHaveTextContent('대기 주문 2건');
+ fireEvent.click(screen.getByRole('link',{name:'현금 내역'}));
+ expect(document.getElementById('dark-records')).toHaveAttribute('open');
+});
+it('preserves zero recorded cash instead of substituting an earlier balance',()=>{
+ connected();state.continuity.data.snapshot.cash_balance=0;render(<DarkDashboard/>);
+ expect(screen.getByText('미투자 현금').parentElement).toHaveTextContent('0원');
+});
