@@ -39,9 +39,10 @@ export function DarkDashboard(){
  const saved=history.data?.available?history.data.report:undefined;
  const archive=!combined&&!!saved?.ledger&&(view==="archive"||(view==="auto"&&!forward.isLoading&&!!forward.data&&(forward.data.series.length??0)<2));
  const source=archive?"archive":"forward";
- const ledgerQuery=useQuery({queryKey:["dark-preview-forward-ledger"],queryFn:getForwardLedger,enabled:!archive&&!forward.isLoading,refetchInterval:60_000,refetchIntervalInBackground:false});
+ const ledgerQuery=useQuery({queryKey:["forward-ledger"],queryFn:getForwardLedger,enabled:!archive&&!forward.isLoading,refetchInterval:60_000,refetchIntervalInBackground:false});
  const ledger=archive?saved?.ledger:ledgerQuery.data;
  const latest=combined?combinedData!.snapshot:ledger?.snapshots.at(-1);
+ const pendingOrders=archive?[]:(ledgerQuery.data?.orders??[]).filter(o=>o.status==="pending");
  const report=forward.data;
  const loading=view==="all"?continuity.isLoading:view==="auto"?(continuity.isLoading||history.isLoading||forward.isLoading):view==="archive"?history.isLoading:forward.isLoading;
  const error=combined||view==="all"?(continuity.isError||(!continuity.isLoading&&!combinedData)):archive||view==="archive"?history.isError:forward.isError||(view==="auto"&&!forward.isLoading&&(forward.data?.series.length??0)<2&&history.isError);
@@ -75,7 +76,7 @@ export function DarkDashboard(){
      <div className={s.balance}><span>총 평가자산 <Wallet size={15}/></span><strong>{money(balance)}</strong><small>보유자산 + 현금</small></div>
      <div><span>누적 수익률</span><strong className={tone(ready?personal:null)}>{ready?fmtReturn(personal):"—"}</strong><small>{start&&end?`${fmtDate(start)} — ${fmtDate(end)}`:"평가 기록 2개부터 표시"}</small></div>
      <div><span>CORE 대비</span><strong className={tone(ready?difference:null)}>{ready?fmtActivePp(difference):"—"}</strong><small>기준 포트폴리오 {ready?fmtReturn(core):"—"}</small></div>
-     <div><span>보유 현금</span><strong>{money(cash)}</strong><small>마지막 평가일의 현금 잔액</small></div>
+     <div><span>미투자 현금</span><strong>{money(cash)}</strong><small>{!archive&&ledgerQuery.isError?"주문 상태 조회 실패":pendingOrders.length?`대기 주문 ${pendingOrders.length}건 · 현재 현금 잔액`:"마지막 평가일의 현금 잔액"}</small><a className={s.cashLink} href={archive?"#dark-records":"#cash-history"} onClick={()=>{for(const id of ["dark-records", "cash-history"]){const d=document.getElementById(id);if(d instanceof HTMLDetailsElement)d.open=true;}}}>현금 내역 <ChevronRight size={13}/></a></div>
     </section>
     <div className={s.mainGrid}>
      <section className={`${s.card} ${s.chartCard}`}><div className={s.cardHeading}><div><h2>수익률의 흐름</h2><p>내 포트폴리오와 기준 구성 비교</p></div><span className={s.pill}>전체 기간</span></div>

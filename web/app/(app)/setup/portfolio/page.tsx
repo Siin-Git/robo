@@ -14,7 +14,7 @@ import { ArrowRight, RotateCcw, ChevronDown } from "lucide-react";
 import { SetupProgress } from "@/components/portfolio/SetupProgress";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/ui";
-import { get, post, put } from "@/lib/api/client";
+import { ApiError, get, post, put } from "@/lib/api/client";
 import { DEMO_MODE } from "@/lib/api/comparison";
 import type { ExperimentStatus } from "@/lib/api/experiment";
 import { ExperimentSetup } from "@/components/portfolio/ExperimentSetup";
@@ -132,7 +132,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
       return saved;
     },
     onSuccess: async () => {
-      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status", "decisions", "decision-review", "portfolio-choices", "forward-ledger", "ledger-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status", "decisions", "decision-review", "portfolio-choices", "forward-ledger", "ledger-status", "own-continuity"].map(key => qc.invalidateQueries({ queryKey: [key] })));
       router.push("/portfolio");
     },
   });
@@ -337,10 +337,10 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
           rebalanceFrequency={frequency}
           onBack={goBack}
           onComplete={() => mutateComplete.mutate({ frontier_id: selected.frontier_id, theme_ids: selectedThemes, reason, rebalance_frequency: frequency })}
-          onCompleteBase={() => mutateComplete.mutate({ frontier_id: selected.frontier_id, theme_ids: [], reason, rebalance_frequency: frequency })}
           selectionReason={{value:reason,onChange:setReason}}
           pending={mutateComplete.isPending}
           error={mutateComplete.isError}
+          errorMessage={mutateComplete.error instanceof ApiError && mutateComplete.error.status < 500 ? mutateComplete.error.message : undefined}
         />
       )}
     </AppShell>

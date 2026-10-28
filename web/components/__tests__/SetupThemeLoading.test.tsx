@@ -23,7 +23,6 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: { queryKey: string[] }) => {
     if (queryKey[0] === "experiment-setup-status") return {data:{status:"completed",market_comparison:state.market},isLoading:false,isError:false};
     if (queryKey[0] === "onboarding-preview") return { data: undefined, isLoading: true, isError: false };
-    if (queryKey[0] === "onboarding-rehearsal") return {data:undefined,isLoading:true,isError:false};
     if (queryKey[0] === "frontier") return { data: state.frontier, isLoading: false, isError: false };
     if (queryKey[0] === "theme-selection-preview") return { data: state.impact, isLoading: false, isError: false };
     if (queryKey[0] === "onboarding-draft") return { data: state.draft, isLoading: false, isError: false };

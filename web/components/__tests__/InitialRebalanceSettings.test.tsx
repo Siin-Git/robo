@@ -18,7 +18,7 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery:({queryKey}:{queryKey:string[]})=>({isLoading:false,isError:false,data:
     queryKey[0]==="onboarding-draft" ? {status:"draft",frontier_id:"F001",theme_ids:[],rebalance_frequency:state.frequency} :
     queryKey[0]==="frontier" ? state.frontier : queryKey[0]==="decisions" ? {items:[]} :
-    queryKey[0]==="onboarding-rehearsal" ? {status:"UNAVAILABLE",periods:[],proposal:state.preview,reason:"격리 테스트 자료 미확보"} :
+    queryKey[0]==="forward-ledger" ? {orders:[]} :
     queryKey[0].includes("preview") ? state.preview : {items:[]}}),
 }));
 
@@ -40,7 +40,7 @@ describe("frequency belongs to the initial frontier",()=>{
     fireEvent.click(screen.getByRole("button",{name:"다음: 변경 전·후 비교"}));
     await waitFor(()=>expect(screen.getByLabelText("확정 전 리밸런싱 주기")).toHaveTextContent("매분기"));
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button",{name:"기본 구성으로 확정"}));
+    fireEvent.click(screen.getByRole("button",{name:"포트폴리오 확정 · 성과 확인"}));
     expect(state.complete).toHaveBeenCalledWith(expect.objectContaining({rebalance_frequency:"quarterly"}));
   });
   it("hydrates a saved choice once and preserves an unsaved edit during query refetch",()=>{
