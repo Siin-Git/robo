@@ -26,6 +26,11 @@ def verification(decision_id: str, db=Depends(get_design_db), user=Depends(get_c
     from ..services.decision_verification_service import verification as read_verification
     return read_verification(db, user.user_id, decision_id)
 
+@router.get("/decisions/{decision_id}/asset-review-case")
+def asset_review_case(decision_id: str, db=Depends(get_design_db), user=Depends(get_current_user)):
+    from ..services.asset_review_case_service import case
+    return case(db, user.user_id, decision_id)
+
 @router.get("/portfolio/choices")
 def choices(db=Depends(get_design_db), user=Depends(get_current_user)):
     return svc.choices(db, user.user_id)

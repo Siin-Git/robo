@@ -14,6 +14,7 @@ import {evidenceRecord,evidenceLinks,verificationMethods} from './evidence-recor
 import s from './verification-status.module.css';
 import {SavedJudgment} from './SavedJudgment';
 import {AccountComparison} from './AccountComparison';
+import {AssetReviewCase} from './AssetReviewCase';
 
 const poll={refetchInterval:60_000,refetchIntervalInBackground:false};
 function Badge({tone,children}:{tone:Tone;children:ReactNode}) {
@@ -85,6 +86,7 @@ export function VerificationStatus() {
     </div>}
     <section id="review-evidence" className={s.remaining} aria-labelledby="remaining-title">
       <div className={s.sectionHeading}><h2 id="remaining-title">02 · 내부 판단 검증과 Revision</h2><p>자산별 최초 예상이 실제 경과와 얼마나 달랐는지 검토합니다.</p></div>
+      <AssetReviewCase decisionId={id}/>
       <div className={s.reviewGrid}><div className={s.reviewPlan}>
         <h3>검토 대상과 순서</h3>
         <ol className={s.internalSteps}>

@@ -1044,3 +1044,15 @@ Validation: frontend 193 tests and production build/typecheck; isolated browser 
 ### 2026-10-28 · Remove full-period explanatory paragraph
 
 Removed the user-selected paragraph under the full-period return metrics. The existing expandable daily NAV table retains per-row historical-price/forward source labels. Calculations, stored records and the internal Revision section are unchanged. Existing frontend checks and production build/typecheck verify the removal.
+
+### 2026-10-28 · One saved asset review case on verification
+
+The internal Revision summary lacked a concrete case connecting the original forecast to later observations. Added a read-only owner-scoped case at `GET /api/v1/me/decisions/{decision_id}/asset-review-case` and displayed it within section 02 of `/verification`.
+
+- Reuses `internal_tracking_service.report`; checks decision ownership before reading diagnostics. Returns one asset's allowlisted forecast and prices, never the full admin snapshot, other participants, reviewer IDs or internal notes. The admin endpoint remains restricted.
+- Selection prefers a complete saved forecast, then a base asset, then the highest confirmed weight. Observed returns never determine the selection.
+- Original asset forecasts are read from the immutable confirmation snapshot, not recomputed or backfilled. Prices are restricted to the decision's effective window and stop before the next decision. Unknown, test, synthetic or replay sources do not establish observations.
+- Shows expected annual return/volatility separately from first/last stored KRW prices and period price change (costs excluded). One observation is not zero return. Source rows and 3/6-month dates are expandable.
+- The current internal report has no agreed forecast/observation comparison definition, so this case explicitly defers Revision. It explains missing originals, insufficient observations/period, invalid sources or price gaps as applicable. It is a data-sufficiency check, not a recorded human review, a trading recommendation or proof of successful prediction. No new review, model change, order or NAV is saved.
+- Tests: focused API/internal-tracking/verification suite 54 passed; frontend 199 passed; production build and typecheck passed. Isolated browser checks: real local API/read-only ledger, responsive contract rendering at 320/390px, stale/initial error recovery (3 passed). Contract images are generated test data, not operating evidence. Private production observations are kept outside the public repository.
+- AI assisted implementation, copy and validation. No production database was used for tests. Operating deployment and authenticated account checks must be completed separately before claiming the case is live.
