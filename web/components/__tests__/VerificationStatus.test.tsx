@@ -1,6 +1,5 @@
 import {render,screen,fireEvent,cleanup,within,waitFor} from '@testing-library/react';
 import {afterEach,beforeEach,it,expect,vi} from 'vitest';
-vi.mock('../verification/AssetReviewCase',()=>({AssetReviewCase:()=>null}));
 vi.mock('../verification/AccountComparison',()=>({AccountComparison:()=>null}));
 import {VerificationStatus} from '../verification/VerificationStatus';
 import {canCompare,hasTodayJob,jobStatus,koreaTime} from '../verification/status';

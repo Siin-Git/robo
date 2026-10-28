@@ -1068,3 +1068,7 @@ Problem: setup replaced allocation/risk review with a historical rehearsal; ever
 - Acceptance: new confirmation succeeds with no pending orders; reopening the same configuration returns the original decision without another decision/order/NAV; changed reason, frequency or themes remain blocked by pending orders; mutated active views cannot impersonate the immutable decision; cash history opens and zero cash is preserved; 320/390px review fits the screen.
 - Focused confirmation API suite: 22 passed. Frontend: 200 passed, with historical-rehearsal tests removed and restored-flow/cash/error tests added. Production build/typecheck passed. Browser and full database checks are recorded with the delivery PR.
 - Private operating cash/trade/NAV reconciliation is kept in local task evidence, not the public repository. Tests use generated local accounts/databases. AI assisted implementation and verification; no operating orders, NAV or holdings were edited for testing.
+
+### 2026-10-28 · Remove requested asset case card
+
+Removed the entire user-selected “실제 저장 자료로 본 자산 한 건” card from `/verification`, including its estimates, observation/deferral block, refresh action and source disclosure. The page no longer mounts the case query. The internal-review summary and development-verification table remain available. This is a presentation removal; stored decisions and the owner API are unchanged. Existing frontend tests, production build and deployed-page inspection verify the change.
