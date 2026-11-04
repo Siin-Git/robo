@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from src.api.services import auth_service as auth
 from src.db.models.user import User
 from src.db.models.demo_cohort import DemoSlot
+from src.local.capstone import COHORT_SIZE
 from src.local.capstone import EMAILS
 from src.local.lab_meeting import prepare_from_environment
 
@@ -40,7 +41,7 @@ def test_import_login_and_preserve_changed_password_and_draft(server_accounts):
         s.commit()
         assert not prepare_from_environment(s)
         assert first.password_hash == replacement and slot.draft_json["theme_ids"] == ["ai"]
-        assert s.scalar(select(func.count()).select_from(User)) == 13
+        assert s.scalar(select(func.count()).select_from(User)) == COHORT_SIZE
 
 
 @pytest.mark.parametrize("change", ["missing", "duplicate", "plaintext", "wrong_hash"])

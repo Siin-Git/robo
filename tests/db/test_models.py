@@ -30,7 +30,7 @@ def test_table_names_exact():
         "orders", "trades", "holdings_daily", "nav_daily", "performance_daily",
         "prices_daily", "events", "model_versions", "counters", "forward_state",
         "users", "sessions", "scheduled_jobs", "base_portfolio_selections",
-        "onboarding_drafts", "demo_cohorts", "demo_slots"}
+        "onboarding_drafts", "demo_cohorts", "demo_slots", "portfolio_decisions", "portfolio_choices"}
 
 
 def test_required_columns():

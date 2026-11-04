@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy import select, func
 from src.local.seed_capstone import seed
 from src.local.demo_cohort import prepare
-from src.local.capstone import EMAILS, PASSWORD
+from src.local.capstone import COHORT_SIZE, EMAILS, PASSWORD
 from src.db.models.user import User
 from src.db.models.demo_cohort import DemoSlot
 from src.db.models.nav import NavDaily
@@ -49,7 +49,7 @@ def test_signup_save_freeze_compare_restart_and_seed(env, monkeypatch):
     assert c.post("/api/v1/auth/register",json={"email":"extra@example.com","invitation_code":"invalid","display_name":"extra","password":password}).json()["error"]["code"]=="COHORT_FULL"
     assert c.post("/api/v1/auth/register",json={**invite,"display_name":"x","password":password}).status_code==409
     assert c.get("/api/v1/me/experiment").json()["status"]=="setup_required"
-    assert c.get("/api/v1/comparison/rankings").json()["registered"]==12
+    assert c.get("/api/v1/comparison/rankings").json()["registered"]==COHORT_SIZE-1
     body=config()
     assert c.put("/api/v1/me/experiment/draft",json=body).status_code==403
     assert c.put("/api/v1/me/experiment/draft",json=body,headers=csrf(c)).status_code==200
@@ -61,7 +61,7 @@ def test_signup_save_freeze_compare_restart_and_seed(env, monkeypatch):
     assert c.post("/api/v1/me/experiment/complete",json={**body,"theme_ids":["ai","ai"]},headers=csrf(c)).status_code==422
     completed=c.post("/api/v1/me/experiment/complete",json=body,headers=csrf(c))
     assert completed.status_code==200,completed.text
-    assert completed.json()["registered"]==13
+    assert completed.json()["registered"]==COHORT_SIZE
     report=c.get("/api/v1/me/comparison").json()
     assert report["data_source"]=="DEMO_SCENARIO_ASSIGNED"
     assert report["participant_id"]==pid
@@ -71,15 +71,15 @@ def test_signup_save_freeze_compare_restart_and_seed(env, monkeypatch):
         assert c.post("/api/v1/me/experiment/complete",json=body,headers=csrf(c)).status_code==200
     assert c.post("/api/v1/me/experiment/complete",json=config(["defense","nuclear"]),headers=csrf(c)).status_code==409
     rankings=c.get("/api/v1/comparison/rankings").json()
-    assert rankings["total"]==13 and rankings["reserved"]==0
-    assert c.get("/api/v1/comparison/analytics").json()["comparable"]==13
+    assert rankings["total"]==COHORT_SIZE and rankings["reserved"]==0
+    assert c.get("/api/v1/comparison/analytics").json()["comparable"]==COHORT_SIZE
     # Free design writes remain independent from experiment snapshot.
     fid=c.get("/api/v1/me/frontier").json()["min_variance_frontier_id"]
     assert c.post("/api/v1/me/onboarding/complete",json={"frontier_id":fid,"theme_ids":["nuclear"],"reason":"자유 설계"},headers=csrf(c)).status_code==200
     assert c.get("/api/v1/me/comparison").json()==report
     with env.factory() as s:
         assert s.scalar(select(func.count()).select_from(NavDaily).where(NavDaily.account_id.like(f"A-{pid}-%")))==0
-        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==2
+        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==1
         before=s.get(DemoSlot,"rehearsal:1").report_json
         seed(s);s.commit()
     # Dispose engine to prove fresh database connection, not in-memory state.
@@ -87,7 +87,7 @@ def test_signup_save_freeze_compare_restart_and_seed(env, monkeypatch):
     with env.factory() as s:
         assert s.get(DemoSlot,"rehearsal:1").report_json==before
         assert s.get(User,uid).email_normalized==invite["email"]
-        assert s.scalar(select(func.count()).select_from(User))==14
+        assert s.scalar(select(func.count()).select_from(User))==COHORT_SIZE+1
     # Preserved legacy accounts still access their own original report.
     assert c.post("/api/v1/auth/login",json={"email":EMAILS[-1],"password":PASSWORD}).status_code==200
     assert c.get("/api/v1/me/comparison").json()["data_source"]=="DEMO_SYNTHETIC"
@@ -103,10 +103,10 @@ def test_two_slots_pending_performance_and_no_cross_user_data(env, monkeypatch):
     # A non-catalog combination is real saved configuration, no fake performance.
     result=c.post("/api/v1/me/experiment/complete",json=config(["ai"]),headers=csrf(c))
     assert result.status_code==200,result.text
-    assert result.json()["registered"]==13
+    assert result.json()["registered"]==COHORT_SIZE
     assert c.get("/api/v1/me/comparison").json()["metrics"] is None
     ranks=c.get("/api/v1/comparison/rankings").json()
-    assert ranks["total"]==12 and len(ranks["pending"])==1
+    assert ranks["total"]==COHORT_SIZE-1 and len(ranks["pending"])==1
     assert ranks["pending"][0]["participant_id"]==b["participant_id"]
     assert a["participant_id"]!=b["participant_id"]
     assert c.get(f"/api/v1/participants/{a['participant_id']}").status_code==403
@@ -135,6 +135,6 @@ def test_concurrent_reservation_and_confirmation(env, monkeypatch):
     with ThreadPoolExecutor(max_workers=2) as pool:
         assert list(pool.map(finish,range(2)))==["completed","completed"]
     with env.factory() as s:
-        assert s.scalar(select(func.count()).select_from(User))==14
+        assert s.scalar(select(func.count()).select_from(User))==COHORT_SIZE+1
         pid=s.get(User,uid).participant_id
-        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==2
+        assert s.scalar(select(func.count()).select_from(PortfolioTarget).where(PortfolioTarget.account_id==f"A-{pid}-PERSONAL"))==1

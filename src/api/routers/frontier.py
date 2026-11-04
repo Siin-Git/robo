@@ -31,7 +31,7 @@ def get_base(db=Depends(get_design_db), user=Depends(get_current_user)):
     cur = base_svc.get_current(db, user.user_id)
     if cur is None:
         return {"status": "not_selected", "message": "No base portfolio selected yet."}
-    return {"status": "selected", **cur, "portfolio_mode": "user_selected"}
+    return {**cur, "selection_status": cur.get("status"), "status": "selected", "portfolio_mode": "user_selected"}
 
 
 @router.post("/me/base-portfolio", summary="Select base portfolio from frontier")

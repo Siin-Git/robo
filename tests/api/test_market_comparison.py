@@ -15,7 +15,7 @@ from src.db.models.portfolio import PortfolioTarget
 from src.db.models.demo_cohort import DemoSlot
 from src.local.seed_capstone import seed
 from src.local.demo_cohort import prepare
-from src.local.capstone import EMAILS, PASSWORD
+from src.local.capstone import COHORT_SIZE, EMAILS, PASSWORD
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ def test_signup_reconfigure_refresh_and_preserve_other_users(market):
     first = c.get("/api/v1/me/comparison").json()
     assert first["data_source"] == "MARKET_PRICE_REPLAY" and first["metrics"] is not None
     ranking = c.get("/api/v1/comparison/rankings").json()
-    assert ranking["total"] == ranking["registered"] == 13 and ranking["reserved"] == 0
+    assert ranking["total"] == ranking["registered"] == COHORT_SIZE and ranking["reserved"] == 0
     assert any(x["participant_id"] == pid for x in ranking["items"])
     draft = c.get("/api/v1/me/onboarding/draft").json()
     assert draft["theme_ids"] == ["ai", "biotech"]
@@ -109,7 +109,7 @@ def test_signup_reconfigure_refresh_and_preserve_other_users(market):
     env.factory.kw["bind"].dispose()
     assert c.get("/api/v1/me/comparison").json() == third
     all_reports = c.get("/api/v1/comparison/analytics").json()["reports"]
-    assert all_reports[:12] == before
+    assert all_reports[:COHORT_SIZE-1] == before
     assert all(x["core_allocation"] == third["core_allocation"] for x in all_reports)
     assert c.get("/api/v1/participants/P001").status_code == 403
     with env.factory() as s:
@@ -160,7 +160,7 @@ def test_reset_keeps_identity_and_slot_then_recreates_without_old_design(market)
     r = c.post('/api/v1/me/experiment/reset', json={'confirm': True}, headers=headers)
     assert r.status_code == 200, r.text
     assert r.json()['status'] == 'setup_required'
-    assert (r.json()['registered'], r.json()['reserved'], r.json()['claimed']) == (12, 1, 1)
+    assert (r.json()['registered'], r.json()['reserved'], r.json()['claimed']) == (COHORT_SIZE-1, 1, 1)
     assert r.json()['draft']['theme_ids'] == [] and r.json()['draft']['reason'] == ''
     assert c.get('/api/v1/me/comparison').status_code == 409
     assert c.get('/api/v1/comparison/analytics').json()['reports'] == baseline
@@ -184,7 +184,7 @@ def test_reset_keeps_identity_and_slot_then_recreates_without_old_design(market)
     assert report['themes'] == ['biotech'] and report['reason'] == new['reason']
     saved = c.get('/api/v1/me/onboarding/draft').json()
     assert saved['theme_ids'] == ['biotech'] and saved['reason'] == new['reason']
-    assert c.get('/api/v1/comparison/rankings').json()['total'] == 13
+    assert c.get('/api/v1/comparison/rankings').json()['total'] == COHORT_SIZE
     assert c.post('/api/v1/me/onboarding/complete', json=redesign, headers=headers).status_code == 200
     assert c.get('/api/v1/me/comparison').json()['reason'] == redesign['reason']
-    assert c.get('/api/v1/comparison/analytics').json()['reports'][:12] == baseline
+    assert c.get('/api/v1/comparison/analytics').json()['reports'][:COHORT_SIZE-1] == baseline

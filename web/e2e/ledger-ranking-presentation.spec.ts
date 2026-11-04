@@ -1,0 +1,62 @@
+import {test,expect} from '@playwright/test';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import path from 'node:path';
+const dir=process.env.E2E_REPLAY_DIR!;
+const output=process.env.E2E_REPLAY_OUTPUT??path.resolve('../.work/ledger-ranking-ui/browser-results');
+const baseline=process.env.E2E_LEDGER_BASELINE ? JSON.parse(readFileSync(process.env.E2E_LEDGER_BASELINE,'utf8')) : null;
+for(const width of [1440,390])test(`ledger ranking preserves recorded figures and usable controls ${width}`,async({page})=>{
+ mkdirSync(output,{recursive:true});await page.setViewportSize({width,height:width===390?844:1000});
+ const account=JSON.parse(readFileSync(path.join(dir,'accounts.json'),'utf8')).accounts[2];
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ const urls:string[]=[];page.on('request',r=>urls.push(new URL(r.url()).pathname));
+ await page.goto('/login');await page.getByLabel('이메일',{exact:true}).fill(account.email);
+ await page.getByLabel('비밀번호',{exact:true}).fill(account.password);
+ await page.getByRole('button',{name:'로그인',exact:true}).click();await expect(page).not.toHaveURL(/\/login/);
+ await page.goto('/ranking');
+ const table=page.getByRole('region',{name:'운용 기록 참여자 순위'});
+ await expect(table.locator('tbody tr')).toHaveCount(15);
+ const comparison=await (await page.request.get('/api/v1/me/performance/comparison')).json();
+ for(const old of baseline?.items??[]){
+  const now=comparison.items.find((r:any)=>r.participant_id===old.participant_id);
+  for(const key of ['rank','metrics','observations','series','quality','metric_quality','observed_start','observed_end'])expect(now[key]).toEqual(old[key]);
+ }
+ if(baseline)expect(comparison.dates).toEqual(baseline.dates);
+ const summary=page.getByRole('region',{name:'투자 성과 비교'});
+ await expect(summary).toContainText('+0.21%');await expect(summary).toContainText('+0.02%p');await expect(summary).toContainText('11위');
+ const guide=page.locator('details').filter({has:page.getByText('비교 기준 보기',{exact:true})});
+ await expect(guide).not.toHaveAttribute('open','');
+ await expect(page.getByText('과거 가격 모의실험',{exact:true}).last()).toBeVisible();
+ await expect(page.getByRole('region',{name:'위험과 수익 비교'})).toContainText('현재 산출 가능한 참여자 0명');
+ const chart=page.getByRole('region',{name:'참여자와 CORE 지수 그래프'});
+ // Confirmed holidays are omitted only from the display axis: eleven original
+ // observations stay unchanged, with one connected SVG path per series.
+ await expect(chart.locator('.recharts-line-curve')).toHaveCount(16);
+ for(const curve of await chart.locator('.recharts-line-curve').all())expect((await curve.getAttribute('d'))?.match(/M/g)).toHaveLength(1);
+ expect(await chart.locator('.recharts-xAxis').textContent()).not.toContain('2026.09.24');
+ expect(await chart.locator('.recharts-xAxis').textContent()).not.toContain('2026.09.25');
+ await page.screenshot({path:path.join(output,`ranking-initial-${width}.png`),fullPage:true});
+ await page.getByRole('button',{name:'나와 기준',exact:true}).click();await expect(chart.locator('.recharts-line')).toHaveCount(2);
+ await page.getByRole('button',{name:'상위 5명',exact:true}).click();await expect(chart.locator('.recharts-line')).toHaveCount(6);
+ await page.getByRole('button',{name:'전체',exact:true}).click();await expect(chart.locator('.recharts-line')).toHaveCount(16);
+ await table.getByRole('button',{name:'참여자 13',exact:true}).click();
+ await expect(summary).toContainText('참여자 13 수익률');await expect(summary).toContainText('+0.80%');await expect(chart.locator('.recharts-line')).toHaveCount(2);
+ await page.getByLabel('참여자와 기준 비교',{exact:true}).selectOption(comparison.items.find((r:any)=>r.display_name==='참여자 03').participant_id);
+ await expect(summary).toContainText('11위');
+ await page.getByLabel('순위 기준',{exact:true}).selectOption('mdd');await expect(table).toContainText('MDD 순위 보류');await expect(summary).toContainText('11위');
+ await page.getByLabel('순위 기준',{exact:true}).selectOption('volatility');await expect(table.getByText('대기',{exact:true})).toHaveCount(15);await expect(summary).toContainText('+0.21%');
+ await page.getByLabel('순위 기준',{exact:true}).selectOption('return');
+ await page.getByText('비교 기준 보기',{exact:true}).click();await expect(guide).toHaveAttribute('open','');
+ await expect(guide).toContainText('확정 이후 실제 운용 실적이 아닙니다');
+ await expect(guide.getByRole('region',{name:'선택 참여자 성과'})).toContainText('최대 낙폭 -2.50%');
+ await page.getByText('비교 기준 보기',{exact:true}).click();
+ const themes=page.getByRole('region',{name:'Theme 선택자 비교'});
+ await expect(themes.getByRole('heading',{name:'편입 테마별 성과'})).toBeVisible();expect(comparison.theme_selectors.length).toBeGreaterThan(0);
+ await expect(themes).toContainText('관측');
+ expect(urls.some(u=>u==='/api/v1/comparison/analytics'||u==='/api/v1/comparison/rankings')).toBe(false);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:path.join(output,`ranking-${width}.png`),fullPage:true});
+ await page.reload();await expect(summary).toContainText('11위');
+ await page.goto('/ranking?source=demo');await expect(page.getByRole('heading',{name:'테마별 선택과 성과'})).toBeVisible();
+ expect(errors).toEqual([]);
+ writeFileSync(path.join(output,`verified-${width}.json`),JSON.stringify({registered:comparison.registered,period:[comparison.start,comparison.end],all_existing_figures_unchanged:baseline!==null,theme_groups:comparison.theme_selectors.length,errors},null,2));
+});

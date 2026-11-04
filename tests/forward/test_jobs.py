@@ -126,3 +126,50 @@ def test_double_daily_execution_creates_no_duplicates(tmp_path):
     n1 = con.execute("SELECT nav FROM nav_daily").fetchone()[0]
     valuate(con, "A-1", "2026-09-14", versions, 100.0)
     assert con.execute("SELECT nav FROM nav_daily").fetchone()[0] == n1
+
+
+def test_세_번째_시도도_건너뛴다(tmp_path):
+    """건너뛴 기록이 남아도 성공 판정이 흔들리면 안 된다.
+
+    (2026-09-29) 건너뛸 때 status='skipped' 행을 넣는데, 판정이 '가장 최근 행'
+    기준이라 두 번째 건너뜀 뒤 세 번째 시도가 통과했다. 실제로 같은 날 배치가
+    세 번 돌았고, 세 번째가 장이 열린 시각이라 장중 가격이 저장됐다.
+    """
+    db = _db(tmp_path)
+    jid, d = J.claim_job(None, "daily", "2026-09-29", sqlite_path=db)
+    assert d == "run"
+    J.complete_job(None, jid, {}, sqlite_path=db)
+    for attempt in range(2, 6):
+        assert J.claim_job(None, "daily", "2026-09-29", sqlite_path=db) == (None, "skipped"), \
+            f"{attempt}번째 시도가 통과했다"
+
+
+def test_실패한_날은_여전히_재시도된다(tmp_path):
+    """성공 존재 여부로 판정하되, 실패 뒤 재시도는 막지 않아야 한다."""
+    db = _db(tmp_path)
+    jid, _ = J.claim_job(None, "daily", "2026-09-29", sqlite_path=db)
+    J.fail_job(None, jid, "boom", sqlite_path=db)
+    jid2, d2 = J.claim_job(None, "daily", "2026-09-29", sqlite_path=db)
+    assert d2 == "run", "실패한 날의 재시도를 막으면 안 된다"
+    J.complete_job(None, jid2, {}, sqlite_path=db)
+    assert J.claim_job(None, "daily", "2026-09-29", sqlite_path=db) == (None, "skipped")
+
+
+def test_건너뜀_기록이_진행중_판정을_가리지_않는다(tmp_path):
+    """건너뜀 행이 최근이어도 진행 중인 시도는 잠금으로 잡혀야 한다."""
+    db = _db(tmp_path)
+    jid, _ = J.claim_job(None, "daily", "2026-09-30", sqlite_path=db)   # running
+    J.complete_job(None, jid, {}, sqlite_path=db)
+    assert J.claim_job(None, "daily", "2026-09-30", sqlite_path=db)[1] == "skipped"
+    # 다른 날짜는 서로 영향을 주지 않는다
+    jid2, d2 = J.claim_job(None, "daily", "2026-10-01", sqlite_path=db)
+    assert d2 == "run"
+    assert J.claim_job(None, "daily", "2026-10-01", sqlite_path=db)[1] == "locked"
+
+
+def test_다른_작업_종류는_서로_막지_않는다(tmp_path):
+    db = _db(tmp_path)
+    jid, _ = J.claim_job(None, "daily", "2026-10-01", sqlite_path=db)
+    J.complete_job(None, jid, {}, sqlite_path=db)
+    assert J.claim_job(None, "daily", "2026-10-01", sqlite_path=db)[1] == "skipped"
+    assert J.claim_job(None, "monthly", "2026-10-01", sqlite_path=db)[1] == "run"

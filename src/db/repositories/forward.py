@@ -23,12 +23,16 @@ from ..models.view import View
 
 def next_id(session, prefix: str, width: int = 3) -> str:
     """Counter-based string IDs (same P001/E000001 convention as the engine)."""
-    row = session.get(Counter, prefix)
-    n = (int(row.value) + 1) if row else 1
-    if row is None:
-        session.add(Counter(name=prefix, value=n))
-    else:
-        row.value = n
+    from sqlalchemy import text
+    pending = [row for row in session.new if isinstance(row, Counter)]
+    if pending:
+        session.flush(pending)
+    n = session.connection().execute(text(
+        "INSERT INTO counters (name,value) VALUES (:name,1) "
+        "ON CONFLICT (name) DO UPDATE SET value=counters.value+1 RETURNING value"), {"name":prefix}).scalar_one()
+    for row in list(session.identity_map.values()):
+        if isinstance(row, Counter) and row.name == prefix:
+            session.expire(row)
     return f"{prefix}{n:0{width}d}"
 
 

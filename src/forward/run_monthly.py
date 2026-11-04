@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.forward.accounts import place_target_orders, record_target, versions_from_cfg
 from src.forward.config import load_forward_config, resolve
+from src.forward.competition import guarded_batch
 from src.forward.db import connect, log_event
 from src.forward.runtime import get_database_path, print_banner
 from src.forward.frozen import load_frozen_benchmark
@@ -22,8 +23,7 @@ from src.forward.participants import list_participants
 from src.forward.portfolio import build_personalized
 from src.forward.prices import theme_asset_id
 from src.forward.run_daily import rebuild_cov
-from src.forward.run_weekly import batch_views
-from src.forward.views import next_weekday
+from src.forward.run_weekly import _base_for_participant, batch_views
 
 
 def main(argv=None) -> int:
@@ -42,7 +42,8 @@ def main(argv=None) -> int:
     if args.month:
         y, m = args.month.split("-")
     else:
-        t = date.today()
+        from src.forward.runtime import kst_today
+        t = kst_today()
         y, m = (t.year, t.month - 1) if t.month > 1 else (t.year - 1, 12)
         y, m = str(y), f"{m:02d}"
     asof = f"{y}-{m}-{monthrange(int(y), int(m))[1]:02d}"
@@ -64,18 +65,100 @@ def main(argv=None) -> int:
 
 
 def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
-    n_core = con.execute("SELECT COUNT(*) c FROM accounts WHERE account_type IN ('core','shadow')"
-                         " AND status='active'").fetchone()["c"]
-    n_pers = con.execute("SELECT COUNT(*) c FROM accounts WHERE account_type='personal'"
-                         " AND status='active'").fetchone()["c"]
+    """실제와 같은 계산을 하되 아무것도 쓰지 않는다.
+
+    예전에는 계좌 수만 세서 효력일·주기·밴드를 미리 볼 수 없었다. 리밸런싱은
+    한 달에 한 번뿐이라 실행 후에 문제를 알면 늦다. 주문 판단은
+    ``execution.plan_orders`` 를 그대로 쓰므로 실제 실행과 결론이 같다.
+    """
+    from src.forward.frozen import load_frozen_benchmark as _lf
+    from src.forward.config import resolve as _rs
+    from src.forward.execution import current_weights as _cw, plan_orders
+    from src.forward.rebalance_schedule import effective_date as _eff
+    from src.forward.rebalance_schedule import is_rebalance_period, skip_reason
+
+    ft = cfg["forward_test"]
+    frozen_w, _ = _lf(_rs(cfg["frozen_dir"]))
+    effective = _eff(asof)
+    frequency = (ft.get("core_rebalance") or {}).get("frequency", "monthly")
+    band = (ft.get("core_rebalance") or {}).get("band") or None
     npx = con.execute("SELECT COUNT(*) c FROM prices_daily WHERE date <= ?",
                       (asof,)).fetchone()["c"]
-    print(f"DRY RUN monthly for {y}-{m} (asof {asof}, risk_only={risk_only}): "
-          f"{npx} price rows available, {n_core} core/shadow + {n_pers} personal accounts "
-          f"would refresh risk{'' if risk_only else ' and rebalance'}.")
+    maxpx = con.execute("SELECT MAX(date) m FROM prices_daily WHERE date <= ?",
+                        (asof,)).fetchone()["m"]
+
+    print(f"DRY RUN monthly {y}-{m}  (zero writes)")
+    print(f"  decision date (asof): {asof}   latest close on/before: {maxpx}")
+    print(f"  order effective date: {effective}   <- must be after the decision date")
+    print(f"  frequency: {frequency}   band: {band}")
+    print(f"  price rows <= asof: {npx}")
+
+    if risk_only:
+        print("  risk_only: would refresh the risk model and place no orders.")
+        return 0
+
+    accounts = [dict(r) for r in con.execute(
+        "SELECT * FROM accounts WHERE status='active' ORDER BY account_type, account_id"
+    ).fetchall()]
+    if not accounts:
+        print("  no active accounts.")
+        return 0
+
+    cov = None
+    totals = {"order": 0, "band": 0, "unchanged": 0}
+    banded = {}
+    print(f"\n  {'account':24s} {'type':9s} {'order':>5s} {'band':>5s} {'same':>5s}")
+    print("  " + "-" * 54)
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights, rebalance_frequency
+    for a in accounts:
+        if awaiting_confirmation(con, a):
+            continue
+        account_frequency = rebalance_frequency(con, a['account_id'], asof, frequency) if a['account_type'] == 'personal' else frequency
+        if not is_rebalance_period(int(y), int(m), account_frequency):
+            print(f"  {a['account_id']}: {skip_reason(int(y), int(m), account_frequency)}")
+            continue
+        if a["account_type"] == "personal":
+            d = latest_decision(con, a["account_id"], asof)
+            if latest_decision(con, a["account_id"]) and not d:
+                continue
+            if cov is None:
+                cov, _info = rebuild_cov(con, cfg, asof)   # 읽기 전용(캐시 저장 안 함)
+            pid = a["participant_id"]
+            tids = sorted({theme_asset_id(v["theme_id"])
+                           for v in batch_views(con, pid, "9999-99-99", effective)})
+            base_w = _base_for_participant(con, pid, frozen_w)
+            weights = decision_weights(d) if d else build_personalized(base_w, tids, cfg, cov)["weights"]
+            baseline = _cw(con, a["account_id"], asof)
+        else:
+            # core 와 shadow 는 비중이 다르다. 실행과 같은 헬퍼를 쓴다.
+            from src.forward.accounts import static_weights
+            weights = static_weights(a["account_type"], a.get("shadow_name"),
+                                     cfg, frozen_w)
+            baseline = _cw(con, a["account_id"], asof)
+        rows = plan_orders(weights, baseline, band)
+        counts = {k: 0 for k in totals}
+        for r in rows:
+            counts[r["action"]] += 1
+            if r["action"] == "band":
+                banded.setdefault(r["asset"], []).append(abs(r["drift"]))
+        for k in totals:
+            totals[k] += counts[k]
+        print(f"  {a['account_id']:24s} {a['account_type']:9s} "
+              f"{counts['order']:5d} {counts['band']:5d} {counts['unchanged']:5d}")
+
+    print("  " + "-" * 54)
+    print(f"  {'TOTAL':24s} {'':9s} {totals['order']:5d} {totals['band']:5d} "
+          f"{totals['unchanged']:5d}")
+    print(f"\n  would create {totals['order']} orders effective {effective}.")
+    if banded:
+        print(f"  band suppressed {totals['band']} (target +-10% relative):")
+        for asset, drifts in sorted(banded.items()):
+            print(f"    {asset:24s} n={len(drifts):3d}  max drift={max(drifts):+.4f}")
+    print("\n  * nothing was written.")
     return 0
 
 
+@guarded_batch
 def _execute_monthly(con, cfg, y, m, asof, risk_only):
     ft = cfg["forward_test"]
     from src.forward.frozen import load_frozen_benchmark as _lf
@@ -83,10 +166,11 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     from src.forward.config import resolve as _rs
     frozen_w, _ = _lf(_rs(cfg["frozen_dir"]))
     versions = _vv(cfg)
-    first_next = f"{y}-{m}-01"
-    from datetime import timedelta as _td
-    prev_day = (date.fromisoformat(first_next) - _td(days=1)).isoformat()
-    effective = next_weekday(prev_day)
+    # 효력일은 결정 기준일(asof, 그 달 말일)의 다음 거래일이다.
+    # 예전에는 그 달 1일로 잡혀 제출 시점보다 과거였고, 나중 데이터로 판단해
+    # 이전 종가에 체결하는 형태가 됐다(inception 가드가 막아 주문만 쌓였다).
+    from src.forward.rebalance_schedule import effective_date as _eff
+    effective = _eff(asof)
 
     cov, info = rebuild_cov(con, cfg, asof)
     import numpy as _np
@@ -107,33 +191,40 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     blocked, reason = live_orders_blocked(con)
     if blocked:
         con.commit()
+        from src.forward.competition import policy
+        if policy(con)["managed"]:
+            return 0, {"status": "COMPETITION_WAIT", "reason": reason}
         print(f"ERROR:\nMonthly rebalance refused: {reason}.")
         return 2, {"status": "REFUSED"}
+    # 주기 판정: 분기 설정이면 3·6·9·12월 말에만 주문을 만든다.
+    # 위험 모형 갱신은 주기와 무관하게 매달 돈다(risk_refresh 는 별도 설정).
+    from src.forward.rebalance_schedule import is_rebalance_period, skip_reason
+    frequency = (ft.get("core_rebalance") or {}).get("frequency", "monthly")
     n = 0
-    # core + shadow static legs
+    eligible = 0
+    # 리밸런싱 밴드: 목표 대비 편차가 밴드 안이면 주문을 만들지 않는다.
+    band = (ft.get("core_rebalance") or {}).get("band") or None
+    if band:
+        print(f"rebalance band: {band}")
     # core + shadow static legs (drift-correcting vs current holdings)
     from src.forward.execution import current_weights as _cw
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights, rebalance_frequency
     for r in con.execute("SELECT * FROM accounts WHERE account_type IN ('core','shadow')"
                          " AND status='active'").fetchall():
-        if r["account_type"] == "core":
-            w = dict(frozen_w)
-        elif r["shadow_name"] == "core_v03":
-            w = dict(frozen_w)
-        elif r["shadow_name"] == "neutral_60_40":
-            import pandas as pd
-            w = pd.read_csv(resolve(cfg["phase16_outputs"]) / "neutral_60_40_weights.csv",
-                            index_col=0)["weight"].to_dict()
-            w = {k: float(v) for k, v in w.items()}
-        else:  # equal_weight
-            from src.forward.prices import CORE_IDS
-            w = {a: 1 / 9 for a in CORE_IDS}
-            w["cash"] = 0.0
+        if awaiting_confirmation(con, dict(r)):
+            continue
+        if not is_rebalance_period(int(y), int(m), frequency):
+            continue
+        eligible += 1
+        from src.forward.accounts import static_weights
+        w = static_weights(r["account_type"], r["shadow_name"], cfg, frozen_w)
         record_target(con, r["account_id"], w, effective, "core", versions,
                       ft["benchmark_version"], r["participant_id"])
         n += len(place_target_orders(con, r["account_id"], w, f"{asof}T23:59:59+00:00",
                                      effective, ft["benchmark_version"],
                                      r["participant_id"], kind="CORE_REBALANCE",
-                                     baseline=_cw(con, r["account_id"], asof)))
+                                     baseline=_cw(con, r["account_id"], asof),
+                                     band=band))
     # personal accounts: fresh core + current views
     for p_ in list_participants(con, "active"):
         pid = p_["participant_id"]
@@ -141,24 +232,36 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
                           " AND account_type='personal'", (pid,)).fetchone()
         if acc is None:
             continue
+        if awaiting_confirmation(con, {"participant_id": pid}):
+            continue
+        account_frequency = rebalance_frequency(con, acc['account_id'], asof, frequency)
+        if not is_rebalance_period(int(y), int(m), account_frequency):
+            print(f"  {acc['account_id']}: {skip_reason(int(y), int(m), account_frequency)}")
+            continue
+        con.execute("UPDATE accounts SET status=status WHERE account_id=?", (acc["account_id"],))
+        d = latest_decision(con, acc["account_id"], asof)
+        if latest_decision(con, acc['account_id']) and not d:
+            con.commit()
+            continue
+        eligible += 1
         tids = sorted({theme_asset_id(v["theme_id"])
                        for v in batch_views(con, pid, "9999-99-99", effective)})
-        res = build_personalized(frozen_w, tids, cfg, cov)
-        import json as _json
-        prev = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                           " AND effective_date < ? ORDER BY effective_date DESC LIMIT 1",
-                           (acc["account_id"], effective)).fetchone()
-        prev_w = _json.loads(prev["weights_json"]) if prev else {}
+        res = {"weights": decision_weights(d)} if d else build_personalized(_base_for_participant(con, pid, frozen_w), tids, cfg, cov)
         record_target(con, acc["account_id"], res["weights"], effective, "personal",
                       versions, ft["benchmark_version"], pid)
+        # 월간 리밸런싱은 실제 보유 비중 기준으로 교정한다(core/shadow 와 동일).
+        # 직전 목표 기준이면 가격 변동으로 생긴 드리프트가 누적된 채 남는다.
+        # 목표에서 빠진 테마는 create_orders 가 목표 0 으로 매도한다.
         n += len(place_target_orders(con, acc["account_id"], res["weights"],
                                      f"{asof}T23:59:59+00:00", effective,
                                      ft["benchmark_version"], pid, kind="CORE_REBALANCE",
-                                     baseline=prev_w))
+                                     baseline=_cw(con, acc["account_id"], asof),
+                                     band=band))
     con.commit()
     print(f"month {y}-{m}: risk refreshed asof {asof}, {n} rebalance orders, effective {effective}")
     print("STATUS: PASS")
-    return 0, {"asof": asof, "orders": n, "effective": effective, "status": "PASS"}
+    return 0, {"asof": asof, "orders": n, "effective": effective,
+               "rebalanced": eligible > 0, "eligible_accounts": eligible, "frequency": frequency, "status": "PASS"}
 
 
 if __name__ == "__main__":

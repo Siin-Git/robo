@@ -1,0 +1,54 @@
+import {test,expect} from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+const root=path.resolve(__dirname,'../..'),fixture=process.env.E2E_OPERATIONS_DATA_DIR!;
+if(!fixture?.startsWith('/private/tmp/'))throw new Error('Disposable fixture required.');
+const account=JSON.parse(fs.readFileSync(path.join(fixture,'accounts.json'),'utf8')).accounts[0];
+const evidence=path.join(root,'docs/evidence/verification-status');
+const seed=(mode:string)=>execFileSync(path.join(root,'.venv/bin/python'),['scripts/seed_verification_ui_fixture.py','--directory',fixture,'--mode',mode],{cwd:root,encoding:'utf8'});
+const counts=()=>JSON.parse(seed('counts'));
+test('verification evidence: real owner API, transparent waiting, retry, mobile, synthetic exclusion and no writes',async({page})=>{
+  fs.mkdirSync(evidence,{recursive:true});const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/verification');await expect(page).toHaveURL(/\/login\?next=/);
+  await page.goto('/login');
+  await page.getByLabel('이메일').fill(account.email);await page.getByLabel('비밀번호').fill(account.password);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole('link',{name:'검증 현황',exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'검증 현황',exact:true}).click();
+  await expect(page).toHaveURL(/\/verification$/);
+  const decisions=(await(await page.request.get('/api/v1/me/decisions')).json()).items;
+  const endpoint=`/api/v1/me/decisions/${decisions[0].decision_id}/verification`;
+  const data=await(await page.request.get(endpoint)).json();
+  const before=counts(),mutations:string[]=[];
+  page.on('request',request=>{if(request.url().includes('/api/')&&['POST','PUT','PATCH','DELETE'].includes(request.method()))mutations.push(request.url());});
+  await expect(page.getByRole('heading',{name:'검증 현황',level:1})).toBeVisible();
+  await expect(page.getByText('저장 기록 확인',{exact:true})).toBeVisible();
+  const original=page.getByRole('region',{name:'판단 보존',exact:true});
+  await original.getByText('판단 보존 근거 보기',{exact:true}).focus();await page.keyboard.press('Enter');
+  await expect(original).toContainText(data.reason);
+  await expect(original.getByRole('table',{name:'확정 당시 예상 수익률과 변동성'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'현재 판단 이후 비교',exact:true})).toHaveCount(0);
+  await original.getByText('판단 보존 근거 보기',{exact:true}).click();
+  await page.waitForTimeout(200);await page.screenshot({path:path.join(evidence,'overview-desktop.png')});
+  for(const width of [390,320]){
+    await page.setViewportSize({width,height:844});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.waitForTimeout(200);await page.screenshot({path:path.join(evidence,`overview-${width}.png`)});
+  }
+  await page.setViewportSize({width:1440,height:1050});
+  await page.route(`**${endpoint}`,route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{code:'FIXTURE_OUTAGE',message:'Temporary test outage'}})}));
+  await page.getByRole('button',{name:'기록 새로고침',exact:true}).click();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('이전 조회 결과');await expect(page.getByText('갱신 실패 · 이전 조회')).toHaveCount(2);
+  await page.screenshot({path:path.join(evidence,'refresh-failure.png')});
+  await page.unroute(`**${endpoint}`);
+  await page.getByRole('button',{name:'기록 새로고침',exact:true}).click();
+  await expect(page.getByText('저장 기록 확인',{exact:true})).toBeVisible();await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
+  await page.getByRole('region',{name:'03 · 개발하면서 확인한 것',exact:true}).screenshot({path:path.join(evidence,'functional-evidence.png')});
+  expect(counts()).toEqual(before);
+  // Explicit synthetic rows may exist in a fixture; the live API must still refuse performance evidence.
+  seed('nav');const afterSeed=counts();
+  const synthetic=await(await page.request.get(endpoint)).json();
+  expect(synthetic.actual.status).toBe('UNAVAILABLE');expect(synthetic.actual.reason).toContain('합성');
+  expect(counts()).toEqual(afterSeed);expect(mutations).toEqual([]);expect(errors).toEqual([]);
+  await expect(page.getByRole('link',{name:'실제 검사 결과',exact:true})).toHaveAttribute('href','https://github.com/MinchoLover/robo/actions/runs/40442696571');
+});

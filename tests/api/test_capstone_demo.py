@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from sqlalchemy import select, func
 
-from src.local.capstone import EMAILS, PASSWORD
+from src.local.capstone import COHORT_SIZE, EMAILS, PASSWORD
 from src.local.seed_capstone import seed
 from src.db.models.user import User
 from src.db.models.nav import NavDaily
@@ -35,8 +35,8 @@ def test_seed_idempotence_and_shared_core(demo):
         seed(s)
         s.commit()
         assert before == [s.scalar(select(func.count()).select_from(m)) for m in models]
-        assert before[0:2] == [13, 13]
-        assert before[3] == 26
+        assert before[0:2] == [COHORT_SIZE, COHORT_SIZE]
+        assert before[3] == COHORT_SIZE * 2   # 계좌당 core + personal
     c = demo.client
     reports = []
     for email in EMAILS:
@@ -75,8 +75,8 @@ def test_five_rankings_match_details_and_ranks(demo):
         response = c.get(f"/api/v1/comparison/rankings?basis={basis}")
         assert response.status_code == 200
         rows = response.json()["items"]
-        assert len(rows) == 13
-        assert [r["rank"] for r in rows] == list(range(1,14))
+        assert len(rows) == COHORT_SIZE
+        assert [r["rank"] for r in rows] == list(range(1, COHORT_SIZE + 1))
         values = [r["metrics"][key] for r in rows]
         assert values == sorted(values, reverse=basis != "volatility")
         leaders[basis] = rows[0]["participant_id"]
@@ -121,7 +121,7 @@ def test_editable_design_is_isolated_from_comparison_and_other_users(demo):
     c = demo.client
     first = login(c, EMAILS[0])
     snapshots = {pid: c.get(f"/api/v1/participants/{pid}/comparison").json()
-                 for pid in [f"P{i:03d}" for i in range(1, 14)]}
+                 for pid in [f"P{i:03d}" for i in range(1, COHORT_SIZE + 1)]}
     rankings = {basis: c.get(f"/api/v1/comparison/rankings?basis={basis}").json()
                 for basis in ["return", "excess", "mdd", "volatility", "sharpe"]}
     assert c.get("/api/v1/me/base-portfolio").json()["status"] == "not_selected"
@@ -150,7 +150,9 @@ def test_editable_design_is_isolated_from_comparison_and_other_users(demo):
     login(c, EMAILS[0])
     assert c.get("/api/v1/me/base-portfolio").json()["frontier_id"] == fid
     assert c.get("/api/v1/me/comparison").json() == snapshots[first]
-    factory = _factory(str(demo.dbfile.with_name("portfolio_design.db").resolve()))
+    # _factory 는 경로가 아니라 DB URL 을 받는다(PostgreSQL 도 쓰기 때문).
+    design_db = demo.dbfile.with_name("portfolio_design.db").resolve()
+    factory = _factory(f"sqlite:///{design_db}")
     with factory() as s:
         assert s.scalar(select(func.count()).select_from(NavDaily)) == 0
         assert s.scalar(select(func.count()).select_from(Session)) == 0

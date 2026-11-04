@@ -5,13 +5,45 @@ All routes here require the admin role.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from typing import Literal
+from pydantic import BaseModel, Field
 
-from ..authz import require_admin
+from ..authz import require_admin, require_authenticated_csrf
+from ..design_workspace import get_admin_design_db
 from ..dependencies import get_db
 from ..services import auth_service as auth
 from ..services import system_service as syssvc
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+class InternalReviewBody(BaseModel):
+    asset_id: str = Field(min_length=1, max_length=64)
+    action: Literal["KEEP_OBSERVING", "REVISION_REVIEW"]
+    reason: str = Field(min_length=1, max_length=1024)
+    request_key: str = Field(min_length=8, max_length=64)
+
+
+@router.get("/tracking", summary="Internal decision diagnostics (admin)")
+def internal_decisions(limit: int = Query(default=50, ge=1, le=200),
+                       offset: int = Query(default=0, ge=0),
+                       db=Depends(get_admin_design_db), admin=Depends(require_admin)):
+    from ..services import internal_tracking_service as tracking
+    return tracking.list_decisions(db, limit, offset)
+
+
+@router.get("/tracking/{decision_id}", summary="Per-asset internal tracking (admin)")
+def internal_report(decision_id: str, db=Depends(get_admin_design_db), admin=Depends(require_admin)):
+    from ..services import internal_tracking_service as tracking
+    return tracking.report(db, decision_id)
+
+
+@router.post("/tracking/{decision_id}/reviews", dependencies=[Depends(require_authenticated_csrf)],
+             summary="Append internal revision review; does not change trading (admin)")
+def internal_review(decision_id: str, body: InternalReviewBody,
+                    db=Depends(get_admin_design_db), admin=Depends(require_admin)):
+    from ..services import internal_tracking_service as tracking
+    return tracking.record_review(db, admin.user_id, decision_id, **body.model_dump())
 
 
 @router.get("/users", summary="List users (admin)")

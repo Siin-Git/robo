@@ -45,6 +45,10 @@ Contract snapshot: `outputs/api/openapi_v1.json`.
 | GET | `/api/v1/participants/{id}/performance/nav` | chart-ready NAV pairs |
 | GET | `/api/v1/participants/{id}/performance/active` | daily(last 60)/weekly/cumulative |
 | GET | `/api/v1/participants/{id}/performance/attribution` | core/active/costs/themes + residual |
+| GET | `/api/v1/participants/{id}/performance/contributions` | `?period=1M|3M|6M|1Y|ALL`; cumulative contribution by persisted ledger asset + reconciliation |
+| GET | `/api/v1/me/performance/contributions` | current user's cumulative asset contributions from recorded NAV/holdings/trades |
+| GET | `/api/v1/participants/{id}/performance/ledger` | persisted snapshots, price status, orders and trades; optional `start/end` |
+| GET | `/api/v1/me/performance/ledger` | current user's Backend 1 ledger contract (`ledger-read-v1`) |
 | GET | `/api/v1/rankings` | `period=weekly`, `basis`, `comparison` |
 | GET | `/api/v1/benchmarks` | CORE_V0.3 / Neutral / Equal Weight |
 | GET | `/api/v1/benchmarks/performance` | `?benchmark_version=` shadow NAVs |

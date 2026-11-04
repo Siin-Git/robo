@@ -17,7 +17,7 @@ describe("ThemeSelector", () => {
     const onToggle = vi.fn();
     render(<ThemeSelector themes={THEMES} selected={["ai", "semiconductor"]} onToggle={onToggle} />);
     expect(screen.getByText("선택 2/2")).toBeInTheDocument();
-    const optical = screen.getByRole("button", { name: /Optical/ });
+    const optical = screen.getByRole("button", { name: /광네트워크/ });
     expect(optical).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: /^AI/ }));
     expect(onToggle).toHaveBeenCalledWith("ai");

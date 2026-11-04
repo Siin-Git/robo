@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { ArrowLeft, ArrowRight, ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useSetupStyles } from "../style-context";
@@ -26,10 +28,12 @@ const issues = [
   },
 ];
 
-export default function IssuesPage() {
+function IssuesInner() {
+  const params=useSearchParams();
+  const suffix=params.get("adjustment_choice_id") ? `&adjustment_choice_id=${encodeURIComponent(params.get("adjustment_choice_id")!)}` : "";
   const { theme: s } = useSetupStyles();
   return <AppShell headerTitle="최신 이슈" setup><div className={s.page}>
-    <Link href="/setup/portfolio?step=themes" className={s.back} style={{ paddingTop: 0, marginBottom: 28 }}><ArrowLeft size={16} /> 테마 선택으로 돌아가기</Link>
+    <Link href={`/setup/portfolio?step=themes${suffix}`} className={s.back} style={{ paddingTop: 0, marginBottom: 28 }}><ArrowLeft size={16} /> 테마 선택으로 돌아가기</Link>
     <div className={s.eyebrow}>관심 분야를 찾는 읽을거리</div>
     <h1 className={s.heading}>변화를 읽고, 내 생각을 만들어보세요.</h1>
     <p className={s.intro}>산업의 소식과 질문을 함께 살펴보세요. 눈에 들어오는 분야가 있으면 테마를 둘러볼 수 있습니다.</p>
@@ -38,9 +42,11 @@ export default function IssuesPage() {
         <div className={s.issueMeta}><span className={s.badge}>{issue.type}</span><span>{issue.source}</span><time dateTime={issue.date}>{issue.date.replaceAll("-", ".")}</time></div>
         <h2>{issue.title}</h2><p>{issue.summary}</p><p style={{ fontSize: 13 }}>{issue.context}</p>
         <div className={s.question}><small>생각해 볼 질문</small><p>{issue.question}</p></div>
-        <div className={s.issueFooter}><div className={s.tags}>{issue.tags.map(tag => <Link key={tag.name} href={`/setup/portfolio?step=themes&category=${encodeURIComponent(tag.category)}`}>{tag.name} 둘러보기 →</Link>)}</div><a className={s.textButton} href={issue.url} target="_blank" rel="noopener noreferrer">출처 원문 <ExternalLink size={14} /></a></div>
+        <div className={s.issueFooter}><div className={s.tags}>{issue.tags.map(tag => <Link key={tag.name} href={`/setup/portfolio?step=themes&category=${encodeURIComponent(tag.category)}${suffix}`}>{tag.name} 둘러보기 →</Link>)}</div><a className={s.textButton} href={issue.url} target="_blank" rel="noopener noreferrer">출처 원문 <ExternalLink size={14} /></a></div>
       </article>)}</div>
-      <aside className={s.issueAside}><h2>읽으면서 생각해 보세요</h2><p>01　어떤 변화가 일어나고 있나요?</p><p>02　그 변화가 실제 수요와 기업의 수익으로 이어질까요?</p><p>03　기대와 달라질 수 있는 점은 무엇인가요?</p><div className={s.impact}><p>관련 테마는 소식의 주제를 연결한 것입니다. 관심 있는 분야를 직접 선택해 보세요.</p><Link className={s.primary} href="/setup/portfolio?step=themes">테마 둘러보기 <ArrowRight size={16} /></Link></div><p style={{ fontSize: 12, marginTop: 22 }}>자료 확인일 2026.09.16<br />직접 선별한 읽을거리이며 실시간 뉴스 목록은 아닙니다.</p></aside>
+      <aside className={s.issueAside}><h2>읽으면서 생각해 보세요</h2><p>01　어떤 변화가 일어나고 있나요?</p><p>02　그 변화가 실제 수요와 기업의 수익으로 이어질까요?</p><p>03　기대와 달라질 수 있는 점은 무엇인가요?</p><div className={s.impact}><p>관련 테마는 소식의 주제를 연결한 것입니다. 관심 있는 분야를 직접 선택해 보세요.</p><Link className={s.primary} href={`/setup/portfolio?step=themes${suffix}`}>테마 둘러보기 <ArrowRight size={16} /></Link></div><p style={{ fontSize: 12, marginTop: 22 }}>자료 확인일 2026.09.16<br />직접 선별한 읽을거리이며 실시간 뉴스 목록은 아닙니다.</p></aside>
     </div>
   </div></AppShell>;
 }
+
+export default function IssuesPage(){return <Suspense fallback={<p>읽을거리 조회 중</p>}><IssuesInner/></Suspense>;}

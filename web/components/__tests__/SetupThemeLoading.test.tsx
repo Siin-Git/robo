@@ -6,7 +6,7 @@ import SetupPortfolioPage from "@/app/(app)/setup/portfolio/page";
 const state = vi.hoisted(() => ({
   market: false, ready: false, failed: false, pending: true, refetch: vi.fn(), save: vi.fn(), push: vi.fn(),
   frontier: { benchmark_frontier_id: "F001", points: [{ frontier_id: "F001", index: 0, expected_return: .05, volatility: .07, sharpe: .3, weights: [] }], assets: [] },
-  draft: { status: "draft", frontier_id: "F001", theme_ids: ["ai"], reason: "저장한 선택 이유" },
+  draft: { rebalance_frequency: "monthly", status: "draft", frontier_id: "F001", theme_ids: ["ai"], reason: "저장한 선택 이유" },
   active: { items: [
     { theme_id: "ai", display_name: "Artificial Intelligence", ticker: "AIQ", active: true },
     { theme_id: "power_grid", display_name: "Power Grid", ticker: "GRID", active: true },
@@ -32,7 +32,7 @@ vi.mock("@tanstack/react-query", () => ({
 
 describe("saved themes while catalog loads", () => {
   afterEach(cleanup);
-  beforeEach(() => { state.market = false; state.ready = false; state.failed = false; state.pending = true; state.refetch.mockClear(); state.push.mockReset(); state.save.mockReset().mockResolvedValue({}); state.draft = { status: "draft", frontier_id: "F001", theme_ids: ["ai"], reason: "저장한 선택 이유" }; });
+  beforeEach(() => { state.market = false; state.ready = false; state.failed = false; state.pending = true; state.refetch.mockClear(); state.push.mockReset(); state.save.mockReset().mockResolvedValue({}); state.draft = { rebalance_frequency: "monthly", status: "draft", frontier_id: "F001", theme_ids: ["ai"], reason: "저장한 선택 이유" }; });
   it("waits for the catalog even when a selected theme was restored first, then preserves the selection", () => {
     const { rerender } = render(<SetupStyleProvider><SetupPortfolioPage /></SetupStyleProvider>);
     expect(screen.getByRole("status")).toHaveTextContent("관심 분야 목록을 불러오는 중");
@@ -74,7 +74,7 @@ describe("saved themes while catalog loads", () => {
     state.save.mockImplementation(() => new Promise(resolve => { resolveSave = resolve; }));
     render(<SetupStyleProvider><SetupPortfolioPage /></SetupStyleProvider>);
     fireEvent.click(screen.getByRole("button", { name: "최신 이슈 보러가기" }));
-    expect(state.save).toHaveBeenCalledWith({ frontier_id: "F001", theme_ids: ["ai"], reason: "저장한 선택 이유", current_step: "themes" });
+    expect(state.save).toHaveBeenCalledWith({ frontier_id: "F001", theme_ids: ["ai"], reason: "저장한 선택 이유", current_step: "themes", rebalance_frequency: "monthly" });
     expect(state.push).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "최신 이슈 보러가기" })).toBeDisabled();
     await act(async () => resolveSave({}));
@@ -102,7 +102,7 @@ describe("saved themes while catalog loads", () => {
     render(<SetupStyleProvider><SetupPortfolioPage /></SetupStyleProvider>);
     fireEvent.click(screen.getByRole("button", { name: "테마 없이 기본 구성으로 계속하기" }));
     await waitFor(() => expect(state.push).toHaveBeenCalledWith("/setup/portfolio?step=review"));
-    expect(state.save).toHaveBeenCalledWith({ frontier_id: "F001", theme_ids: [], reason: "", current_step: "review" });
+    expect(state.save).toHaveBeenCalledWith({ frontier_id: "F001", theme_ids: [], reason: "", current_step: "review", rebalance_frequency: "monthly" });
   });
 
   it("preserves the reason when a market participant removes all themes", async () => {
@@ -111,7 +111,7 @@ describe("saved themes while catalog loads", () => {
     expect(screen.queryByLabelText("선택 이유")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", {name: "테마 없이 기본 구성으로 계속하기"}));
     await waitFor(() => expect(state.push).toHaveBeenCalledWith("/setup/portfolio?step=review"));
-    expect(state.save).toHaveBeenCalledWith({frontier_id:"F001",theme_ids:[],reason:"저장한 선택 이유",current_step:"review"});
+    expect(state.save).toHaveBeenCalledWith({frontier_id:"F001",theme_ids:[],reason:"저장한 선택 이유",current_step:"review",rebalance_frequency:"monthly"});
   });
   it("lets market participants continue without entering a reason", async () => {
     state.market = true; state.ready = true; state.pending = false;
@@ -120,7 +120,7 @@ describe("saved themes while catalog loads", () => {
     expect(screen.queryByLabelText("선택 이유")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", {name:"다음: 변경 전·후 비교"}));
     await waitFor(() => expect(state.push).toHaveBeenCalledWith("/setup/portfolio?step=review"));
-    expect(state.save).toHaveBeenCalledWith({frontier_id:"F001",theme_ids:["ai"],reason:"",current_step:"review"});
+    expect(state.save).toHaveBeenCalledWith({frontier_id:"F001",theme_ids:["ai"],reason:"",current_step:"review",rebalance_frequency:"monthly"});
   });
 
 });

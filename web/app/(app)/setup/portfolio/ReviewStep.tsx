@@ -6,12 +6,16 @@ import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/ui";
 import { post } from "@/lib/api/client";
 import { fmtActivePp, fmtPct } from "@/lib/format";
-import { ASSET_COLORS } from "./FrontierChart";
+import { ASSET_COLORS, StrategyFrontierChart as FrontierChart, type FrontierData } from "./FrontierChart";
+import { ASSET_META } from "./asset-meta";
 import { THEME_INFO } from "./theme-content";
 import { ReviewData, reviewRows } from "./review-data";
 import { useSetupStyles } from "../style-context";
+import Link from "next/link";
+import {getForwardLedger} from "@/lib/api/ledger";
+import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
-const THEME_COLORS = ["#7654c8", "#aa74d6"];
+const THEME_COLORS = ["#baa0f3", "#aa74d6"];
 const GROUPS = [
   { key: "broad_equity", base: "equity", name: "일반 주식", color: "#3b72e8" },
   { key: "themes", base: "themes", name: "선택 테마", color: "#8560cd" },
@@ -20,26 +24,34 @@ const GROUPS = [
   { key: "cash", base: "cash", name: "현금", color: "#c2cad6" },
 ];
 
-export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, error, experiment }: {
-  basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean;
+interface ReviewProps {
+  basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean; errorMessage?: string;
+  frontierData?: FrontierData;
+  rebalanceFrequency?: RebalanceFrequency;
   experiment?: { reason: string; notice: ReactNode };
-}) {
+  selectionReason?: {value: string; onChange: (value: string) => void};
+}
+export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, errorMessage, experiment, rebalanceFrequency, selectionReason }: ReviewProps) {
   const { review: s } = useSetupStyles();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [inspectedAssetId, setInspectedAssetId] = useState<string | null>(null);
   const preview = useQuery({
     queryKey: [experiment ? "experiment-review-preview" : "onboarding-preview", basePoint.frontier_id, themeIds.join(",")],
     queryFn: () => post<ReviewData>(experiment ? "/api/v1/me/experiment/preview" : "/api/v1/me/onboarding/preview", experiment ? {core_id:basePoint.frontier_id, theme_ids:themeIds} : { frontier_id: basePoint.frontier_id, theme_ids: themeIds }),
   });
+  const orders = useQuery({queryKey:["forward-ledger"],queryFn:getForwardLedger,enabled:!experiment,refetchInterval:15_000,refetchIntervalInBackground:false,retry:1});
+  const waitingOrders = !experiment ? orders.data?.orders?.filter(o=>o.status==="pending") ?? [] : [];
+  const ordersUnknown = !experiment && (orders.isLoading || orders.isError || !Array.isArray(orders.data?.orders));
   if (preview.isLoading) return <LoadingSkeleton rows={6} />;
   if (preview.isError || !preview.data) return <div><ErrorState message="최종 구성을 불러오지 못했습니다." onRetry={() => preview.refetch()} /><button className="btn-secondary" onClick={onBack}>테마 다시 고르기</button></div>;
-  const p = preview.data;
+  const p = preview.data!;
   const rows = reviewRows(p);
   const allocations = rows.filter(r => r.final > 0);
   const total = allocations.reduce((sum, r) => sum + r.final, 0);
   const selected = allocations.find(r => r.id === activeId);
   const color = (id: string) => {
     const index = p.themes.findIndex(t => t.theme_id === id);
-    return index >= 0 ? THEME_COLORS[index % THEME_COLORS.length] : ASSET_COLORS[id] ?? "#8292a9";
+    return index >= 0 ? THEME_COLORS[index % THEME_COLORS.length] : ASSET_COLORS[id] ?? "var(--text-secondary)";
   };
   const themeName = (id: string) => THEME_INFO[id]?.name ?? p.themes.find(t => t.theme_id === id)?.display_name ?? id;
   const themeTotal = rows.filter(r => r.isTheme).reduce((sum, r) => sum + r.final, 0);
@@ -52,12 +64,20 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
     <header className={s.header}><div className={s.eyebrow}>BEFORE & AFTER</div><h1>인사이트가 포트폴리오를 어떻게 바꿨나요?</h1>
       <p>{p.themes.length ? <>기본 투자 구성에 <strong>{p.themes.map(t => themeName(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 투자 구성입니다."}</p>
     </header>
+    {rebalanceFrequency && <p aria-label="확정 전 리밸런싱 주기">정기 리밸런싱: <strong>{REBALANCE_LABELS[rebalanceFrequency]}</strong> · 초기 설정에서 선택한 주기로 확정합니다.</p>}
 
     <div className="comparison-intro" aria-label="포트폴리오 설계 관계">
       <div><span className="ui-eyebrow">BEFORE</span><h2>기본 포트폴리오</h2><p>선택한 위험 수준에 맞춘 자산배분을 출발점으로 삼습니다.</p></div>
       <div><span className="ui-eyebrow">MY INSIGHT</span><h2>{p.themes.length ? p.themes.map(t => themeName(t.theme_id)).join(" · ") : "기본 구성 유지"}</h2><p>{p.themes.length ? "나의 전망을 기존 주식 비중 안에서 반영합니다." : "추가 테마 없이 선택한 자산배분을 유지합니다."}</p></div>
       <div><span className="ui-eyebrow">AFTER</span><h2>최종 포트폴리오</h2><p>비중과 위험 변화를 확인하고 확정합니다. 성과는 연결된 데이터가 있을 때 표시됩니다.</p></div>
     </div>
+    {frontierData && p.base.expected_return != null && p.base.volatility != null && <section className={s.changes} aria-label="테마 적용 전후 Efficient Frontier 위치">
+      <div className={s.sectionHeading}><div><h2>Efficient Frontier에서의 위치</h2><p>기본 구성과 테마 반영 후 구성을 같은 좌표계에 표시합니다.</p></div></div>
+      <FrontierChart points={frontierData.points} assets={frontierData.assets.map(a => ({...a,name:ASSET_META[a.asset_id]?.name ?? a.display_name,cat:ASSET_META[a.asset_id]?.cat ?? "현금"}))}
+        selected={{expected_return:p.base.expected_return,volatility:p.base.volatility}}
+        personalized={p.personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}/>
+      {p.personalized.expected_return == null && <p>테마 적용 후 기대수익률은 백엔드 제공 전입니다. 현재는 적용 전 위치만 표시합니다.</p>}
+    </section>}
     <section className={s.changes} aria-labelledby="changes-heading">
       <div className={s.sectionHeading}><div><h2 id="changes-heading">{p.themes.length ? "선택한 테마로 이렇게 달라졌어요" : "기본 구성으로 시작해요"}</h2><p>{p.themes.length ? "기존 주식의 일부를 선택한 테마로 재배분했습니다." : "테마를 추가하지 않아 자산별 비중은 그대로 유지됩니다."}</p></div></div>
       {p.themes.length > 0 && <div className={s.themeChanges}>{p.themes.map(t => <div key={t.theme_id}><i style={{ background: color(t.theme_id) }} /><strong>{themeName(t.theme_id)}</strong><span>{t.ticker}</span><b>{fmtPct(rows.find(r => r.id === t.theme_id)?.final ?? 0)}</b></div>)}</div>}
@@ -106,8 +126,12 @@ export function ReviewStep({ basePoint, themeIds, onBack, onComplete, pending, e
 
     <details open className={s.details}><summary>자산별 변경 내역 보기<span>기본 비중 · 최종 비중 · 변화</span></summary><div className={s.tableWrap}><table><thead><tr><th>자산</th><th>기본 비중</th><th>최종 비중</th><th>변화</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} data-theme={row.isTheme}><th scope="row">{row.name}{row.isTheme && <small>선택 테마</small>}</th><td>{fmtPct(row.base)}</td><td>{fmtPct(row.final)}</td><td>{Math.abs(row.change) < 1e-9 ? "변동 없음" : fmtActivePp(row.change)}</td></tr>)}</tbody></table></div></details>
     <p className={s.explanation}>예상 변동성은 모형의 추정치이며 실제 결과와 다를 수 있습니다.{limit != null && ` 테마 반영에 따른 변동성 증가는 같은 모형으로 계산한 기본 구성 대비 ${limit.toFixed(1)}%p 이내로 관리합니다.`}</p>
+    {selectionReason&&<details className={s.selectionReason}><summary>{selectionReason.value.trim()?"선택 이유 보기·수정":"선택 이유 남기기 (선택)"}</summary><textarea aria-label="확정 전 선택 이유" value={selectionReason.value} maxLength={1024} disabled={pending} onChange={e=>selectionReason.onChange(e.target.value)} placeholder="나중에 다시 검토할 선택 이유를 남겨 주세요."/></details>}
+    {!experiment && <section className={s.orderNotice} aria-label="구성 확정 조건" aria-live="polite">
+      {ordersUnknown ? <><p>{orders.isLoading?"대기 주문을 확인하고 있습니다.":"주문 상태를 불러오지 못했습니다. 확정 시 서버에서 조건을 다시 확인합니다."}</p>{!orders.isLoading&&<button className="btn-secondary" onClick={()=>void orders.refetch()}>주문 상태 다시 조회</button>}</> : waitingOrders.length > 0 ? <><strong>대기 주문 {waitingOrders.length}건 · 기존 주문 처리 중</strong><p>새로운 구성으로 변경하려면 기존 주문이 먼저 처리되어야 합니다.</p><div><Link href="/dashboard#dark-records">대기 주문 보기</Link><button className="btn-secondary" onClick={()=>void orders.refetch()}>주문 상태 새로고침</button></div></> : <p>대기 주문 없음</p>}
+    </section>}
     {experiment&&<section className="ui-note"><p>선택 이유: {experiment.reason}</p>{experiment.notice}</section>}
     <footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : experiment ? "포트폴리오 생성" : "포트폴리오 확정 · 성과 확인"}<ArrowRight size={17} /></button></div></footer>
-    {error && <p className={s.error} role="alert">구성을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
+    {error && <p className={s.error} role="alert">{errorMessage || "구성을 저장하지 못했습니다. 다시 시도해 주세요."}</p>}
   </div>;
 }

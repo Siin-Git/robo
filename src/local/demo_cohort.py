@@ -1,7 +1,7 @@
 """Explicit, non-destructive rehearsal setup. Never called by startup/seed.
 
 python -m src.local.demo_cohort --name rehearsal-01 --email presenter@example.com --out /private/tmp/rehearsal-invites.json
-Use two --email arguments for 11 prepared + 2 reserved slots. A new name creates
+Use two --email arguments for (COHORT_SIZE - 2) prepared + 2 reserved slots. A new name creates
 another rehearsal without deleting users, configurations or historical results.
 """
 import argparse
@@ -15,7 +15,7 @@ from ..api.services import enrollment_service as svc, auth_service as auth, _com
 from ..db.models.demo_cohort import DemoCohort, DemoSlot
 from ..db.models.operational import ForwardState
 from ..db.models.user import User
-from .capstone import enabled, EMAILS
+from .capstone import enabled, COHORT_SIZE, EMAILS
 
 
 def prepare(session, name, emails, *, invitation_hashes=None):
@@ -34,9 +34,9 @@ def prepare(session, name, emails, *, invitation_hashes=None):
         raise ValueError("Rehearsal already exists; use a new name. Existing data is never reset.")
     if session.scalar(select(User).where(User.email_normalized.in_(emails))):
         raise ValueError("Use new reserved emails; existing accounts cannot be reassigned.")
-    if len(list(session.scalars(select(User).where(User.email_normalized.in_(EMAILS))))) != 13:
+    if len(list(session.scalars(select(User).where(User.email_normalized.in_(EMAILS))))) != COHORT_SIZE:
         raise ValueError("Run the existing capstone seed first.")
-    session.add(DemoCohort(cohort_id=name, prepared_count=13-len(emails), created_at=C.now_utc()))
+    session.add(DemoCohort(cohort_id=name, prepared_count=COHORT_SIZE-len(emails), created_at=C.now_utc()))
     session.flush()
     invitations = []
     for i, email in enumerate(emails, 1):
@@ -50,7 +50,7 @@ def prepare(session, name, emails, *, invitation_hashes=None):
     else:
         session.add(ForwardState(key=svc.ACTIVE_KEY, value=name, updated_at=C.now_utc()))
     session.flush()
-    return {"cohort_id": name, "capacity": 13, "prepared": 13-len(emails), "invitations": invitations}
+    return {"cohort_id": name, "capacity": COHORT_SIZE, "prepared": COHORT_SIZE-len(emails), "invitations": invitations}
 
 
 def prepare_from_environment(session):
@@ -81,7 +81,7 @@ def prepare_from_environment(session):
         expected = list(zip(emails, hashes))
         existing = sorted(svc.slots(session, group), key=lambda s: s.slot_number)
         active = svc.active(session)
-        if (group.prepared_count != 13-len(emails)
+        if (group.prepared_count != COHORT_SIZE-len(emails)
                 or [(s.email_normalized, s.invite_hash) for s in existing] != expected
                 or active is None or active.cohort_id != name):
             raise ValueError("Invitation configuration differs from the saved cohort; no data was changed.")

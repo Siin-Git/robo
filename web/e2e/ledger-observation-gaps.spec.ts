@@ -1,0 +1,77 @@
+import {test,expect} from '@playwright/test';
+import {readFileSync} from 'node:fs';
+import path from 'node:path';
+
+const directory=process.env.E2E_OPERATIONS_DATA_DIR!;
+for(const viewport of [{width:1440,height:1000},{width:390,height:844}]) {
+ test(`interior loss and disconnected missing observation ${viewport.width}`,async({page})=>{
+  await page.setViewportSize(viewport);
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  const account=JSON.parse(readFileSync(path.join(directory,'accounts.json'),'utf8')).accounts[0];
+  await page.goto('/login');
+  await page.getByLabel('이메일',{exact:true}).fill(account.email);
+  await page.getByLabel('비밀번호',{exact:true}).fill(account.password);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  await expect(page).not.toHaveURL(/\/login/);
+  await page.goto('/ranking');
+  const me=await(await page.request.get('/api/v1/me')).json();
+  const comparison=await(await page.request.get('/api/v1/me/performance/comparison')).json();
+  const a=comparison.items.find((r:any)=>r.participant_id===me.participant_id);
+  const b=comparison.items.find((r:any)=>r.display_name==='참여자 04');
+  expect(comparison.dates).toEqual(['2026-10-01','2026-10-02','2026-10-05']);
+  expect(a.metrics.mdd).toBe(-.5);expect(a.rank).toBe(2);expect(b.rank).toBe(1);
+  expect(a.series.map((p:any)=>p.personal_index100)).toEqual([100,50,100]);
+  expect(b.series.map((p:any)=>p.personal_index100)).toEqual([100,null,101]);
+  const graph=page.getByRole('region',{name:'참여자와 CORE 지수 그래프'});
+  await expect(graph.locator('.recharts-wrapper > svg.recharts-surface')).toBeVisible();
+  const lines=graph.locator('.recharts-line');
+  // Return ranking orders B then A. B has two isolated points and no connecting L;
+  // A has three real points and two segments retaining the middle trough.
+  const bPath=await lines.nth(0).locator('.recharts-line-curve').getAttribute('d');
+  const aPath=await lines.nth(1).locator('.recharts-line-curve').getAttribute('d');
+  expect(bPath?.match(/L/g)?.length??0).toBe(0);
+  expect(aPath?.match(/L/g)?.length??0).toBe(2);
+  expect(await lines.nth(0).locator('.recharts-line-dot').count()).toBe(2);
+  expect(await lines.nth(1).locator('.recharts-line-dot').count()).toBe(3);
+  await page.getByLabel('순위 기준').selectOption('mdd');
+  await expect(page.getByText(/순위 대기/)).toBeVisible();
+  const risk=await(await page.request.get('/api/v1/me/performance/comparison?basis=mdd')).json();
+  expect(risk.ranked).toBe(0);expect(risk.items.every((r:any)=>r.rank===null)).toBe(true);
+  await page.getByRole('button',{name:'참여자 04',exact:true}).click();
+  const detail=page.getByRole('region',{name:'선택 참여자 성과'});
+  await expect(detail).toContainText('MDD는 유효 평가 2건 이상');
+  await expect(detail).toContainText('연율 변동성은 별도로 유효 수익률 30개 이상');
+  await expect(detail).toContainText('평가 기록 공백 · 위험 순위 보류');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:path.join(directory,`gap-ranking-${viewport.width}.png`),fullPage:true});
+  await page.getByRole('link',{name:'공통 기간의 내 성과·기여도'}).click();
+  const common=await(await page.request.get('/api/v1/me/performance/dashboard?comparison=common')).json();
+  const individual=await(await page.request.get('/api/v1/me/performance/dashboard')).json();
+  const contribution=await(await page.request.get('/api/v1/me/performance/contributions?comparison=common')).json();
+  expect(common.metrics).toEqual(individual.metrics);expect(common.metrics).toEqual(a.metrics);
+  expect(common.observations).toBe(3);expect(common.metrics.mdd).toBe(-.5);
+  expect(contribution.history.map((p:any)=>p.date)).toEqual(comparison.dates);
+  expect(contribution.reconciliation.reconciled).toBe(true);
+  await expect(page.getByRole('region',{name:'성과 적용 판단'})).toContainText('적용 대기 판단: v2');
+  await page.screenshot({path:path.join(directory,`gap-common-${viewport.width}.png`),fullPage:true});
+  // B's common owner report must use its two genuine records, not a filled third NAV.
+  await page.context().clearCookies();await page.goto('/login');
+  const second=JSON.parse(readFileSync(path.join(directory,'accounts.json'),'utf8')).accounts[3];
+  await page.getByLabel('이메일',{exact:true}).fill(second.email);
+  await page.getByLabel('비밀번호',{exact:true}).fill(second.password);
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  await expect(page).not.toHaveURL(/\/login/);
+  await page.goto('/dashboard?comparison=common');
+  const bCommon=await(await page.request.get('/api/v1/me/performance/dashboard?comparison=common')).json();
+  const bContributions=await(await page.request.get('/api/v1/me/performance/contributions?comparison=common')).json();
+  expect(bCommon.metrics).toEqual(b.metrics);expect(bCommon.observations).toBe(2);
+  expect(bCommon.series.map((p:any)=>p.date)).toEqual(['2026-10-01','2026-10-05']);
+  expect(bContributions.reconciliation.reconciled).toBe(true);
+  const ownerLine=page.getByRole('img',{name:/누적수익률:/}).locator('.recharts-line-curve').first();
+  await expect(ownerLine).toBeAttached();
+  expect((await ownerLine.getAttribute('d'))?.match(/L/g)?.length??0).toBe(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:path.join(directory,`gap-common-b-${viewport.width}.png`),fullPage:true});
+  expect(errors).toEqual([]);
+ });
+}

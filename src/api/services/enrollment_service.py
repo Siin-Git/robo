@@ -9,7 +9,7 @@ from ...db.models.demo_cohort import DemoCohort, DemoSlot
 from ...db.models.operational import ForwardState
 from ...db.models.user import User
 from ...db.models.theme import Theme
-from ...local.capstone import COHORT, EMAILS, enabled
+from ...local.capstone import COHORT, COHORT_SIZE, EMAILS, enabled
 from ...forward.portfolio import theme_target_weights, fund_from_equities
 from ..errors import ApiError
 from . import _common as C, auth_service as auth
@@ -83,7 +83,7 @@ def status(session, user):
     group, slot = active(session), own(session, user)
     counts = slots(session, group) if group else []
     out = {"status": "not_required", "cohort_id": group.cohort_id if group else "legacy",
-        "capacity": 13, "registered": group.prepared_count + sum(s.confirmed_at is not None for s in counts) if group else 13,
+        "capacity": COHORT_SIZE, "registered": group.prepared_count + sum(s.confirmed_at is not None for s in counts) if group else COHORT_SIZE,
         "reserved": sum(s.confirmed_at is None for s in counts),
         "claimed": sum(s.user_id is not None and s.confirmed_at is None for s in counts)}
     if slot:
@@ -233,6 +233,36 @@ def complete(session, user, data):
             raise ApiError("SCENARIO_MISMATCH", "선택 구성과 시연 시나리오가 일치하지 않습니다.", 409)
         report.update(participant_id=user.participant_id, display_name=user.participant.display_name,
             data_source="DEMO_SCENARIO_ASSIGNED", scenario_id=config["scenario_id"])
+    return _persist_configuration(session, user, slot, data, config, report)
+
+
+def confirm_forward_design(session, user, data, design_preview):
+    """Record an initial real design using the existing enrollment writer.
+
+    Trusted operator/service caller only, not an HTTP endpoint. Preview comes
+    from onboarding_service; no legacy scenario is assigned or copied.
+    """
+    from ..design_workspace import enabled as design_enabled
+    from .frontier_service import find_point
+    from ..errors import ApiError
+    if not design_enabled() or find_point(data.get('frontier_id')) is None:
+        raise ApiError('FORWARD_DESIGN_REQUIRED', 'A valid initial design is required.', 409)
+    slot = require_slot(session, user)
+    session.execute(update(DemoSlot).where(DemoSlot.slot_id == slot.slot_id).values(slot_number=slot.slot_number))
+    session.refresh(slot)
+    if slot.confirmed_at or slot.configuration_json or slot.forward_started_at:
+        raise ApiError('EXPERIMENT_FROZEN', 'Existing configuration is preserved.', 409)
+    validate(session, {k:v for k,v in data.items() if k != 'frontier_id'}, final=True)
+    config = {**deepcopy(design_preview), **data,
+        'allocation': _legs({w['asset_id']:w['weight'] for w in design_preview['personalized']['weights']}, _tickers(session)),
+        'core_allocation': _legs(C.frozen_bundle()[0], _tickers(session)),
+        'scenario_id': None, 'performance_status': 'AWAITING_PERFORMANCE',
+        'configuration_kind': 'PROFESSOR_DEMO_BOOTSTRAP'}
+    return _persist_configuration(session, user, slot, data, config, None)
+
+
+def _persist_configuration(session, user, slot, data, config, report):
+    """Shared enrollment persistence; no commit (caller owns the transaction)."""
     slot.configuration_json = config
     slot.report_json = report
     slot.confirmed_at = C.now_utc()
@@ -242,11 +272,13 @@ def complete(session, user, data):
     from ...db.models.account import Account
     acc = session.scalar(select(Account).where(Account.participant_id == user.participant_id, Account.account_type == "personal"))
     ft = C.load_forward_cfg()["forward_test"]
-    session.add(PortfolioTarget(target_id=C.new_id(session, "G"), account_id=acc.account_id,
-        effective_date=slot.confirmed_at.date(), kind="personal",
-        weights_json={(("theme:" + w["asset_id"]) if w["asset_type"] == "theme" else w["asset_id"]): w["weight"] for w in config["allocation"]},
-        core_version=ft["benchmark_version"], theme_universe_version=ft["theme_universe_version"],
-        risk_model_version=ft["risk_model_version"], created_at=slot.confirmed_at))
+    from ..design_workspace import enabled as design_enabled
+    if not design_enabled():
+        session.add(PortfolioTarget(target_id=C.new_id(session, "G"), account_id=acc.account_id,
+            effective_date=slot.confirmed_at.date(), kind="personal",
+            weights_json={(("theme:" + w["asset_id"]) if w["asset_type"] == "theme" else w["asset_id"]): w["weight"] for w in config["allocation"]},
+            core_version=ft["benchmark_version"], theme_universe_version=ft["theme_universe_version"],
+            risk_model_version=ft["risk_model_version"], created_at=slot.confirmed_at))
     C.log_event(session, "DEMO_CONFIGURATION_CONFIRMED", ft["benchmark_version"], participant_id=user.participant_id,
         payload={"cohort_id": slot.cohort_id, "scenario_id": config["scenario_id"], "theme_ids": config["theme_ids"]})
     session.flush()

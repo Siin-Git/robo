@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.forward.accounts import place_target_orders, record_target, versions_from_cfg
 from src.forward.config import load_forward_config, resolve
+from src.forward.competition import guarded_batch
 from src.forward.db import connect, log_event
 from src.forward.runtime import get_database_path, print_banner
 from src.forward.frozen import load_frozen_benchmark
@@ -108,6 +109,7 @@ def _dry_run_weekly(con, cfg, friday) -> int:
     return 0
 
 
+@guarded_batch
 def _execute_weekly(con, cfg, friday):
     ft = cfg["forward_test"]
     from src.forward.frozen import load_frozen_benchmark as _lf
@@ -116,6 +118,9 @@ def _execute_weekly(con, cfg, friday):
     from src.forward.state import live_orders_blocked
     blocked, reason = live_orders_blocked(con)
     if blocked:
+        from src.forward.competition import policy
+        if policy(con)["managed"]:
+            return 0, {"status": "COMPETITION_WAIT", "reason": reason}
         print(f"ERROR:\nWeekly rebalance refused: {reason}.")
         return 2, {"status": "REFUSED"}
     frozen_w, _ = _lf(_rs(cfg["frozen_dir"]))
@@ -125,6 +130,7 @@ def _execute_weekly(con, cfg, friday):
     cov, _ = load_or_build_cov(con, cfg, friday)
     n_orders = 0
     n_targets = 0
+    from src.forward.decision_policy import latest_decision, awaiting_confirmation, weights as decision_weights
     for p in list_participants(con, "active"):
         pid = p["participant_id"]
         views = batch_views(con, pid, friday, effective)
@@ -140,9 +146,18 @@ def _execute_weekly(con, cfg, friday):
                           " AND account_type='personal'", (pid,)).fetchone()
         if acc is None:
             continue
+        if awaiting_confirmation(con, {"participant_id": pid}):
+            continue
+        con.execute("UPDATE accounts SET status=status WHERE account_id=?", (acc["account_id"],))
+        d = latest_decision(con, acc["account_id"])
+        if d:
+            # Final personal weights change only via a new confirmation. Monthly
+            # band correction remains active; weekly view refresh cannot revise them.
+            con.commit()
+            continue
         import json as _json
         prev = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
-                           " AND effective_date < ? ORDER BY effective_date DESC LIMIT 1",
+                           " AND effective_date < ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
                            (acc["account_id"], effective)).fetchone()
         prev_w = _json.loads(prev["weights_json"]) if prev else {}
         record_target(con, acc["account_id"], res["weights"], effective, "personal",

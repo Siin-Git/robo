@@ -46,15 +46,18 @@ from src.api.routers import (  # noqa: E402
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from src.db.config import get_backend
-    from src.forward.runtime import get_database_path, get_runtime_profile
+    from src.db.config import get_backend, get_database_url, get_design_database_url
+    from src.forward.runtime import get_runtime_profile
     print(f"PROFILE: {get_runtime_profile().upper()}", flush=True)
     print(f"DATABASE_BACKEND: {get_backend().upper()}", flush=True)
-    try:
-        from src.local.capstone import enabled
-        print(f"DATABASE: {'data/capstone_demo.db' if enabled() else get_database_path().relative_to(ROOT)}", flush=True)
-    except ValueError:
-        print(f"DATABASE: {get_database_path()}", flush=True)
+    from sqlalchemy.engine import make_url
+    from src.forward.runtime import _safe_db_name
+    def display(url):
+        parsed = make_url(url)
+        return str(Path(parsed.database).resolve()) if parsed.get_backend_name() == 'sqlite' else _safe_db_name(url)
+    print(f"AUTH_DATABASE: {display(get_database_url())}", flush=True)
+    design_url = get_design_database_url()
+    print(f"OPERATING_DATABASE: {display(design_url or get_database_url())}", flush=True)
     print("API VERSION: v1", flush=True)
     yield
 
@@ -134,3 +137,9 @@ app.include_router(system.router, prefix="/api/v1")
 
 from src.api.routers import enrollment
 app.include_router(enrollment.router, prefix="/api/v1")
+
+from .routers import decisions
+app.include_router(decisions.router, prefix="/api/v1")
+
+from .routers import strategies
+app.include_router(strategies.router, prefix="/api/v1")

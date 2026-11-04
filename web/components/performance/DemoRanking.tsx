@@ -42,7 +42,7 @@ export function DemoRanking() {
   });
   const columns:Column<ComparisonRow>[] = [
     {key:"rank",header:"순위",numeric:true,render:r=><span className={r.rank <= 3 ? s.topRank : s.rank}>{String(r.rank).padStart(2,"0")}</span>},
-    {key:"participant",header:"참여자",render:r=><div><Link href={`/participants/${r.participant_id}`} className={s.person} onClick={e=>e.stopPropagation()}>{r.display_name}{user?.participant_id === r.participant_id && <small>나</small>}<ArrowUpRight size={14}/></Link><span className={s.mobileMetric}>{basis.toUpperCase()} {selectedValue(r)}</span></div>},
+    {key:"participant",header:"참여자",render:r=><div><Link href={`/participants/${r.participant_id}?source=demo`} className={s.person} onClick={e=>e.stopPropagation()}>{r.display_name}{user?.participant_id === r.participant_id && <small>나</small>}<ArrowUpRight size={14}/></Link><span className={s.mobileMetric}>{basis.toUpperCase()} {selectedValue(r)}</span></div>},
     {key:"themes",header:"선택 테마",render:r=><span className={s.themes}>{r.themes.map(theme=><span className={s.themeChip} key={theme}>{themeLabel(theme)}</span>)}</span>},
     ...(["return", "excess"].includes(basis) ? [
       metricColumn("return","수익률",r=>fmtReturn(r.metrics.cumulative_return)),
@@ -57,7 +57,7 @@ export function DemoRanking() {
     ]),
   ];
   return <AppShell headerTitle="참여자 성과 비교" softBackground><div className={s.page}>
-    <header className={s.header}><div><h1 className="page-title">참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link href="/dashboard" className="btn-secondary">내 성과 자세히</Link></header>
+    <header className={s.header}><div><h1 className="page-title">참여자 성과 비교</h1><p className="page-desc">내 투자 구성이 다른 참여자, 기준 포트폴리오와 얼마나 달랐는지 확인하세요.</p></div><Link href="/dashboard?source=demo" className="btn-secondary">내 비교 성과 자세히</Link></header>
     <div className={s.comparisonMeta}><span>{fmtDate(query.data?.start)} — {fmtDate(query.data?.end)}</span><span>{query.data?.total ?? "—"}명 비교</span><span>{query.data?.data_source === "MARKET_PRICE_REPLAY" ? "과거 가격 기준 · 실제 운용 성과 아님" : "가상 시연 데이터 · 실제 운용 성과 아님"}</span></div>
     {LAB_MEETING_MODE && <div className="ui-note" role="status"><strong>구성 완료 {query.data?.registered ?? "—"} / {query.data?.capacity ?? 13}명</strong><span> · 선택 중 {query.data?.reserved ?? "—"}명 · 10초마다 자동 갱신</span><p>저장한 포트폴리오만 순위에 반영됩니다. <Link href="/setup/portfolio">내 섹터·테마 선택하기 →</Link></p></div>}
     <AnalyticsOverview participantId={user?.participant_id??undefined}/>
@@ -69,10 +69,10 @@ export function DemoRanking() {
       </select><ChevronDown size={16} aria-hidden="true"/></span></label></div>
       <p className={s.sortHint} aria-live="polite">{OPTIONS.find(o=>o.value===basis)?.hint}</p>
       {query.isLoading ? <LoadingSkeleton rows={13}/> : query.isError ? <ErrorState message="참여자 비교 데이터를 불러오지 못했습니다." onRetry={()=>query.refetch()}/> : !rows.length ? <EmptyState title="아직 비교할 참여자가 없습니다."/> :
-        <DataTable columns={columns} rows={rows} rowKey={r=>r.participant_id} onRowClick={r=>router.push(`/participants/${r.participant_id}`)} rowClassName={r=>`${s.row} ${r.rank<=3?s.topRow:""} ${r.participant_id===user?.participant_id?"analytics-my-row":""}`}/>}
+        <DataTable columns={columns} rows={rows} rowKey={r=>r.participant_id} onRowClick={r=>router.push(`/participants/${r.participant_id}?source=demo`)} rowClassName={r=>`${s.row} ${r.rank<=3?s.topRow:""} ${r.participant_id===user?.participant_id?"analytics-my-row":""}`}/>}
       <p className={s.footnote}>현재 정렬 기준의 Top 3를 강조합니다. 전체 지표와 구성은 참여자 상세에서 확인하세요.</p>
     </section>
-    {query.data?.pending?.length ? <section className="ui-note"><h2>성과 집계 대기 · 전체 기간 순위 제외</h2>{query.data.pending.map(p=><p key={p.participant_id}><Link href={`/participants/${p.participant_id}`}>{p.display_name} · {p.themes.map(themeLabel).join(" / ")}</Link></p>)}</section>:null}
+    {query.data?.pending?.length ? <section className="ui-note"><h2>성과 집계 대기 · 전체 기간 순위 제외</h2>{query.data.pending.map(p=><p key={p.participant_id}><Link href={`/participants/${p.participant_id}?source=demo`}>{p.display_name} · {p.themes.map(themeLabel).join(" / ")}</Link></p>)}</section>:null}
     {analytics.data&&<ThemeComparison data={analytics.data}/>}
     <details className={s.guide}><summary>비교 기준과 지표 설명</summary>
       <DemoNote market={query.data?.data_source === "MARKET_PRICE_REPLAY"}/>

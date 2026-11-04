@@ -1,8 +1,9 @@
 """Onboarding draft + preview + complete routes (3-step)."""
 from __future__ import annotations
+from typing import Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..authz import get_current_user, require_authenticated_csrf
 from ..design_workspace import get_design_db
@@ -13,6 +14,7 @@ from ..dependencies import get_db
 router = APIRouter(prefix="/me/onboarding", tags=["onboarding"])
 
 class DraftBody(BaseModel):
+    rebalance_frequency: Literal['monthly', 'quarterly'] | None = None
     frontier_id: str | None = None
     theme_ids: list[str] | None = None
     reason: str | None = None
@@ -22,7 +24,15 @@ class PreviewBody(BaseModel):
     frontier_id: str
     theme_ids: list[str] = []
 
+class RehearsalBody(PreviewBody):
+    model_config = ConfigDict(extra="forbid")
+    period: str = Field(default="all", pattern=r"^(all|[0-9]{4})$")
+    initial_amount: int = Field(default=10_000_000, ge=10_000, le=1_000_000_000)
+
 class CompleteBody(BaseModel):
+    rebalance_frequency: Literal['monthly', 'quarterly'] | None = None
+    adjustment_choice_id: str | None = None
+    expected_decision_id: str | None = None
     frontier_id: str
     theme_ids: list[str] = []
     reason: str | None = None
@@ -41,16 +51,18 @@ def get_draft(db=Depends(get_design_db), user=Depends(get_current_user), auth_db
             d = slot.draft_json or {}
             return {"status": "draft" if d.get("frontier_id") else "not_started",
                 "frontier_id": d.get("frontier_id"), "theme_ids": d.get("theme_ids", []),
-                "reason": d.get("reason", ""), "current_step": d.get("current_step", "risk")}
-        return {"status": "not_started"}
+                "reason": d.get("reason", ""), "current_step": d.get("current_step", "risk"),
+                "rebalance_frequency": d.get('rebalance_frequency') or 'monthly'}
+        return {"status": "not_started", "rebalance_frequency": 'monthly'}
     d = svc.get_draft(db, user.user_id)
     if d is None:
         if market_comparison.enabled():
             cfg = market_comparison.configuration(auth_db, user, enrollment_service.own(auth_db, user))
             return {"status": "saved", "frontier_id": cfg["frontier_id"],
                 "theme_ids": [a[6:] for a in cfg["weights"] if a.startswith("theme:") and cfg["weights"][a] > 0],
-                "reason": cfg["reason"], "current_step": "risk"}
-        return {"status": "not_started"}
+                "reason": cfg["reason"], "current_step": "risk",
+                "rebalance_frequency": svc.saved_frequency(db, user.user_id)}
+        return {"status": "not_started", "rebalance_frequency": svc.saved_frequency(db, user.user_id)}
     return {"status": "draft", **d}
 
 @router.put("/draft", summary="Upsert onboarding draft")
@@ -61,7 +73,7 @@ def put_draft(body: DraftBody, db=Depends(get_design_db), user=Depends(require_a
             raise ApiError("SETUP_REQUIRED", "먼저 첫 설정을 완료해 주세요.", 409)
         data = {**(slot.draft_json or {}), **body.model_dump(exclude_none=True), "core_id": "CORE_V0.3"}
         return enrollment_service.save_draft(auth_db, user, data)["draft"]
-    d = svc.upsert_draft(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason, body.current_step)
+    d = svc.upsert_draft(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason, body.current_step, body.rebalance_frequency)
     return d
 
 @router.post("/draft", summary="Upsert onboarding draft (POST alias)")
@@ -72,11 +84,19 @@ def post_draft(body: DraftBody, db=Depends(get_design_db), user=Depends(require_
 def preview(body: PreviewBody, db=Depends(get_design_db), user=Depends(get_current_user)):
     return svc.preview(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids)
 
+@router.post("/rehearsal", summary="Compare an unconfirmed proposal without saving a decision")
+def rehearsal(body: RehearsalBody, db=Depends(get_design_db), user=Depends(get_current_user)):
+    from ..services.rehearsal_service import preview_rehearsal
+    return preview_rehearsal(db, user.user_id, _pid(user), **body.model_dump())
+
 @router.post("/complete", summary="Complete onboarding (creates base + themes + target)")
 def complete(body: CompleteBody, db=Depends(get_design_db), user=Depends(require_authenticated_csrf), auth_db=Depends(get_db)):
     slot = enrollment_service.own(auth_db, user)
     if slot and not slot.confirmed_at:
         if not market_comparison.enabled():
             raise ApiError("SETUP_REQUIRED", "먼저 첫 설정을 완료해 주세요.", 409)
-        return enrollment_service.complete(auth_db, user, {**body.model_dump(), "reason": body.reason or "", "core_id": "CORE_V0.3"})
-    return svc.complete(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason)
+        frequency = body.rebalance_frequency or (slot.draft_json or {}).get('rebalance_frequency') or 'monthly'
+        result = enrollment_service.complete(auth_db, user, {**body.model_dump(), "reason": body.reason or "", "core_id": "CORE_V0.3", "rebalance_frequency": frequency})
+        result.update(svc.complete(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason, body.adjustment_choice_id, expected_decision_id=body.expected_decision_id, rebalance_frequency=frequency))
+        return result
+    return svc.complete(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids, body.reason, body.adjustment_choice_id, expected_decision_id=body.expected_decision_id, rebalance_frequency=body.rebalance_frequency)

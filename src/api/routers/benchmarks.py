@@ -10,6 +10,12 @@ from ..services import benchmark_service as svc
 router = APIRouter(prefix="/benchmarks", tags=["benchmarks"])
 
 
+@router.get("/definitions", summary="Benchmark candidates and explicitly approved definitions")
+def benchmark_definitions(user=Depends(get_current_user)):
+    from ..services.benchmark_definition_service import definitions
+    return definitions()
+
+
 @router.get("", summary="Available benchmarks")
 def list_benchmarks(user=Depends(get_current_user)):
     return {"items": svc.list_benchmarks()}

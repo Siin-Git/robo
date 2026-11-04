@@ -13,10 +13,64 @@ from ...risk.covariance import annualize_covariance, ledoit_wolf_covariance
 from ...db.repositories.forward import PriceRepository, TargetRepository, ThemeRepository
 from ..errors import ApiError, not_found
 from . import _common as C
+from .frontier_service import describe_position
 
 
 def _cfg():
     return C.load_forward_cfg()["forward_test"]
+
+
+# --- 기대수익률 (Efficient Frontier 좌표용) ------------------------------
+# Frontier 와 같은 값을 써야 프론트에서 같은 평면에 찍을 수 있다.
+# 출처: outputs/latest/bl_posterior_returns.csv (Black-Litterman 사후 기대수익률)
+EQUITY_IDS = ("us_equity", "developed_ex_us", "emerging_markets", "korea_equity")
+EXPECTED_RETURN_BASIS = ("black_litterman_v0; themes inherit the funding "
+                         "equity average (no independent theme view)")
+_MU_CACHE: dict | None = None
+
+
+def _mu_map() -> dict:
+    """자산별 기대수익률. 9개 위험자산 + 현금."""
+    global _MU_CACHE
+    if _MU_CACHE is None:
+        import csv
+        import yaml
+        mu: dict[str, float] = {}
+        path = C.ROOT / "outputs" / "latest" / "bl_posterior_returns.csv"
+        with open(path, encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                mu[row["asset"]] = float(row["posterior_abs"])
+        with open(C.ROOT / "config" / "expected_returns_v0.yaml", encoding="utf-8") as fh:
+            er_cfg = yaml.safe_load(fh) or {}
+        # 현금은 무위험수익률을 기대수익률로 본다 (config: risk_free_rate.cash)
+        mu["cash"] = float((er_cfg.get("risk_free_rate") or {}).get("cash", 0.0))
+        _MU_CACHE = mu
+    return _MU_CACHE
+
+
+def _expected_return(weights: dict, base_weights: dict | None = None) -> float | None:
+    """포트폴리오 기대수익률.
+
+    테마 자산에는 독립적인 기대수익률 전망이 없다(프로젝트 원칙). 테마 슬리브는
+    주식 비중에서 비례 조달되므로, 조달원인 주식 자산군의 가중평균 기대수익률을
+    그대로 물려받는 것으로 본다. 따라서 테마 선택은 기대수익률이 아니라
+    위험(변동성)을 바꾼다 — Frontier 평면에서 가로로 이동한다.
+    """
+    mu = _mu_map()
+    src = base_weights if base_weights else weights
+    eq_total = sum(float(src.get(a, 0.0)) for a in EQUITY_IDS)
+    mu_theme = (sum(float(src.get(a, 0.0)) * mu[a] for a in EQUITY_IDS) / eq_total
+                if eq_total > 1e-12 else None)
+    total = 0.0
+    for aid, w in weights.items():
+        key = aid.split(":", 1)[1] if aid.startswith("theme:") else aid
+        if key in mu:
+            total += float(w) * mu[key]
+        elif mu_theme is not None:
+            total += float(w) * mu_theme
+        else:
+            return None
+    return float(total)
 
 
 def _tickers(session) -> dict:
@@ -92,6 +146,10 @@ def personalized(session, participant_id: str, user_id: str | None = None) -> di
     if tgt is None:
         raise ApiError("PORTFOLIO_NOT_READY", "No personalized target yet.", 409)
     weights = dict(tgt.weights_json)
+    from .decision_service import latest as latest_decision
+    decision = latest_decision(session, acc.account_id)
+    if decision:
+        weights = dict(decision.weights_json)
     # If user has selected a base, the theme tilt should have been funded from that base.
     # For display, we still show the actual personalized weights, but also expose mode.
     base_w, mode = _base_weights_for(session, participant_id, user_id)
@@ -119,8 +177,14 @@ def personalized(session, participant_id: str, user_id: str | None = None) -> di
             te = float((d @ cov.loc[cols2, cols2].to_numpy(float) @ d) ** 0.5)
     except Exception:
         vol = te = base_vol = None
+    try:
+        exp_ret = _expected_return(weights, base_w)
+    except Exception:
+        exp_ret = None
     return {"participant_id": participant_id, "as_of": asof,
             "benchmark_version": _cfg()["benchmark_version"],
+            "expected_return": exp_ret,
+            "expected_return_basis": EXPECTED_RETURN_BASIS if exp_ret is not None else None,
             "expected_volatility": vol, "tracking_error": te,
             "risk_comparison": {"base_volatility": base_vol,
                                 "personalized_volatility": vol,
@@ -177,11 +241,13 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         pers_w = {w["asset_id"]: w["weight"] for w in pers["weights"]}
         pers_vol = pers.get("expected_volatility")
         pers_te = pers.get("tracking_error")
+        pers_er = pers.get("expected_return")
         risk_comparison = pers.get("risk_comparison")
     except Exception:
         pers_w = dict(base_w)
         pers_vol = None
         pers_te = None
+        pers_er = None
     # Groups
     CORE_ALL = {"us_equity", "developed_ex_us", "emerging_markets", "korea_equity", "us_treasury", "korea_treasury", "tips", "gold", "global_reit", "cash"}
     def groups_for(weights: dict) -> dict:
@@ -217,14 +283,22 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         if w is None and f"theme:{raw}" in pers_w:
             w = pers_w[f"theme:{raw}"]
         themes.append({"theme_id": raw, "display_name": raw, "ticker": tickers.get(raw), "weight": float(w or 0)})
+    try:
+        base_er_calc = _expected_return(base_w, base_w)
+    except Exception:
+        base_er_calc = None
     base_info = {
+        "selection_id": getattr(base_sel, "selection_id", None),
         "frontier_id": getattr(base_sel, "frontier_id", None),
-        "expected_return": float(getattr(base_sel, "expected_return", 0)) if base_sel else None,
-        "volatility": float(getattr(base_sel, "volatility", 0)) if base_sel else None,
+        "expected_return": (C.fnum(base_sel.expected_return) if base_sel
+                            else base_er_calc),
+        "volatility": C.fnum(base_sel.volatility) if base_sel else None,
         "weights": _legs(base_w, tickers),
         "groups": base_groups,
+        "expected_return_basis": EXPECTED_RETURN_BASIS,
     }
     pers_info = {
+        "expected_return": pers_er,
         "volatility": pers_vol,
         "tracking_error": pers_te,
         "weights": _legs(pers_w, tickers),
@@ -242,6 +316,19 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         comp_core = comparison(session, participant_id)
     except Exception:
         comp_core = {"active": []}
+    frontier_position = {
+        "base": describe_position(
+            frontier_id=getattr(base_sel, "frontier_id", None),
+            volatility=float(base_info["volatility"]) if base_info["volatility"] is not None else None,
+            expected_return=base_info["expected_return"],
+            label="base",
+        ),
+        "personalized": describe_position(
+            volatility=pers_vol,
+            expected_return=pers_er,
+            label="personalized",
+        ),
+    }
     return {
         "base": base_info,
         "personalized": pers_info,
@@ -250,4 +337,5 @@ def summary(session, participant_id: str, user_id: str | None = None) -> dict:
         "core_comparison": comp_core.get("active", []),
         "portfolio_mode": base_mode,
         "risk_comparison": risk_comparison,
+        "frontier_position": frontier_position,
     }

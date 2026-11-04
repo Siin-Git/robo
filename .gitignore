@@ -29,3 +29,17 @@ outputs/forward/validation/
 *.sqlite3
 data/archive/
 !data/.gitkeep
+
+# DB 백업 (*.db 패턴에 안 걸린다)
+*.db.bak*
+*.bak-*
+
+# Dependency symlinks in isolated worktrees
+/.venv
+/web/node_modules
+web/.next-monday-demo/
+.local/
+web/.next-local-operation/
+
+web/.next-competition-replay*/
+web/.next-session-build/

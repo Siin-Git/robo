@@ -13,7 +13,16 @@ forward_test:
   stale_price_days: 14
 
   core_rebalance:
+    # monthly: 매월 말일 기준 / quarterly: 3·6·9·12월 말일 기준.
+    # 어느 쪽이든 위험 모형 갱신(risk_refresh)은 매달 돈다.
+    # 효력일은 기준일의 다음 거래일이다(제출 시점보다 항상 미래).
     frequency: monthly
+    # 목표 비중 대비 상대 편차가 이 값을 넘을 때만 주문을 만든다.
+    # 예: 목표 20%, threshold 0.10 -> 18~22% 밖일 때만 조정.
+    band:
+      type: relative
+      threshold: 0.10
+      min_absolute: 0.0   # 필요 시 최소 절대 폭(%p, 소수) 병행
 
   weekly_view:
     max_active_themes: 2

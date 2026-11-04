@@ -2,7 +2,7 @@
 .header { display:flex; justify-content:space-between; align-items:center; gap:20px; }
 .header h1 { margin-top:6px; }
 .context { display:flex; flex-wrap:wrap; gap:10px 24px; font-size:12px; color:var(--text-secondary); }
-.panel { background:white; border:1px solid var(--border); border-radius:12px; padding:22px; }
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; }
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .toolbar h2 { font-size:18px; font-weight:650; }
 .toolbar h2 span { font-size:13px; color:var(--brand); margin-left:8px; }
@@ -12,14 +12,14 @@
 .sortHint { min-height:35px; margin-top:15px; font-size:12px; color:var(--text-secondary); line-height:1.7; }
 .row { cursor:pointer; }
 .row td { height:52px; }
-.row:hover td { background:#edf3fb; }
-.topRow td { background:#f5f8fc; }
+.row:hover td { background:var(--brand-soft); }
+.topRow td { background:var(--brand-soft); }
 .topRow td:first-child { box-shadow:inset 3px 0 #6b8bbc; }
 .rank,.topRank { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; }
 .rank { color:var(--text-secondary); }
-.topRank { color:var(--brand); background:#e4edf9; border-radius:5px; font-weight:700; }
+.topRank { color:var(--brand); background:var(--brand-soft); border-radius:5px; font-weight:700; }
 .person { display:flex; align-items:center; gap:7px; font-weight:600; white-space:nowrap; }
-.person svg { color:#8293a7; }
+.person svg { color:var(--text-secondary); }
 .person small { border-radius:4px; font-size:10px; padding:1px 4px; background:var(--brand-soft); color:var(--brand); }
 .themes { font-size:12px; color:var(--text-secondary); white-space:nowrap; }
 .selectedMetric { font-weight:700; color:var(--brand); }
@@ -52,15 +52,15 @@
 .panel :global(.fin-table) thead th { height:42px; background:var(--surface-subtle); font-size:11px; letter-spacing:.2px; }
 .panel :global(.fin-table) thead th:nth-child(4), .panel :global(.fin-table) thead th:nth-child(5) { color:var(--text-primary); }
 .panel :global(.fin-table) thead th[aria-sort] { color:var(--brand); }
-.panel :global(.fin-table) tbody td { height:56px; font-size:14px; border-bottom-color:#edf1f6; }
+.panel :global(.fin-table) tbody td { height:56px; font-size:14px; border-bottom-color: var(--border); }
 .panel :global(.fin-table) tbody tr:last-child td { border-bottom:0; }
-.panel :global(.fin-table) .row:hover td { background:#edf3fb; }
+.panel :global(.fin-table) .row:hover td { background:var(--brand-soft); }
 .topRow td:first-child { box-shadow:inset 2px 0 #9bb6dc; }
 .rank,.topRank { width:28px; height:28px; font-size:12px; }
-.topRank { color:#315b96; border:1px solid #dbe6f5; border-radius:7px; }
-.person small { font-size:9px; letter-spacing:.3px; line-height:16px; padding:0 4px; border:1px solid #dbeafe; }
+.topRank { color:var(--brand); border:1px solid var(--border); border-radius:7px; }
+.person small { font-size:9px; letter-spacing:.3px; line-height:16px; padding:0 4px; border:1px solid var(--border); }
 .themes { display:flex; align-items:center; gap:5px; }
-.themeChip { display:inline-flex; align-items:center; padding:3px 8px; border:1px solid #dfe7f0; border-radius:20px; background:#f8fafc; font-size:11px; line-height:18px; font-weight:500; color:#4b6380; }
+.themeChip { display:inline-flex; align-items:center; padding:3px 8px; border:1px solid var(--border); border-radius:20px; background:var(--surface-subtle); font-size:11px; line-height:18px; font-weight:500; color:var(--text-secondary); }
 .primaryMetric { font-size:15px; font-weight:650; color:var(--text-primary); }
 .secondaryMetric { font-size:13px; color:var(--text-secondary); }
 .selectedMetric { font-weight:700; color:var(--brand); }

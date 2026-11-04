@@ -10,8 +10,14 @@ from src.db.base import Base
 from src.db.models.theme import Theme
 
 @pytest.fixture()
-def env(tmp_path):
+def env(tmp_path, monkeypatch):
     from types import SimpleNamespace
+    # 개발자 셸의 환경변수가 테스트로 새면 안 된다. CAPSTONE_DEMO=1 이 남아 있으면
+    # get_design_db 가 tmp DB 가 아닌 실제 설계 DB 로 가고 로그인이 401 이 된다.
+    monkeypatch.setenv("APP_PROFILE", "demo")
+    monkeypatch.delenv("CAPSTONE_DEMO", raising=False)
+    monkeypatch.delenv("CAPSTONE_DATA_DIR", raising=False)
+    monkeypatch.delenv("AUTH_COOKIE_SECURE", raising=False)
     dbfile = tmp_path / "frontier.db"
     engine = create_engine(f"sqlite:///{dbfile}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
@@ -73,6 +79,8 @@ def test_base_selection_flow(env):
     r = env.client.post("/api/v1/me/base-portfolio", json={"frontier_id": fid}, cookies=cookies, headers={"X-CSRF-Token": csrf})
     assert r.status_code == 200
     assert r.json()["frontier_id"] == fid
+    current = env.client.get("/api/v1/me/base-portfolio", cookies=cookies).json()
+    assert current["status"] == "selected" and current["selection_status"] == "active"
     # history preserved
     r = env.client.get("/api/v1/me/base-portfolio/history", cookies=cookies)
     assert len(r.json()["items"]) == 1

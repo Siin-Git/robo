@@ -25,3 +25,4 @@ __all__ = ["Account", "BasePortfolioSelection", "Counter", "Event", "ForwardStat
            "User", "View"]
 
 from .demo_cohort import DemoCohort, DemoSlot
+from .decision import PortfolioDecision, PortfolioChoice

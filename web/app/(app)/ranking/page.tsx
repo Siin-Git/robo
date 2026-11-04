@@ -2,7 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { LedgerComparison } from "@/components/performance/LedgerComparison";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader, SectionHeader } from "@/components/layout/AppHeader";
 import { RankingTable, type RankingRow } from "@/components/performance/RankingTable";
@@ -15,7 +17,12 @@ import { DemoRanking } from "@/components/performance/DemoRanking";
 type Tab = "week" | "cumulative";
 
 export default function RankingPage() {
-  return DEMO_MODE ? <DemoRanking/> : <LegacyRankingPage/>;
+  return <Suspense fallback={<LoadingSkeleton rows={5}/>}><RankingRoute/></Suspense>;
+}
+
+function RankingRoute() {
+  const params=useSearchParams();
+  return params.get("source")==="demo" ? (DEMO_MODE?<DemoRanking/>:<LegacyRankingPage/>) : <LedgerComparison/>;
 }
 
 function LegacyRankingPage() {
@@ -51,7 +58,7 @@ function LegacyRankingPage() {
               onClick={() => setTab(t)}
               aria-pressed={tab === t}
               className={`h-[32px] px-[12px] text-[13px] font-semibold leading-[20px] ${
-                tab === t ? "bg-text-primary text-white" : "bg-white text-text-secondary border border-border"
+                tab === t ? "bg-text-primary text-white" : "bg-surface text-text-secondary border border-border"
               }`}
               style={{ borderRadius: 6 }}
             >

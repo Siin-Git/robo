@@ -1,4 +1,7 @@
-"""Provision 13 independent, unconfigured participants in an isolated lab DB."""
+"""Provision the cohort's independent, unconfigured participants in an isolated lab DB.
+
+인원수는 src/local/capstone.py 의 COHORT 하나에서만 정한다.
+"""
 import argparse
 from datetime import date
 import json
@@ -10,7 +13,7 @@ import secrets
 import yaml
 from sqlalchemy import select
 
-from .capstone import EMAILS, enabled
+from .capstone import COHORT_SIZE, EMAILS, enabled
 from ..api.services import auth_service as auth, enrollment_service as enrollment, _common as C
 from ..db.models.demo_cohort import DemoCohort, DemoSlot
 from ..db.models.operational import ForwardState
@@ -28,7 +31,7 @@ def prepare(session, name, passwords=None, *, password_hashes=None):
     group = enrollment.active(session)
     if group:
         slots = sorted(enrollment.slots(session, group), key=lambda s: s.slot_number)
-        if (group.cohort_id != name or group.prepared_count != 0 or len(slots) != 13
+        if (group.cohort_id != name or group.prepared_count != 0 or len(slots) != COHORT_SIZE
                 or [s.email_normalized for s in slots] != EMAILS
                 or any(not s.user_id or session.get(User, s.user_id).email_normalized != s.email_normalized for s in slots)):
             raise ValueError("This database belongs to another cohort; use a new data directory.")
@@ -40,7 +43,7 @@ def prepare(session, name, passwords=None, *, password_hashes=None):
             raise ValueError("Provide either passwords or server-side hashes.")
         validate_hashes(password_hashes)
     else:
-        if passwords is None or set(passwords) != set(EMAILS) or len(set(passwords.values())) != 13:
+        if passwords is None or set(passwords) != set(EMAILS) or len(set(passwords.values())) != COHORT_SIZE:
             raise ValueError("Provide one distinct password per participant.")
         for password in passwords.values():
             auth.validate_password(password)
@@ -73,7 +76,7 @@ def prepare(session, name, passwords=None, *, password_hashes=None):
 def validate_hashes(hashes):
     from argon2 import extract_parameters, Type
     try:
-        if set(hashes) != set(EMAILS) or len(set(hashes.values())) != 13:
+        if set(hashes) != set(EMAILS) or len(set(hashes.values())) != COHORT_SIZE:
             raise ValueError()
         for value in hashes.values():
             p = extract_parameters(value)
@@ -82,7 +85,7 @@ def validate_hashes(hashes):
                     or not 1 <= p.parallelism <= 8):
                 raise ValueError()
     except Exception:
-        raise ValueError("Provide 13 distinct valid Argon2id hashes for the lab accounts.") from None
+        raise ValueError(f"Provide {COHORT_SIZE} distinct valid Argon2id hashes for the lab accounts.") from None
 
 
 def prepare_from_environment(session):
@@ -91,13 +94,13 @@ def prepare_from_environment(session):
         data = json.loads(os.environ["CAPSTONE_LAB_ACCOUNTS_JSON"])
         name = data["cohort_id"]
         entries = data["accounts"]
-        if (not isinstance(name, str) or not isinstance(entries, list) or len(entries) != 13
+        if (not isinstance(name, str) or not isinstance(entries, list) or len(entries) != COHORT_SIZE
                 or any(set(e) != {"email", "password_hash"} for e in entries)):
             raise ValueError()
         hashes = {auth.normalize_email(e["email"]): e["password_hash"] for e in entries}
         validate_hashes(hashes)
     except (KeyError, TypeError, ValueError, AttributeError):
-        raise ValueError("Invalid CAPSTONE_LAB_ACCOUNTS_JSON: expected cohort_id and 13 email/password_hash entries.") from None
+        raise ValueError(f"Invalid CAPSTONE_LAB_ACCOUNTS_JSON: expected cohort_id and {COHORT_SIZE} email/password_hash entries.") from None
     return prepare(session, name, password_hashes=hashes)
 
 
@@ -141,7 +144,7 @@ def main():
                 session.commit()
             except ValueError as error:
                 parser.error(str(error))
-            print("13 server lab accounts prepared." if created else "Existing server lab accounts and selections preserved.")
+            print(f"{COHORT_SIZE} server lab accounts prepared." if created else "Existing server lab accounts and selections preserved.")
             return
         passwords = {email: secrets.token_urlsafe(12) for email in EMAILS}
         try:
@@ -163,7 +166,7 @@ def main():
             for path in created_files:
                 path.unlink(missing_ok=True)
             raise
-    print("13 lab accounts prepared; no selections or historical NAV assigned." if created else "Existing lab accounts and selections preserved.")
+    print(f"{COHORT_SIZE} lab accounts prepared; no selections or historical NAV assigned." if created else "Existing lab accounts and selections preserved.")
     print(f"Private account list: {target.with_suffix('.md')}")
 
 

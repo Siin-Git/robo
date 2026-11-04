@@ -10,7 +10,7 @@ import sqlite3
 
 import pandas as pd
 
-from ..data.provider import get_default_provider
+from ..data.provider import get_default_provider, NoPriceData
 from ..data.snapshot import load_snapshot
 
 CORE_IDS = ["us_equity", "developed_ex_us", "emerging_markets", "korea_equity",
@@ -23,12 +23,15 @@ def theme_asset_id(theme_id: str) -> str:
 
 
 def align_daily_krw(panels: dict[str, pd.Series], fx: pd.Series,
-                    hedged: set[str] | None = None, max_fill_days: int = 5) -> pd.DataFrame:
+                    hedged: set[str] | None = None, max_fill_days: int = 5,
+                    require_common: bool = True) -> pd.DataFrame:
     """Mirror of Phase 1 alignment, returning DAILY KRW levels."""
     hedged = hedged or set()
     daily = pd.DataFrame({**panels, "__FX__": fx}).sort_index()
     daily = daily[daily.index.dayofweek < 5]
-    filled = daily.ffill(limit=max_fill_days).dropna()
+    filled = daily.ffill(limit=max_fill_days) if max_fill_days else daily
+    if require_common:
+        filled = filled.dropna()
     if filled.empty:
         raise RuntimeError("no overlapping daily data")
     fx_px = filled["__FX__"]
@@ -42,7 +45,7 @@ def align_daily_krw(panels: dict[str, pd.Series], fx: pd.Series,
             out[aid] = px * fxp
         else:
             out[aid] = filled[aid]
-    return out.dropna(how="any")
+    return out.dropna(how="any" if require_common else "all")
 
 
 def upsert_prices(con: sqlite3.Connection, panel: pd.DataFrame, source: str) -> int:
@@ -74,7 +77,9 @@ def bootstrap_from_snapshot(con: sqlite3.Connection, snap_dir, theme_tickers: di
             "start": str(panel.index.min().date()), "end": str(panel.index.max().date())}
 
 
-def refresh_live(con: sqlite3.Connection, tickers: dict[str, str]) -> dict:
+def refresh_live(con: sqlite3.Connection, tickers: dict[str, str], *, provider=None,
+                 asof: str | None = None, initial_start: str = "2015-01-01",
+                 observed_only: bool = False) -> dict:
     """Incremental live refresh.
 
     tickers maps asset_id -> Yahoo ticker, including '__FX__' -> FX ticker.
@@ -82,23 +87,35 @@ def refresh_live(con: sqlite3.Connection, tickers: dict[str, str]) -> dict:
     Returns coverage report; assets that fail to fetch are listed as stale.
     """
     from datetime import date as _date
-    provider = get_default_provider()
-    end = _date.today().isoformat()
+    provider = provider or get_default_provider()
+    end = asof or _date.today().isoformat()
     have = {r["asset_id"]: r["m"] for r in con.execute(
         "SELECT asset_id, MAX(date) AS m FROM prices_daily GROUP BY asset_id").fetchall()}
     raw: dict[str, pd.Series] = {}
     stale = []
     for aid, ticker in tickers.items():
         start = (pd.Timestamp(have[aid]) + pd.Timedelta(days=1)).date().isoformat() \
-            if aid in have else "2015-01-01"
+            if aid in have else initial_start
+        if observed_only:
+            start = max(start, initial_start)
         if start > end:
             continue
         try:
-            raw[aid] = provider.get_price_history(ticker, start, end)
+            series = provider.get_price_history(ticker, start, end)
+            if not series.empty:
+                raw[aid] = series
+        except NoPriceData:
+            continue
         except Exception:
             stale.append(aid)
     fx = raw.pop("__FX__", None)
-    if fx is None:
+    if observed_only:
+        # Exact-date conversion can need stored FX when an ETF arrives late.
+        rows = con.execute("SELECT date, price FROM prices_daily WHERE asset_id='__FX__' ORDER BY date").fetchall()
+        stored = pd.Series([r['price'] for r in rows], index=pd.to_datetime([r['date'] for r in rows]), dtype=float)
+        fx = pd.concat([stored, fx]) if fx is not None else stored
+        fx = fx[~fx.index.duplicated(keep='first')].sort_index()
+    elif fx is None:
         fx_rows = con.execute("SELECT date, price FROM prices_daily WHERE asset_id='__FX__'"
                               " ORDER BY date").fetchall()
         if not fx_rows:
@@ -110,8 +127,15 @@ def refresh_live(con: sqlite3.Connection, tickers: dict[str, str]) -> dict:
     # aligner: theme:* and core unhedged equities convert; HEDGED set stays local.
     panels = dict(raw)
     if not panels:
-        return {"new_points": 0, "stale": stale, "asof": end}
-    tmp = align_daily_krw(panels, fx, HEDGED)
+        fx_new = fx[fx.index.dayofweek < 5]
+        if have.get('__FX__'):
+            fx_new = fx_new[fx_new.index > pd.Timestamp(have['__FX__'])]
+        source = 'yahoo-closed-session' if observed_only else 'live-refresh'
+        points = upsert_prices(con, fx_new.to_frame('__FX__'), source) if not fx_new.empty else 0
+        return {"new_points": points, "stale": stale, "asof": end}
+    tmp = align_daily_krw(panels, fx, HEDGED,
+                          max_fill_days=0 if observed_only else 5,
+                          require_common=not observed_only)
     # Never rewrite history: keep only dates beyond existing per-asset coverage.
     keep = pd.DataFrame(index=tmp.index)
     for aid in tmp.columns:
@@ -120,8 +144,17 @@ def refresh_live(con: sqlite3.Connection, tickers: dict[str, str]) -> dict:
         if cutoff:
             col = col[col.index > pd.Timestamp(cutoff)]
         keep[aid] = col
+    # Persist observed FX as an input too. Otherwise the next refresh has no
+    # stored fallback when Yahoo returns an empty FX series on a holiday/weekend.
+    # Never overwrite historical FX or change the existing conversion rules.
+    fx_new = fx[fx.index.dayofweek < 5].copy()
+    if have.get('__FX__'):
+        fx_new = fx_new[fx_new.index > pd.Timestamp(have['__FX__'])]
+    keep = keep.reindex(keep.index.union(fx_new.index))
+    keep['__FX__'] = fx_new
     keep = keep.dropna(how="all")
-    new_points = upsert_prices(con, keep, source="live-refresh") if not keep.empty else 0
+    source = "yahoo-closed-session" if observed_only else "live-refresh"
+    new_points = upsert_prices(con, keep, source=source) if not keep.empty else 0
     return {"new_points": new_points, "stale": stale, "asof": end}
 
 

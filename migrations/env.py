@@ -22,9 +22,12 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    url = os.environ.get("DATABASE_URL", "").strip()
+    url = config.attributes.get("database_url") or os.environ.get("DATABASE_URL", "").strip()
     if url:
-        return url
+        # SQLAlchemy 는 'postgresql://' 를 psycopg2 로 읽는다. 이 프로젝트는
+        # psycopg3 만 설치하므로 드라이버를 명시한다(src/db/config.py 와 같은 규칙).
+        from src.db.config import normalize_pg_url
+        return normalize_pg_url(url)
     backend = os.environ.get("DATABASE_BACKEND", "sqlite").strip().lower()
     if backend == "sqlite":
         path = os.environ.get("SQLITE_PATH", str(Path.cwd() / "data" / "forward_test.db"))

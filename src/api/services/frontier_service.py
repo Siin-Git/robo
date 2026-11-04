@@ -212,3 +212,81 @@ def find_point(frontier_id: str) -> dict | None:
         if p["frontier_id"] == frontier_id:
             return p
     return None
+
+
+def _nearest_point(volatility: float, points: list[dict]) -> dict:
+    return min(points, key=lambda p: abs(float(p["volatility"]) - volatility))
+
+
+def _frontier_return_at_vol(volatility: float, points: list[dict]) -> float | None:
+    ordered = sorted(points, key=lambda p: float(p["volatility"]))
+    if not ordered:
+        return None
+    if volatility <= float(ordered[0]["volatility"]):
+        return float(ordered[0]["expected_return"])
+    if volatility >= float(ordered[-1]["volatility"]):
+        return float(ordered[-1]["expected_return"])
+    for lo, hi in zip(ordered, ordered[1:]):
+        lo_vol, hi_vol = float(lo["volatility"]), float(hi["volatility"])
+        if lo_vol <= volatility <= hi_vol:
+            if abs(hi_vol - lo_vol) < 1e-12:
+                return float(hi["expected_return"])
+            t = (volatility - lo_vol) / (hi_vol - lo_vol)
+            return float(lo["expected_return"]) + t * (
+                float(hi["expected_return"]) - float(lo["expected_return"])
+            )
+    return None
+
+
+def describe_position(
+    *,
+    frontier_id: str | None = None,
+    volatility: float | None = None,
+    expected_return: float | None = None,
+    label: str,
+) -> dict:
+    """Describe a portfolio in the CORE frontier coordinate system."""
+    data = get_frontier()
+    points = data["points"]
+    point = find_point(frontier_id) if frontier_id else None
+    if point is not None:
+        vol = float(volatility if volatility is not None else point["volatility"])
+        er = float(expected_return if expected_return is not None else point["expected_return"])
+        nearest = point
+        on_frontier = abs(vol - float(point["volatility"])) < 1e-9 and abs(
+            er - float(point["expected_return"])
+        ) < 1e-9
+    elif volatility is not None:
+        vol = float(volatility)
+        er = float(expected_return) if expected_return is not None else None
+        nearest = _nearest_point(vol, points)
+        on_frontier = False
+    else:
+        return {
+            "label": label,
+            "frontier_id": frontier_id,
+            "expected_return": expected_return,
+            "volatility": None,
+            "on_frontier": False,
+            "nearest_frontier_id": None,
+            "nearest_expected_return": None,
+            "nearest_volatility": None,
+            "volatility_delta": None,
+            "return_gap": None,
+            "method": "unavailable",
+        }
+
+    frontier_er = _frontier_return_at_vol(vol, points)
+    return {
+        "label": label,
+        "frontier_id": point["frontier_id"] if point else frontier_id,
+        "expected_return": er,
+        "volatility": vol,
+        "on_frontier": on_frontier,
+        "nearest_frontier_id": nearest["frontier_id"],
+        "nearest_expected_return": float(nearest["expected_return"]),
+        "nearest_volatility": float(nearest["volatility"]),
+        "volatility_delta": vol - float(nearest["volatility"]),
+        "return_gap": (er - frontier_er) if er is not None and frontier_er is not None else None,
+        "method": "exact_frontier_point" if on_frontier else "nearest_frontier_by_volatility",
+    }

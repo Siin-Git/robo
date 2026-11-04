@@ -51,7 +51,7 @@ def run_checks(con, cfg: dict) -> tuple[bool, list[str], dict]:
     except Exception as e:
         frozen_w, frozen_meta = None, {}
         rep("Benchmark frozen", False, str(e))
-    n_themes = con.execute("SELECT COUNT(*) c FROM themes WHERE active = 1").fetchone()["c"] \
+    n_themes = con.execute("SELECT COUNT(*) c FROM themes WHERE active").fetchone()["c"] \
         if _has(con, "themes") else 0
     rep("Theme registry", n_themes >= 1, f"{n_themes} active")
     demo_p = con.execute("SELECT COUNT(*) c FROM participants WHERE display_name LIKE 'Demo %'").fetchone()["c"] \
