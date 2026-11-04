@@ -4,7 +4,7 @@ import { DEMO_MODE } from "@/lib/api/comparison";
 import { ParticipantPerformance } from "@/components/dashboard/ParticipantPerformance";
 import { useComparisonMode } from "@/lib/api/use-comparison-mode";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, SlidersHorizontal, Layers3 } from "lucide-react";
@@ -15,20 +15,23 @@ import { fmtActivePp, fmtDate, fmtPct } from "@/lib/format";
 import { reviewRows, Weight } from "../setup/portfolio/review-data";
 import { THEME_INFO } from "../setup/portfolio/theme-content";
 import { ASSET_COLORS } from "../setup/portfolio/FrontierChart";
-import { FrontierChart, type FrontierData } from "../setup/portfolio/FrontierChart";
+import { FrontierChart as StoredFrontierChart, StrategyFrontierChart as FrontierChart, type FrontierData } from "../setup/portfolio/FrontierChart";
+import { DecisionVerificationPanel, type DecisionVerification } from "@/components/portfolio/DecisionVerificationPanel";
 import { SetupStyleProvider } from "../setup/SetupStyleProvider";
 import { ASSET_META } from "../setup/portfolio/asset-meta";
 import s from "./portfolio.module.css";
 import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
 export interface PortfolioSummary {
+  decision_id?: string | null;
   rebalance_frequency?: RebalanceFrequency | null;
+  rebalance_frequency_source?: "CONFIRMED_SELECTION" | "LEGACY_DEFAULT" | "UNCONFIRMED";
   base: { frontier_id: string | null; expected_return: number | null; volatility: number | null; weights: Weight[]; groups: Record<string, number> };
   personalized: { expected_return?: number | null; volatility: number | null; tracking_error: number | null; weights: Weight[]; groups: Record<string, number> };
   themes: { theme_id: string; display_name?: string; ticker?: string | null; weight: number }[];
   risk_comparison?: { base_volatility: number | null; personalized_volatility: number | null; as_of: string | null; method: string | null } | null;
 }
-const THEME_COLORS = ["#7654c8", "#aa74d6"];
+const THEME_COLORS = ["#baa0f3", "#aa74d6"];
 const GROUPS = [
   { key: "broad_equity", base: "equity", name: "일반 주식", color: "#3b72e8" },
   { key: "themes", base: "themes", name: "선택 테마", color: "#8560cd" },
@@ -38,7 +41,7 @@ const GROUPS = [
 ];
 
 export default function PortfolioPage() {
-  return DEMO_MODE ? <Suspense fallback={<LoadingSkeleton rows={6}/>}><DemoPortfolioRoute/></Suspense> : <DesignPortfolioPage/>;
+  return <Suspense fallback={<LoadingSkeleton rows={6}/>}>{DEMO_MODE ? <DemoPortfolioRoute/> : <DesignPortfolioPage/>}</Suspense>;
 }
 
 function DemoPortfolioRoute() {
@@ -54,9 +57,10 @@ function DemoPortfolioPage() {
 }
 
 function DesignPortfolioPage() {
-  const summary = useQuery({ queryKey: ["summary-portfolio"], queryFn: () => get<PortfolioSummary>("/api/v1/me/portfolio/summary") });
+  const summary = useQuery({ queryKey: ["summary-portfolio"], queryFn: () => get<PortfolioSummary>("/api/v1/me/portfolio/summary"), refetchInterval:60_000, refetchIntervalInBackground:false });
   return <AppShell headerTitle={DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"} softBackground>
-    {summary.isLoading ? <LoadingSkeleton rows={6} /> : summary.isError || !summary.data ?
+    {summary.isError && summary.data && <p role="alert">포트폴리오 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button className="btn-secondary" onClick={()=>summary.refetch()}>다시 조회</button></p>}
+    {summary.isLoading ? <LoadingSkeleton rows={6} /> : !summary.data ?
       <ErrorState message="포트폴리오를 불러오지 못했습니다." onRetry={() => summary.refetch()} /> :
       <PortfolioOverview data={summary.data} />}
   </AppShell>;
@@ -64,13 +68,18 @@ function DesignPortfolioPage() {
 
 function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  useEffect(() => {
+    if (window.location.hash !== "#portfolio-check" || !p.decision_id) return;
+    document.getElementById("portfolio-check")?.scrollIntoView({block:"start"});
+    document.getElementById("rehearsal-entry")?.focus({preventScroll:true});
+  }, [p.decision_id]);
   const rows = reviewRows(p);
   const allocations = rows.filter(r => r.final > 0);
   const total = allocations.reduce((sum, r) => sum + r.final, 0);
   const themes = p.themes.filter(t => allocations.some(r => r.id === t.theme_id && r.isTheme));
   const themeTotal = allocations.filter(r => r.isTheme).reduce((sum, r) => sum + r.final, 0);
   const name = (id: string) => THEME_INFO[id]?.name ?? p.themes.find(t => t.theme_id === id)?.display_name ?? id;
-  const color = (id: string) => { const i = themes.findIndex(t => t.theme_id === id); return i >= 0 ? THEME_COLORS[i % THEME_COLORS.length] : ASSET_COLORS[id] ?? "#8292a9"; };
+  const color = (id: string) => { const i = themes.findIndex(t => t.theme_id === id); return i >= 0 ? THEME_COLORS[i % THEME_COLORS.length] : ASSET_COLORS[id] ?? "var(--text-secondary)"; };
   const selected = allocations.find(r => r.id === activeId);
   const before = p.risk_comparison?.base_volatility;
   const after = p.risk_comparison?.personalized_volatility;
@@ -81,13 +90,13 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
 
   return <div className={s.page}>
     <header className={s.header}>
-      <div><span className={s.eyebrow}>CONFIRMED ALLOCATION</span><h1>{DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"}</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
+      <div><h1>{DEMO_MODE ? "내 자유 설계 포트폴리오" : "내 포트폴리오"}</h1><p>{themes.length ? <>기본 자산배분에 <strong>{themes.map(t => name(t.theme_id)).join(" · ")}</strong>를 반영했어요.</> : "선택한 위험 수준에 맞춘 기본 자산배분입니다."}</p></div>
       <div className="ui-actions">{DEMO_MODE && <Link className={s.edit} href="/portfolio?source=demo">시연 비교 구성</Link>}<Link className={s.edit} href="/setup/portfolio?step=risk"><SlidersHorizontal size={16} />구성 변경</Link></div>
     </header>
-    {p.rebalance_frequency && <p aria-label="저장된 리밸런싱 주기">확정한 정기 리밸런싱: <strong>{REBALANCE_LABELS[p.rebalance_frequency]}</strong></p>}
+    {p.rebalance_frequency && <p aria-label="저장된 리밸런싱 주기">{p.rebalance_frequency_source === "LEGACY_DEFAULT" ? "기존 판단의 기본 정기 리밸런싱" : "확정한 정기 리밸런싱"}: <strong>{REBALANCE_LABELS[p.rebalance_frequency]}</strong>{p.rebalance_frequency_source === "LEGACY_DEFAULT" && " · 당시 선택 기록 없음"}</p>}
 
     <section className={s.composition} aria-labelledby="portfolio-composition">
-      <div className={s.compositionHeader}><div><h2 id="portfolio-composition">나의 자산 구성</h2><p>자산 위에 커서를 올려 비중을 확인해 보세요.</p></div>
+      <div className={s.compositionHeader}><div><h2 id="portfolio-composition">목표 자산 구성</h2></div>
         <div className={s.metrics}><div><span>현재 구성 예상 변동성</span><strong>{fmtPct(currentVol)}</strong></div><div><span>반영한 테마 비중</span><strong className={s.purple}>{fmtPct(themeTotal)}</strong></div></div>
       </div>
       <div className={s.compositionGrid}>
@@ -119,7 +128,11 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
       </div>
     </section>
 
-    <PortfolioFrontier data={p}/>
+    {p.decision_id && <section id="portfolio-check" className={`${s.frontierPanel} ${s.checkEntry}`} aria-labelledby="rehearsal-entry"><h2 id="rehearsal-entry" tabIndex={-1}>하락장 리허설</h2>
+      <p>기본 구성과 내 구성의 과거 하락 폭을 비교합니다.</p>
+      <Link className="btn-secondary" href={`/portfolio/rehearsal?decision_id=${encodeURIComponent(p.decision_id)}`}>내 투자 리허설 열기<ArrowRight size={16}/></Link>
+    </section>}
+    <PortfolioFrontier key={p.decision_id ?? "unrecorded"} data={p}/>
 
     <section className={s.themes} aria-labelledby="chosen-themes"><div className={s.sectionTitle}><h2 id="chosen-themes">내가 선택한 테마</h2><span>{themes.length}개 테마 · {fmtPct(themeTotal)}</span></div>
       {themes.length ? <div className={s.themeGrid}>{themes.map(t => <article className={s.themeCard} key={t.theme_id} style={{ "--theme-color": color(t.theme_id) } as React.CSSProperties}>
@@ -134,7 +147,7 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
           return value > 0 ? <span key={g.key} style={{ width: `${value * 100}%`, background: g.color }} title={`${g.name} ${fmtPct(value)}`}>{value >= .1 ? fmtPct(value, 1) : ""}</span> : null;
         })}</div></div>)}
         <div className={s.legend}>{GROUPS.filter(g => (p.base.groups[g.base] ?? 0) + (p.personalized.groups[g.key] ?? 0) > 0).map(g => <span key={g.key}><i style={{ background: g.color }} />{g.name}</span>)}</div>
-      </div><div className={s.risk}><h3>예상 변동성 변화</h3><div className={s.riskValues}><div><span>기본 구성</span><strong>{fmtPct(before)}</strong></div><ArrowRight size={20} /><div><span>현재 구성</span><strong>{fmtPct(after)}</strong></div></div>
+      </div><div className={s.risk}><h3>현재 모형의 예상 변동성 변화</h3><div className={s.riskValues}><div><span>기본 구성</span><strong>{fmtPct(before)}</strong></div><ArrowRight size={20} /><div><span>현재 구성</span><strong>{fmtPct(after)}</strong></div></div>
         <p>{delta == null ? "같은 기준의 위험 지표를 산출할 데이터가 부족합니다." : <>기본 구성 대비 <b>{fmtActivePp(delta)}</b></>}</p><small>같은 기간과 위험 모형으로 비교합니다.{p.risk_comparison?.as_of && ` · ${fmtDate(p.risk_comparison.as_of)} 기준`}</small>
       </div></div>
     </section>
@@ -153,13 +166,53 @@ function PortfolioOverview({ data: p }: { data: PortfolioSummary }) {
 
 function PortfolioFrontier({data}:{data:PortfolioSummary}) {
   const [inspectedAssetId,setInspectedAssetId] = useState<string|null>(null);
+  const params=useSearchParams();
+  const decisionId=params.get("decision_id") ?? data.decision_id;
+  const [inspectedPortfolio,setInspectedPortfolio] = useState<"base"|"personalized"|null>(params.get("inspect")==="personalized"?"personalized":params.get("inspect")==="base"?"base":null);
+  const opener=useRef<HTMLElement|SVGElement|null>(null);
+  const inspect=(point:"base"|"personalized",trigger:HTMLElement|SVGElement)=>{
+    opener.current=trigger;
+    setInspectedPortfolio(point);
+  };
+  const host = useRef<HTMLElement>(null);
+  const verification = useQuery({queryKey:["decision-verification",decisionId],queryFn:()=>get<DecisionVerification>(`/api/v1/me/decisions/${encodeURIComponent(decisionId!)}/verification`),enabled:!!decisionId,refetchInterval:60_000,refetchIntervalInBackground:false});
   const frontier = useQuery({queryKey:["frontier"],queryFn:()=>get<FrontierData>("/api/v1/me/frontier"),enabled:data.base.expected_return!=null&&data.base.volatility!=null,staleTime:60*60*1000});
-  if (data.base.expected_return == null || data.base.volatility == null) return null;
-  return <section className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>Efficient Frontier에서의 위치</h2>
-    {frontier.isLoading ? <LoadingSkeleton rows={3}/> : frontier.isError || !frontier.data ? <ErrorState message="Frontier 데이터를 불러오지 못했습니다." onRetry={()=>frontier.refetch()}/> :
-      <SetupStyleProvider><FrontierChart points={frontier.data.points} assets={frontier.data.assets.map(a=>({...a,name:ASSET_META[a.asset_id]?.name??a.display_name,cat:ASSET_META[a.asset_id]?.cat??"현금"}))}
-        selected={{expected_return:data.base.expected_return,volatility:data.base.volatility}}
-        personalized={data.personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}/></SetupStyleProvider>}
-    {data.personalized.expected_return == null && <p>테마 적용 후 기대수익률은 백엔드 제공 전입니다. 현재는 적용 전 위치만 표시합니다.</p>}
+  const coordinates = (value:{expected_return?:number|null;volatility?:number|null}) => value.expected_return!=null && value.volatility!=null && Number.isFinite(value.expected_return) && Number.isFinite(value.volatility) ? {expected_return:value.expected_return,volatility:value.volatility} : null;
+  const stored = decisionId ? verification.data : undefined;
+  const base = coordinates(stored?.original.base ?? data.base);
+  const personalized = coordinates(stored?.original.personalized ?? data.personalized);
+  const close = () => {
+    setInspectedPortfolio(null);
+    if(opener.current && host.current?.contains(opener.current)) {opener.current.focus();return;}
+    host.current?.querySelector<SVGGElement>(`[data-portfolio-point="${inspectedPortfolio}"]`)?.focus();
+  };
+  return <section ref={host} className={s.frontierPanel} aria-label="테마 적용 전후 Efficient Frontier 위치"><h2>기본 구성과 예상 위험 비교</h2>
+    {decisionId && verification.isLoading ? <LoadingSkeleton rows={3}/> : decisionId && (!stored) ?
+      <ErrorState message="판단 기록을 불러오지 못했습니다." onRetry={()=>verification.refetch()}/> :
+      <div className={s.verificationLayout} data-open={!!inspectedPortfolio}>
+        <div className={s.frontierChart}>
+          {verification.isError && stored && <p role="alert">자동 갱신에 실패했습니다. 이전 조회 결과를 표시합니다. <button type="button" onClick={()=>verification.refetch()}>다시 조회</button></p>}
+          {stored ? <>
+            <p>확정 당시 저장한 위치 · 한국시간 {new Date(stored.confirmed_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</p>
+            {base || personalized ? <SetupStyleProvider><StoredFrontierChart points={stored.original.frontier.points} assets={[]}
+              selected={base} personalized={personalized} inspectedId={null} onInspect={()=>{}}
+              chartLabel="확정 당시 Frontier. Base 또는 Personalized 점을 선택하면 투자 판단 검증을 확인합니다."
+              onPortfolioInspect={inspect} inspectedPortfolio={inspectedPortfolio}/></SetupStyleProvider> : <EmptyState title="당시 예상 좌표 미확보"/>}
+            {!stored.original.frontier.points.length && <p>당시 Frontier 곡선 미확보. 저장된 예상 좌표만 표시합니다.</p>}
+            <details className={s.details}><summary>현재 모형의 자산·전략 비교</summary>
+              {frontier.isLoading ? <LoadingSkeleton rows={3}/> : frontier.isError || !frontier.data ? <ErrorState message="Frontier 데이터를 불러오지 못했습니다." onRetry={()=>frontier.refetch()}/> :
+                <SetupStyleProvider><FrontierChart points={frontier.data.points} assets={frontier.data.assets.map(a=>({...a,name:ASSET_META[a.asset_id]?.name??a.display_name,cat:ASSET_META[a.asset_id]?.cat??"현금"}))}
+                  selected={coordinates(data.base)} personalized={coordinates(data.personalized)} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}/></SetupStyleProvider>}
+              <p>현재 모형의 추정치와 과거 전략 비교 자료입니다. 과거 전략 수익률은 미래 기대수익률이 아닙니다. 확정 당시 판단은 위의 저장된 좌표에서 확인합니다.</p>
+            </details>
+          </> : frontier.isLoading ? <LoadingSkeleton rows={3}/> : frontier.isError || !frontier.data ? <ErrorState message="Frontier 데이터를 불러오지 못했습니다." onRetry={()=>frontier.refetch()}/> :
+            <SetupStyleProvider><FrontierChart points={frontier.data.points} assets={frontier.data.assets.map(a=>({...a,name:ASSET_META[a.asset_id]?.name??a.display_name,cat:ASSET_META[a.asset_id]?.cat??"현금"}))}
+              selected={base} personalized={personalized} inspectedId={inspectedAssetId} onInspect={setInspectedAssetId}
+              onPortfolioInspect={inspect} inspectedPortfolio={inspectedPortfolio}/></SetupStyleProvider>}
+          {!personalized && <p>Personalized 예상 좌표 미확보. 다른 구성의 값으로 대체하지 않습니다.</p>}
+          <p>점을 선택해 당시 예상과 이후 기록을 확인하세요.</p>
+        </div>
+        {inspectedPortfolio && <DecisionVerificationPanel point={inspectedPortfolio} data={stored} onClose={close}/>}
+      </div>}
   </section>;
 }

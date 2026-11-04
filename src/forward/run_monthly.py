@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.forward.accounts import place_target_orders, record_target, versions_from_cfg
 from src.forward.config import load_forward_config, resolve
+from src.forward.competition import guarded_batch
 from src.forward.db import connect, log_event
 from src.forward.runtime import get_database_path, print_banner
 from src.forward.frozen import load_frozen_benchmark
@@ -157,6 +158,7 @@ def _dry_run_monthly(con, cfg, y, m, asof, risk_only) -> int:
     return 0
 
 
+@guarded_batch
 def _execute_monthly(con, cfg, y, m, asof, risk_only):
     ft = cfg["forward_test"]
     from src.forward.frozen import load_frozen_benchmark as _lf
@@ -189,6 +191,9 @@ def _execute_monthly(con, cfg, y, m, asof, risk_only):
     blocked, reason = live_orders_blocked(con)
     if blocked:
         con.commit()
+        from src.forward.competition import policy
+        if policy(con)["managed"]:
+            return 0, {"status": "COMPETITION_WAIT", "reason": reason}
         print(f"ERROR:\nMonthly rebalance refused: {reason}.")
         return 2, {"status": "REFUSED"}
     # 주기 판정: 분기 설정이면 3·6·9·12월 말에만 주문을 만든다.

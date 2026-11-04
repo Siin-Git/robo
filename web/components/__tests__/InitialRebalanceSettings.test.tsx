@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({ useSearchParams:()=>new URLSearchParams(state.search), useRouter:()=>({push:vi.fn()}) }));
 vi.mock("@/components/layout/AppShell", () => ({AppShell:({children}:{children:React.ReactNode})=><>{children}</>}));
-vi.mock("@/app/(app)/setup/portfolio/FrontierChart", () => ({FrontierChart:()=> <div>Frontier</div>,GROUP_COLORS:{},ASSET_COLORS:{}}));
+vi.mock("@/app/(app)/setup/portfolio/FrontierChart", () => ({StrategyFrontierChart:()=> <div>Frontier</div>,GROUP_COLORS:{},ASSET_COLORS:{}}));
 vi.mock("recharts", () => ({PieChart:()=>null,Pie:()=>null,Cell:()=>null,ResponsiveContainer:()=>null}));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient:()=>({invalidateQueries:vi.fn()}),
@@ -18,6 +18,7 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery:({queryKey}:{queryKey:string[]})=>({isLoading:false,isError:false,data:
     queryKey[0]==="onboarding-draft" ? {status:"draft",frontier_id:"F001",theme_ids:[],rebalance_frequency:state.frequency} :
     queryKey[0]==="frontier" ? state.frontier : queryKey[0]==="decisions" ? {items:[]} :
+    queryKey[0]==="forward-ledger" ? {orders:[]} :
     queryKey[0].includes("preview") ? state.preview : {items:[]}}),
 }));
 

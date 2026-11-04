@@ -50,6 +50,10 @@ def now_seoul_iso() -> str:
 
 def live_orders_blocked(con: sqlite3.Connection) -> tuple[bool, str]:
     """True when running live pre-launch: no orders may be created or filled."""
+    from .competition import policy
+    competition = policy(con)
+    if competition["managed"]:
+        return competition["blocked"], competition.get("reason") or ""
     from .runtime import get_runtime_profile
     if get_runtime_profile() != "live":
         return False, ""

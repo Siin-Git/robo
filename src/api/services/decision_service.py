@@ -53,11 +53,18 @@ def effective_day(now):
 def capture(session, user_id, pid, account, target, selection, preview, reason, adjustment_choice_id=None, rebalance_frequency=None):
     old = latest(session, account.account_id)
     from .portfolio_service import EXPECTED_RETURN_BASIS
-    def metric(value, basis, frequency):
+    def metric(value, basis, frequency, name):
         return {"value": value, "unit": "fraction_per_year", "horizon": "1Y", "basis": basis,
                 "sampling": frequency, "available": value is not None,
+                "definition": {"start": C.as_date(target.effective_date).isoformat(),
+                    "end": (pd.Timestamp(target.effective_date) + pd.DateOffset(years=1)).date().isoformat(),
+                    "currency": "KRW", "cost_basis": "EXCLUDES_TRANSACTION_COSTS",
+                    "dividend_basis": "PROVIDER_ADJUSTED_OR_CLOSE",
+                    "return_definition": "BL_ANNUAL_STRATEGIC_RETURN" if name == "expected_return" else "WEEKLY_LEDOIT_WOLF_COVARIANCE",
+                    "sampling": frequency, "portfolio_reference": None,
+                    "benchmark_reference": selection.selection_id if name == "tracking_error" else "NONE"},
                 "unavailable_reason": None if value is not None else "MODEL_DATA_UNAVAILABLE"}
-    paths = ["outputs/latest/bl_posterior_returns.csv", "config/expected_returns_v0.yaml", "config/forward_v0.yaml", "src/forward/portfolio.py", "src/api/services/portfolio_service.py", "src/risk/covariance.py"]
+    paths = ["outputs/latest/bl_posterior_returns.csv", "config/expected_returns_v0.yaml", "config/forward_v0.yaml", "src/forward/portfolio.py", "src/api/services/portfolio_service.py", "src/risk/covariance.py", "src/api/services/frontier_service.py", "src/api/services/internal_tracking_service.py", "outputs/api/frontier.json"]
     hashes = {p: sha256((C.ROOT/p).read_bytes()).hexdigest() for p in paths if (C.ROOT/p).exists()}
     from . import market_comparison
     if market_comparison.enabled():
@@ -67,30 +74,41 @@ def capture(session, user_id, pid, account, target, selection, preview, reason, 
         from ...db.models import PriceDaily
         px = session.scalars(select(PriceDaily).order_by(PriceDaily.date, PriceDaily.asset_id)).all()
         data_version = {"version": "design_price_store", "sha256": sha256(json.dumps([(str(p.date), p.asset_id, str(p.price), p.source) for p in px]).encode()).hexdigest(), "rows": len(px)}
+    from .internal_tracking_service import snapshot, SNAPSHOT_KEY
+    internal_snapshot = snapshot(session, target.weights_json, selection.weights_json,
+                                 preview["risk_comparison"]["as_of"])
     row = D(decision_id=str(uuid4()), user_id=user_id, participant_id=pid, account_id=account.account_id,
         version=old.version + 1 if old else 1, previous_decision_id=old.decision_id if old else None,
         selection_id=selection.selection_id, target_id=target.target_id, confirmed_at=target.created_at,
         effective_date=target.effective_date, weights_json=deepcopy(target.weights_json), reason=reason,
-        expectations_json={"expected_return": metric(preview["personalized"]["expected_return"], EXPECTED_RETURN_BASIS, "annual_model"),
-            "volatility": metric(preview["personalized"]["volatility"], "5Y weekly Ledoit-Wolf annualized covariance", "W-FRI_52"),
-            "tracking_error": metric(preview["personalized"]["tracking_error"], "against selected base; weekly covariance annualized", "W-FRI_52")},
+        expectations_json={"expected_return": metric(preview["personalized"]["expected_return"], EXPECTED_RETURN_BASIS, "annual_model", "expected_return"),
+            "volatility": metric(preview["personalized"]["volatility"], "5Y weekly Ledoit-Wolf annualized covariance", "W-FRI_52", "volatility"),
+            "tracking_error": metric(preview["personalized"]["tracking_error"], "against selected base; weekly covariance annualized", "W-FRI_52", "tracking_error")},
         provenance_json={"frontier_version": selection.frontier_version, "frontier_id": selection.frontier_id,
-            "base_weights": deepcopy(selection.weights_json), "core_version": target.core_version,
+            "base_weights": deepcopy(selection.weights_json),
+            "base_expectations": {"expected_return": C.fnum(selection.expected_return),
+                                  "volatility": C.fnum(selection.volatility)},
+            "core_version": target.core_version,
             "theme_universe_version": target.theme_universe_version, "risk_model_version": target.risk_model_version,
             "risk_comparison": preview["risk_comparison"], "artifact_sha256": hashes,
             "data_version": data_version, "price_data_as_of": preview["risk_comparison"]["as_of"], "capture": "AT_CONFIRMATION",
             "adjustment_choice_id": adjustment_choice_id, "execution_policy": POLICY,
+            SNAPSHOT_KEY: internal_snapshot,
             **({"rebalance_frequency": rebalance_frequency} if rebalance_frequency else {})})
+    for m in row.expectations_json.values():
+        m["definition"]["portfolio_reference"] = row.decision_id
     session.add(row)
     session.flush()
     return row
 
 def serialize(row):
+    from .internal_tracking_service import SNAPSHOT_KEY
+    public_provenance = {k: v for k, v in (row.provenance_json or {}).items() if k != SNAPSHOT_KEY}
     return {"decision_id": row.decision_id, "version": row.version, "user_id": row.user_id,
         "participant_id": row.participant_id, "account_id": row.account_id, "target_id": row.target_id,
         "selection_id": row.selection_id, "previous_decision_id": row.previous_decision_id,
         "confirmed_at": C.as_aware_utc(row.confirmed_at).isoformat(), "target_effective_date": C.as_date(row.effective_date).isoformat(),
-        "weights": row.weights_json, "expectations": row.expectations_json, "provenance": row.provenance_json, "reason": row.reason}
+        "weights": row.weights_json, "expectations": row.expectations_json, "provenance": public_provenance, "reason": row.reason}
 
 def own(session, user_id, decision_id):
     row = session.scalar(select(D).where(D.decision_id == decision_id, D.user_id == user_id))
@@ -149,28 +167,19 @@ def review(session, user_id, decision_id):
     next_d = session.scalar(select(D).where(D.account_id == d.account_id, D.version == d.version + 1))
     start = C.as_date(d.effective_date)
     end_exclusive = C.as_date(next_d.effective_date) if next_d else None
-    first = session.scalar(select(func.min(Trade.execution_at)).where(Trade.account_id == d.account_id, Trade.execution_at >= start))
+    calendar_end = C.now_utc().astimezone(ZoneInfo("Asia/Seoul")).date() + timedelta(days=1)
+    report_end = min(end_exclusive, calendar_end) if end_exclusive else calendar_end
+    first = session.scalar(select(func.min(Trade.execution_at)).where(Trade.account_id == d.account_id, Trade.execution_at >= start, Trade.execution_at < report_end))
     from .performance_report_service import dashboard
-    report = dashboard(session, d.participant_id, "ALL", start=start, end_exclusive=end_exclusive, anchor_latest=False)
-    # Never compare annual forecast and short realized cumulative return by subtraction.
-    comparisons = []
-    for name, m in d.expectations_json.items():
-        value = report["metrics"].get("cumulative_return" if name == "expected_return" else name)
-        reason = ("ORIGINAL_METRIC_UNAVAILABLE" if m["value"] is None else
-                  "INSUFFICIENT_ACTUAL_HISTORY" if value is None else
-                  "ANNUAL_MODEL_VS_CUMULATIVE_REALIZED" if name == "expected_return" else
-                  "REFERENCE_AND_SAMPLING_DIFFER" if name == "tracking_error" else
-                  "MODEL_WEEKLY_COVARIANCE_VS_REALIZED_DAILY_STATISTIC")
-        comparisons.append({"metric":name, "expected":m, "actual":{"value":value,
-            "unit":"fraction" if name == "expected_return" else "fraction_per_year",
-            "start":report["start"], "end":report["end"], "basis":"recorded NAV; daily observations; benchmark CORE"},
-            "difference":None, "status":"NOT_COMPARABLE", "reason":reason})
+    report = dashboard(session, d.participant_id, "ALL", start=start, end_exclusive=report_end, anchor_latest=False)
+    from ...forward.expectation_comparison import ledger_comparisons
+    comparisons = ledger_comparisons(d.expectations_json, report, d.decision_id, d.provenance_json.get("core_version"))
     observed_start, observed_end = report["start"], report["end"]
     horizons = []
     for months in (3, 6):
         due = (pd.Timestamp(observed_start or start) + pd.DateOffset(months=months)).date().isoformat()
         reached = bool(observed_start and observed_end and observed_end >= due)
-        horizon_report = dashboard(session, d.participant_id, "ALL", start=start, end_exclusive=(pd.Timestamp(due)+pd.Timedelta(days=1)).date(), anchor_latest=False) if reached else None
+        horizon_report = dashboard(session, d.participant_id, "ALL", start=start, end_exclusive=min(report_end, (pd.Timestamp(due)+pd.Timedelta(days=1)).date()), anchor_latest=False) if reached else None
         horizons.append({"months": months, "due_date": due, "status": "REACHED" if reached else "NOT_REACHED",
             "observed_start": observed_start, "observed_end": horizon_report["end"] if horizon_report else observed_end,
             "cumulative_return": horizon_report["metrics"]["cumulative_return"] if horizon_report else None,
@@ -193,5 +202,5 @@ def review(session, user_id, decision_id):
         "valuation_date": observed_end, "observation_start": observed_start, "observation_end": observed_end,
         "superseded_effective_date": end_exclusive.isoformat() if end_exclusive else None,
         "actual": report, "comparisons": comparisons, "weight_changes": weight_changes, "weight_changes_as_of": (rb or {}).get("as_of"), "horizons": horizons,
-        "review_reasons": [report["status"], "EXPECTATION_DEFINITIONS_DIFFER"] + (["SUPERSEDED"] if next_d else []),
+        "review_reasons": [report["status"]] + (["EXPECTATION_DEFINITIONS_DIFFER"] if any(c["status"] == "NOT_COMPARABLE" for c in comparisons) else []) + (["SUPERSEDED"] if next_d else []),
         "review_only": True, "policy": POLICY}

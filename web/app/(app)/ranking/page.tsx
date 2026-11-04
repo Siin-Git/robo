@@ -58,7 +58,7 @@ function LegacyRankingPage() {
               onClick={() => setTab(t)}
               aria-pressed={tab === t}
               className={`h-[32px] px-[12px] text-[13px] font-semibold leading-[20px] ${
-                tab === t ? "bg-text-primary text-white" : "bg-white text-text-secondary border border-border"
+                tab === t ? "bg-text-primary text-white" : "bg-surface text-text-secondary border border-border"
               }`}
               style={{ borderRadius: 6 }}
             >

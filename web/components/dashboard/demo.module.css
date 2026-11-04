@@ -4,7 +4,7 @@
 .titleSuffix { font-weight:400; color:var(--text-secondary); }
 .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
 .coreChip,.themeChip { border-radius:6px; padding:6px 10px; font-size:13px; font-weight:600; }
-.coreChip { background:#eaf0f7; color:#334155; }
+.coreChip { background:var(--surface-subtle); color:var(--text-primary); }
 .themeChip { background:var(--brand-soft); color:var(--brand); }
 .note { display:flex; align-items:center; gap:10px; color:var(--text-secondary); font-size:12px; line-height:1.7; }
 .period { display:flex; gap:14px; flex-wrap:wrap; padding-bottom:14px; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:12px; }
@@ -14,16 +14,16 @@
 .sectionTitle h2 { font-size:16px; font-weight:650; }
 .sectionTitle h2 span { font-size:12px; font-weight:400; color:var(--text-secondary); margin-left:8px; }
 .returnGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
-.excess > div { background:var(--brand-soft); border-color:#c8d8ee; }
+.excess > div { background:var(--brand-soft); border-color:var(--border); }
 .riskGroups { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
 .riskGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .riskGroups :global(.kpi-value) { font-size:24px; }
-.allocation { border:1px solid var(--border); padding:24px; border-radius:12px; background:white; }
+.allocation { border:1px solid var(--border); padding:24px; border-radius:12px; background:var(--surface); }
 .details { margin-top:22px; font-size:13px; }
 .details summary { cursor:pointer; padding:12px 0; color:var(--text-secondary); }
 .assumption { font-size:11px; color:var(--text-secondary); line-height:1.8; }
 .detailLink,.back { display:flex; align-items:center; gap:8px; color:var(--brand); font-size:13px; font-weight:600; }
-.detailLink { border:1px solid var(--border); background:white; border-radius:8px; padding:16px; justify-content:space-between; }
+.detailLink { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:16px; justify-content:space-between; }
 @media(max-width:1050px) { .returnGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:640px) { .header { align-items:flex-start; flex-direction:column; } .header h1 { font-size:25px; } .riskGroups { grid-template-columns:1fr; } .note { align-items:flex-start; } .allocation { padding:16px; } .period { gap:6px 14px; } }
 
@@ -31,7 +31,7 @@
 .portfolioHeader h1 { margin:0; font-size:28px; letter-spacing:-.7px; }
 .portfolioSubtitle { margin-top:8px; color:var(--text-secondary); font-size:14px; line-height:1.6; }
 .portfolioThemes { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-.portfolioThemes span { padding:5px 11px; border-radius:20px; background:#eee9fa; color:#7654b5; font-size:12px; font-weight:600; }
+.portfolioThemes span { padding:5px 11px; border-radius:20px; background:var(--insight-soft); color:var(--insight); font-size:12px; font-weight:600; }
 .portfolioActions { display:flex; flex-wrap:wrap; gap:8px; flex-shrink:0; }
 .savedAt { color:var(--text-secondary); font-size:12px; white-space:nowrap; }
 .portfolioFooter { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-top:-6px; }
@@ -46,6 +46,6 @@
 @media(max-width:760px) { .portfolioHeader { align-items:flex-start; flex-direction:column; gap:18px; } .portfolioActions { width:100%; } .portfolioActions > a { flex:1; } .portfolioHeader h1 { font-size:25px; } .portfolioFooter { gap:16px; } .savedAt { font-size:11px; } }
 
 .performanceMeta { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:-8px; color:var(--text-secondary); font-size:12px; }
-.performancePanel { padding:24px; border:1px solid var(--border); border-radius:14px; background:white; min-width:0; }
+.performancePanel { padding:24px; border:1px solid var(--border); border-radius:14px; background:var(--surface); min-width:0; }
 .performanceRisk { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
 @media(max-width:640px) { .performancePanel { padding:16px; } .performanceRisk { grid-template-columns:1fr; } }

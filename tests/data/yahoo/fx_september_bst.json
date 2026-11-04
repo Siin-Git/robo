@@ -1,0 +1,157 @@
+{
+  "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/KRW=X?period1=1789430400&period2=1790208000&interval=1d&includeAdjustedClose=true",
+  "captured_at": "2026-10-04T16:31:12.848536+00:00",
+  "requested_start": "2026-09-16",
+  "requested_end": "2026-09-22",
+  "response": {
+    "chart": {
+      "result": [
+        {
+          "meta": {
+            "currency": "KRW",
+            "symbol": "KRW=X",
+            "exchangeName": "CCY",
+            "fullExchangeName": "CCY",
+            "instrumentType": "CURRENCY",
+            "firstTradeDate": 1070236800,
+            "regularMarketTime": 1791130261,
+            "hasPrePostMarketData": false,
+            "gmtoffset": 3600,
+            "timezone": "BST",
+            "exchangeTimezoneName": "Europe/London",
+            "regularMarketPrice": 1342.51,
+            "regularMarketChangePercent": -1.2744,
+            "fulldayPrice": 1342.51,
+            "fulldayChange": -17.33,
+            "fulldayChangePercent": -1.2744,
+            "fiftyTwoWeekHigh": 1587.7,
+            "fiftyTwoWeekLow": 1322.42,
+            "regularMarketDayHigh": 1342.51,
+            "regularMarketDayLow": 1342.51,
+            "regularMarketVolume": 0,
+            "longName": "USD/KRW",
+            "shortName": "USD/KRW",
+            "chartPreviousClose": 1345.61,
+            "priceHint": 4,
+            "currentTradingPeriod": {
+              "pre": {
+                "timezone": "BST",
+                "start": 1790895600,
+                "end": 1790895600,
+                "gmtoffset": 3600
+              },
+              "regular": {
+                "timezone": "BST",
+                "start": 1790895600,
+                "end": 1790981940,
+                "gmtoffset": 3600
+              },
+              "post": {
+                "timezone": "BST",
+                "start": 1790981940,
+                "end": 1790981940,
+                "gmtoffset": 3600
+              }
+            },
+            "dataGranularity": "1d",
+            "range": "",
+            "validRanges": [
+              "1d",
+              "5d",
+              "1mo",
+              "3mo",
+              "6mo",
+              "1y",
+              "2y",
+              "5y",
+              "10y",
+              "ytd",
+              "max"
+            ]
+          },
+          "timestamp": [
+            1789426800,
+            1789513200,
+            1789599600,
+            1789686000,
+            1789945200,
+            1790031600,
+            1790118000,
+            1790204400
+          ],
+          "indicators": {
+            "quote": [
+              {
+                "volume": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "low": [
+                  1344.8599853515625,
+                  1361.219970703125,
+                  1372.7099609375,
+                  1378.4000244140625,
+                  1369.0999755859375,
+                  1352.5999755859375,
+                  1345.75,
+                  1363.6300048828125
+                ],
+                "open": [
+                  1346.6300048828125,
+                  1364.199951171875,
+                  1377.4100341796875,
+                  1379.5899658203125,
+                  1385.199951171875,
+                  1373.4599609375,
+                  1351.3699951171875,
+                  1365.4300537109375
+                ],
+                "close": [
+                  1345.6099853515625,
+                  1363.5699462890625,
+                  1376.5999755859375,
+                  1379.530029296875,
+                  1384.8599853515625,
+                  1373.6800537109375,
+                  1350.3599853515625,
+                  1362.5
+                ],
+                "high": [
+                  1364.550048828125,
+                  1371.489990234375,
+                  1387.9300537109375,
+                  1389.800048828125,
+                  1386.0999755859375,
+                  1374.260009765625,
+                  1367.9599609375,
+                  1376.6400146484375
+                ]
+              }
+            ],
+            "adjclose": [
+              {
+                "adjclose": [
+                  1345.6099853515625,
+                  1363.5699462890625,
+                  1376.5999755859375,
+                  1379.530029296875,
+                  1384.8599853515625,
+                  1373.6800537109375,
+                  1350.3599853515625,
+                  1362.5
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "error": null
+    }
+  }
+}

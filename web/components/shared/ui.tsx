@@ -14,7 +14,7 @@ export function MetricCard({
   const color =
     tone === "positive" ? "text-positive" : tone === "negative" ? "text-negative" : "";
   return (
-    <div className="rounded-card border border-border bg-white p-[16px]">
+    <div className="rounded-card border border-border bg-surface p-[16px]">
       <div className="kpi-label">{label}</div>
       <div className={`kpi-value mt-[4px] ${color}`}>{value}</div>
       {sub ? <div className="caption mt-[4px]">{sub}</div> : null}
@@ -44,7 +44,7 @@ export function StatusBadge({ children }: { children: string }) {
 
 export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="border border-border bg-white px-[20px] py-[32px] text-center">
+    <div className="rounded-card border border-border bg-surface px-[20px] py-[32px] text-center">
       <p className="text-[14px] font-semibold leading-[20px]">{title}</p>
       {hint ? <p className="caption mt-[4px]">{hint}</p> : null}
       {action ? <div className="mt-[12px]">{action}</div> : null}
@@ -54,7 +54,7 @@ export function EmptyState({ title, hint, action }: { title: string; hint?: stri
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="border border-border bg-white px-[20px] py-[24px] text-center">
+    <div className="rounded-card border border-border bg-surface px-[20px] py-[24px] text-center">
       <p className="text-[14px] leading-[21px]">{message}</p>
       <p className="caption mt-[4px]">잠시 후 다시 시도해주세요.</p>
       {onRetry ? (

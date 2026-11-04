@@ -75,6 +75,8 @@ def upsert_draft(session, user_id: str, participant_id: str, frontier_id: str | 
     return get_draft(session, user_id)
 
 def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str]):
+    from .strategy_service import require_executable
+    require_executable(theme_ids)
     point = find_point(frontier_id)
     if point is None:
         raise not_found("FRONTIER_POINT_NOT_FOUND", f"Unknown frontier_id {frontier_id}.")
@@ -230,6 +232,8 @@ def preview(session, user_id: str, participant_id: str, frontier_id: str, theme_
     }
 
 def complete(session, user_id: str, participant_id: str, frontier_id: str, theme_ids: list[str], reason: str | None, adjustment_choice_id: str | None = None, confirmed_preview: dict | None = None, expected_decision_id: str | None = None, rebalance_frequency: str | None = None):
+    from .strategy_service import require_executable
+    require_executable(theme_ids)
     from . import decision_service as decisions
     from ...db.models.account import Account as _A
     acc = session.scalars(select(_A).where(_A.participant_id == participant_id, _A.account_type == "personal")).first()
@@ -245,11 +249,24 @@ def complete(session, user_id: str, participant_id: str, frontier_id: str, theme
     if existing and existing.frontier_id == frontier_id:
         from ...db.models.view import View as _V
         cur_themes = sorted([v.theme_id for v in session.scalars(select(_V).where(_V.participant_id == participant_id, _V.status.in_(["new", "hold"]), _V.end_at.is_(None))).all()])
-        previous_draft = session.get(_OD, user_id)
-        if sorted(theme_ids) == cur_themes and previous_draft and previous_draft.completed_at and previous_draft.reason == reason:
-            d = decisions.latest(session, acc.account_id) if acc else None
-            if d and d.provenance_json.get('rebalance_frequency') == frequency:
+        d = decisions.latest(session, acc.account_id) if acc else None
+        # Reopening setup makes the editable draft incomplete. Use the immutable
+        # decision to recognise an identical confirmation, even with pending orders.
+        saved_themes = sorted(a[6:] for a in d.weights_json if a.startswith("theme:")) if d else []
+        if (d and d.selection_id == existing.selection_id
+                and sorted(theme_ids) == cur_themes == saved_themes
+                and (d.reason or "") == (reason or "")):
+            if d.provenance_json.get('rebalance_frequency') == frequency:
                 if not adjustment_choice_id or d.provenance_json.get("adjustment_choice_id") == adjustment_choice_id:
+                    if draft:
+                        draft.frontier_id = frontier_id
+                        draft.frontier_version = FRONTIER_VERSION
+                        draft.theme_ids_json = list(theme_ids)
+                        draft.reason = reason
+                        draft.current_step = "completed"
+                        draft.rebalance_frequency = frequency
+                        draft.updated_at = draft.completed_at = C.now_utc()
+                        session.flush()
                     return {"already_completed": True, "selection_id": existing.selection_id, "decision_id": d.decision_id, "rebalance_frequency": frequency}
     from ...db.models.account import Account as _A
     from ...db.models.portfolio import PortfolioTarget as _PT

@@ -7,7 +7,7 @@ export type Period = typeof PERIODS[number]["key"];
 export type Asset = {asset_id:string;group:string;contribution:number;average_weight:number|null;price_return:number|null};
 export interface DecisionSummary {decision_id:string;version:number;target_effective_date:string}
 export interface DecisionContext {
-  as_of:string;selection_basis:"KST_EFFECTIVE_DATE";status:"ACTIVE"|"AWAITING_INITIAL_EFFECTIVE_DATE"|"LEGACY_UNRECORDED";
+  as_of:string;selection_basis:"KST_EFFECTIVE_DATE"|"CURRENT_CONFIGURATION_HISTORICAL_REPLAY";status:"ACTIVE"|"AWAITING_INITIAL_EFFECTIVE_DATE"|"LEGACY_UNRECORDED";
   active_decision:DecisionSummary|null;pending_decision:DecisionSummary|null;previous_decision:DecisionSummary|null;
   report_decision_id:string|null;window_start:string|null;window_end_exclusive:string|null;
 }
@@ -22,20 +22,39 @@ export interface Report {
   comparison_window?:{start:string|null;end:string|null;dates:string[];status:string;reason:string|null};
   metric_quality?:{mdd:RiskMetricQuality;volatility:RiskMetricQuality};
   decision_context?:DecisionContext;
-  data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION";
+  data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION" | "HISTORICAL_REPLAY";
+  replay_context?: ReplayContext|null;
   status:string;period:string;start:string|null;end:string|null;since:string|null;observations:number;benchmark_name:string;
   metrics:{cumulative_return:number|null;benchmark_return:number|null;difference_pp:number|null;mdd:number|null;volatility:number|null;tracking_error:number|null;information_ratio:number|null};
   series:{date:string;personal:number;benchmark:number|null;drawdown:number}[];
   attribution:{date:string;values:Record<string,number>;total:number}[];
   assets:Asset[];
-  comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string;decision_id?:string|null;start?:string|null;end?:string|null}[];
+  comparators?:{key:string;label:string;status:string;return:number|null;reason:string|null;source?:string;decision_id?:string|null;start?:string|null;end?:string|null;difference?:number|null;difference_reason?:string|null;definition_version?:string;definition?:{currency:string;dividends:string;costs:string}}[];
   quality:{unresolved_intervals:number;stale_observations:number;missing_nav_dates:number;benchmark_complete:boolean;missing_comparison_dates?:string[]};
 }
+export interface ReplayContext {
+  run_id:string;kind:"HISTORICAL_REPLAY";label:string;status:string;
+  ready:number;required:number;completed:number;start:string;end:string;dates:string[];
+  forward_start:string;forward_started:boolean;initial_capital_krw:number;
+  excluded_dates:{date:string;missing_assets:string[];reason:string;asset_reasons?:Record<string,string>}[];
+}
+// Only a server-confirmed closure without any recorded observation is omitted
+// from the display axis. Unknown gaps remain null; no prices or NAV are created.
+export function observedChartDates(dates:string[],exclusions:ReplayContext["excluded_dates"]|undefined,hasObservation:(date:string)=>boolean) {
+  const closed=new Set(exclusions?.filter(p=>p.reason==="MARKET_CLOSED").map(p=>p.date));
+  return dates.filter(date=>!closed.has(date)||hasObservation(date));
+}
 // Chart alignment only: retain every recorded value and put explicit nulls on
-// comparison dates without an owner valuation. Financial calculations stay server-side.
+// unknown missing dates. Financial calculations stay server-side.
 export function reportChartPoints(report:Report) {
   const observed=new Map(report.series.map(p=>[p.date,p]));
-  return (report.comparison_window?.dates??report.series.map(p=>p.date)).map(date=>{
+  const replayDates=report.replay_context?Array.from(new Set([
+    ...report.series.map(p=>p.date),
+    ...report.replay_context.excluded_dates.map(p=>p.date).filter(d=>d>=(report.start??"")&&d<=(report.end??""))
+  ])).sort():null;
+  const dates=observedChartDates(report.comparison_window?.dates??replayDates??report.series.map(p=>p.date),
+    report.replay_context?.excluded_dates,date=>observed.has(date)||report.attribution.some(p=>p.date===date));
+  return dates.map(date=>{
     const p=observed.get(date);
     return {date,personal:p?p.personal*100:null,benchmark:p?.benchmark==null?null:p.benchmark*100,drawdown:p?p.drawdown*100:null};
   });

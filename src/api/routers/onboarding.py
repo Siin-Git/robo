@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..authz import get_current_user, require_authenticated_csrf
 from ..design_workspace import get_design_db
@@ -23,6 +23,11 @@ class DraftBody(BaseModel):
 class PreviewBody(BaseModel):
     frontier_id: str
     theme_ids: list[str] = []
+
+class RehearsalBody(PreviewBody):
+    model_config = ConfigDict(extra="forbid")
+    period: str = Field(default="all", pattern=r"^(all|[0-9]{4})$")
+    initial_amount: int = Field(default=10_000_000, ge=10_000, le=1_000_000_000)
 
 class CompleteBody(BaseModel):
     rebalance_frequency: Literal['monthly', 'quarterly'] | None = None
@@ -78,6 +83,11 @@ def post_draft(body: DraftBody, db=Depends(get_design_db), user=Depends(require_
 @router.post("/preview", summary="Preview personalized portfolio for onboarding")
 def preview(body: PreviewBody, db=Depends(get_design_db), user=Depends(get_current_user)):
     return svc.preview(db, user.user_id, _pid(user), body.frontier_id, body.theme_ids)
+
+@router.post("/rehearsal", summary="Compare an unconfirmed proposal without saving a decision")
+def rehearsal(body: RehearsalBody, db=Depends(get_design_db), user=Depends(get_current_user)):
+    from ..services.rehearsal_service import preview_rehearsal
+    return preview_rehearsal(db, user.user_id, _pid(user), **body.model_dump())
 
 @router.post("/complete", summary="Complete onboarding (creates base + themes + target)")
 def complete(body: CompleteBody, db=Depends(get_design_db), user=Depends(require_authenticated_csrf), auth_db=Depends(get_db)):

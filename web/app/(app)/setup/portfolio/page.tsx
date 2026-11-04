@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { FrontierChart, GROUP_COLORS, ASSET_COLORS, type FrontierData } from "./FrontierChart";
+import { StrategyFrontierChart as FrontierChart, GROUP_COLORS, ASSET_COLORS, type FrontierData } from "./FrontierChart";
 import { useSetupStyles } from "../style-context";
 import { ThemesStep } from "./ThemeSelection";
 import { ReviewStep } from "./ReviewStep";
@@ -14,7 +14,7 @@ import { ArrowRight, RotateCcw, ChevronDown } from "lucide-react";
 import { SetupProgress } from "@/components/portfolio/SetupProgress";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/shared/ui";
-import { get, post, put } from "@/lib/api/client";
+import { ApiError, get, post, put } from "@/lib/api/client";
 import { DEMO_MODE } from "@/lib/api/comparison";
 import type { ExperimentStatus } from "@/lib/api/experiment";
 import { ExperimentSetup } from "@/components/portfolio/ExperimentSetup";
@@ -132,7 +132,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
       return saved;
     },
     onSuccess: async () => {
-      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status", "decisions", "decision-review", "portfolio-choices", "forward-ledger", "ledger-status"].map(key => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["base-portfolio", "summary-portfolio", "dashboard-performance", "onboarding-draft", "my-views", "comparison", "comparison-ranking", "comparison-analytics", "own-experiment", "experiment-status", "experiment-setup-status", "decisions", "decision-review", "portfolio-choices", "forward-ledger", "ledger-status", "own-continuity"].map(key => qc.invalidateQueries({ queryKey: [key] })));
       router.push("/portfolio");
     },
   });
@@ -196,7 +196,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
   const assetWeights = [...selected.weights].sort((a, b) => b.weight - a.weight);
 
   return (
-    <AppShell headerTitle="내 기본 포트폴리오 선택" setup>
+    <AppShell headerTitle={step === "review" ? "포트폴리오 설계" : "내 기본 포트폴리오 선택"} setup hideDesignNotice={step === "review"}>
       <SetupProgress step={step} />
       {step === "risk" && saveError && <p role="alert" className="text-negative">선택 내용을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
       {step === "risk" && (
@@ -224,7 +224,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
                   onChange={(e) => setIdx(Number(e.target.value))} aria-label="위험 수준"
                   aria-valuetext={`${riskLabel(selected.volatility)}, 예상 변동성 ${fmtPct(selected.volatility)}`}
                   className={styles.slider}
-                  style={{ background: `linear-gradient(to right, var(--brand) ${points.length > 1 ? curIdx / (points.length - 1) * 100 : 0}%, #e5e9ef 0%)` }} />
+                  style={{ background: `linear-gradient(to right, var(--brand) ${points.length > 1 ? curIdx / (points.length - 1) * 100 : 0}%, var(--border) 0%)` }} />
                 <div className={styles.rangeLabels}><span>안정적으로</span><span>적극적으로</span></div>
                 <p>파란 선 위의 선택 지점과 오른쪽 요약을 함께 확인하세요. 다음 단계에서는 이 기본 구성에 투자 인사이트를 반영합니다.</p>
               </div>
@@ -271,7 +271,7 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
                   <PieChart><Pie data={assetWeights.filter(w => w.weight > 0)} dataKey="weight" nameKey="asset_id" cx="50%" cy="50%" outerRadius="90%" startAngle={90} endAngle={-270} stroke="#ffffff" strokeWidth={2} isAnimationActive={false}>
                     {assetWeights.filter(w => w.weight > 0).map(w => <Cell key={w.asset_id}
                       fill={ASSET_COLORS[w.asset_id] ?? GROUP_COLORS.현금}
-                      stroke={pieAssetId === w.asset_id ? "#172b46" : "#ffffff"} strokeWidth={pieAssetId === w.asset_id ? 3 : 2}
+                      stroke={pieAssetId === w.asset_id ? "var(--text-primary)" : "#ffffff"} strokeWidth={pieAssetId === w.asset_id ? 3 : 2}
                       onMouseEnter={() => setPieAssetId(w.asset_id)} onFocus={() => setPieAssetId(w.asset_id)} onBlur={() => setPieAssetId(null)}
                       onClick={() => setPieAssetId(w.asset_id)} tabIndex={0} role="button"
                       aria-label={`${ASSET_META[w.asset_id]?.name ?? w.asset_id} ${fmtPct(w.weight)}`} />)}
@@ -337,8 +337,10 @@ function SetupPortfolioInner({market = false}: {market?: boolean}) {
           rebalanceFrequency={frequency}
           onBack={goBack}
           onComplete={() => mutateComplete.mutate({ frontier_id: selected.frontier_id, theme_ids: selectedThemes, reason, rebalance_frequency: frequency })}
+          selectionReason={{value:reason,onChange:setReason}}
           pending={mutateComplete.isPending}
           error={mutateComplete.isError}
+          errorMessage={mutateComplete.error instanceof ApiError && mutateComplete.error.status < 500 ? mutateComplete.error.message : undefined}
         />
       )}
     </AppShell>

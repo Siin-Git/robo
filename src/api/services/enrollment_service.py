@@ -233,6 +233,36 @@ def complete(session, user, data):
             raise ApiError("SCENARIO_MISMATCH", "선택 구성과 시연 시나리오가 일치하지 않습니다.", 409)
         report.update(participant_id=user.participant_id, display_name=user.participant.display_name,
             data_source="DEMO_SCENARIO_ASSIGNED", scenario_id=config["scenario_id"])
+    return _persist_configuration(session, user, slot, data, config, report)
+
+
+def confirm_forward_design(session, user, data, design_preview):
+    """Record an initial real design using the existing enrollment writer.
+
+    Trusted operator/service caller only, not an HTTP endpoint. Preview comes
+    from onboarding_service; no legacy scenario is assigned or copied.
+    """
+    from ..design_workspace import enabled as design_enabled
+    from .frontier_service import find_point
+    from ..errors import ApiError
+    if not design_enabled() or find_point(data.get('frontier_id')) is None:
+        raise ApiError('FORWARD_DESIGN_REQUIRED', 'A valid initial design is required.', 409)
+    slot = require_slot(session, user)
+    session.execute(update(DemoSlot).where(DemoSlot.slot_id == slot.slot_id).values(slot_number=slot.slot_number))
+    session.refresh(slot)
+    if slot.confirmed_at or slot.configuration_json or slot.forward_started_at:
+        raise ApiError('EXPERIMENT_FROZEN', 'Existing configuration is preserved.', 409)
+    validate(session, {k:v for k,v in data.items() if k != 'frontier_id'}, final=True)
+    config = {**deepcopy(design_preview), **data,
+        'allocation': _legs({w['asset_id']:w['weight'] for w in design_preview['personalized']['weights']}, _tickers(session)),
+        'core_allocation': _legs(C.frozen_bundle()[0], _tickers(session)),
+        'scenario_id': None, 'performance_status': 'AWAITING_PERFORMANCE',
+        'configuration_kind': 'PROFESSOR_DEMO_BOOTSTRAP'}
+    return _persist_configuration(session, user, slot, data, config, None)
+
+
+def _persist_configuration(session, user, slot, data, config, report):
+    """Shared enrollment persistence; no commit (caller owns the transaction)."""
     slot.configuration_json = config
     slot.report_json = report
     slot.confirmed_at = C.now_utc()

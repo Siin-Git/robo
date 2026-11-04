@@ -1,0 +1,16 @@
+.context,.action{min-width:0;border:1px solid var(--panel-border);border-radius:14px;background:var(--surface);padding:24px;color:var(--text-primary)}
+.context{background:linear-gradient(110deg,#1b2b44,#152031)}
+.eyebrow{font-size:11px;color:#9db5d5;display:block;margin-bottom:8px}
+.context h2,.action h2{font-size:20px;line-height:1.5;letter-spacing:-.03em;margin-bottom:10px}
+.context p,.action p{font-size:13px;line-height:1.8;color:var(--text-secondary);margin:8px 0}
+.values{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:20px 0}
+.values dt{font-size:12px;color:var(--text-secondary);margin-bottom:7px}.values dd{font-size:28px;line-height:1.3;font-variant-numeric:tabular-nums;font-weight:600}.values>div:last-child dd{color:#8cb6ff}
+.original{padding:12px 14px;background:#0f1a2b;border-radius:8px;overflow-wrap:anywhere}
+.reason{display:grid;gap:8px;margin:18px 0;font-size:13px}.reason textarea{width:100%;min-height:100px;padding:13px;border:1px solid #3a4b65;border-radius:9px;background:#101a2b;color:var(--text-primary);font-size:14px;line-height:1.7;resize:vertical}
+.reason textarea::placeholder{color:#8596ad}.actions{display:flex;gap:12px;flex-wrap:wrap}
+.action .note,.context .note{font-size:11px;line-height:1.8}.saved{margin-top:16px;border:1px solid #5476a5;padding:14px;border-radius:9px}.saved a{color:#a9c9ff;font-size:13px;display:inline-block;margin-top:8px}
+.action :is(textarea,button,a,div[tabindex]):focus-visible{outline:2px solid #9cc2ff;outline-offset:4px}
+.flow{display:grid;grid-template-columns:1fr 1.25fr;gap:20px;align-items:start;min-width:0}.status{margin:0 0 16px;font-size:13px;line-height:1.8;padding:14px 18px;border:1px solid var(--panel-border);border-radius:9px;color:var(--text-secondary)}
+.evidence>summary{cursor:pointer;padding:18px 0;font-size:14px;color:var(--text-secondary)}.evidence>summary:focus-visible{outline:2px solid #9cc2ff;outline-offset:4px}.evidence[open]{display:block}.evidence>section{margin:16px 0}
+@media(max-width:1050px){.flow{grid-template-columns:1fr}.values{margin:14px 0}.context,.action{padding:20px}}
+@media(max-width:540px){.context,.action{padding:18px 16px}.context h2,.action h2{font-size:18px}.values{gap:12px}.values dd{font-size:26px}.actions{flex-direction:column}.actions button{width:100%}}

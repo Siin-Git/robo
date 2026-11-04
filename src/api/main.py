@@ -140,3 +140,6 @@ app.include_router(enrollment.router, prefix="/api/v1")
 
 from .routers import decisions
 app.include_router(decisions.router, prefix="/api/v1")
+
+from .routers import strategies
+app.include_router(strategies.router, prefix="/api/v1")

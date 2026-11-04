@@ -2,7 +2,7 @@ import { get } from "./client";
 
 // The persisted, user-scoped forward ledger exposed by the current backend.
 export interface ForwardLedger {
-  data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION";
+  data_kind?: "TEST_FIXTURE" | "FORWARD_SIMULATION" | "HISTORICAL_REPLAY";
   as_of: string | null;
   snapshots: {
     date: string;

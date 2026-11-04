@@ -1,4 +1,6 @@
 """Phase 2.2 inception-correction tests. No network; temp DBs only."""
+from datetime import date
+
 import pandas as pd
 
 from src.forward.db import connect, init_db
@@ -73,7 +75,8 @@ def test4_launch_sets_inception(tmp_path, monkeypatch):
     import src.forward.launch as _launch
     dbp = tmp_path / "l.db"
     con = _db(tmp_path, "l.db")
-    idx = pd.bdate_range("2026-09-01", periods=10)
+    # Match preflight's current date without relaxing its freshness policy.
+    idx = pd.bdate_range(end=date.today(), periods=10)
     upsert_prices(con, pd.DataFrame({"us_equity": 100.0}, index=idx), "synthetic")
     con.commit()
     monkeypatch.setattr(_launch, "get_database_path", lambda: dbp)
@@ -88,7 +91,7 @@ def test5_double_launch_fails(tmp_path, monkeypatch, capsys):
     import src.forward.launch as _launch
     dbp = tmp_path / "l2.db"
     con = _db(tmp_path, "l2.db")
-    idx = pd.bdate_range("2026-09-01", periods=10)
+    idx = pd.bdate_range(end=date.today(), periods=10)
     upsert_prices(con, pd.DataFrame({"us_equity": 100.0}, index=idx), "synthetic")
     con.commit()
     monkeypatch.setattr(_launch, "get_database_path", lambda: dbp)

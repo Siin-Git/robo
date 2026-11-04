@@ -1,17 +1,17 @@
 .layout { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(260px, 1.1fr); gap: 36px; align-items: center; padding: 12px 0; }
 .chart { text-align: center; }
 .chart svg { width: 100%; max-width: 380px; margin: auto; }
-.label { fill: #53647b; font-size: 16px; font-weight: 600; }
-.value { fill: #21344e; font-size: 38px; font-weight: 750; font-variant-numeric: tabular-nums; }
-.hint { fill: #8090a5; font-size: 13px; }
-.chart p { color: #7b8aa0; font-size: 12px; margin: 6px 0 14px; }
-.themeTotal { display: inline-flex; gap: 12px; border-radius: 24px; padding: 9px 17px; color: #7957bd; background: #f4f0fc; font-size: 13px; }
+.label { fill: var(--text-secondary); font-size: 16px; font-weight: 600; }
+.value { fill: var(--text-primary); font-size: 38px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.hint { fill: var(--text-secondary); font-size: 13px; }
+.chart p { color: var(--text-secondary); font-size: 12px; margin: 6px 0 14px; }
+.themeTotal { display: inline-flex; gap: 12px; border-radius: 24px; padding: 9px 17px; color: var(--insight); background: var(--insight-soft); font-size: 13px; }
 .legend { list-style: none; margin: 0; padding: 0; }
-.legend button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid #edf0f5; border-radius: 8px; text-align: left; }
-.legend button:hover, .legend button[data-active="true"] { background: #f2f6ff; }
-.legend button:focus-visible { outline: 2px solid #3b72e8; outline-offset: 2px; }
+.legend button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--border); border-radius: 8px; text-align: left; }
+.legend button:hover, .legend button[data-active="true"] { background: var(--brand-soft); }
+.legend button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .legend i { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
-.legend span { flex: 1; color: #344761; font-size: 14px; font-weight: 600; }
-.legend small { margin-left: 8px; color: #8056ce; font-size: 11px; font-weight: 500; }
-.legend strong { color: #243b58; font-size: 17px; font-variant-numeric: tabular-nums; }
+.legend span { flex: 1; color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+.legend small { margin-left: 8px; color: var(--insight); font-size: 11px; font-weight: 500; }
+.legend strong { color: var(--text-primary); font-size: 17px; font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) { .layout { grid-template-columns: 1fr; gap: 20px; } .chart svg { max-width: 320px; } .legend button { padding: 12px; } }

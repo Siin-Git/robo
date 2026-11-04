@@ -9,6 +9,7 @@ from __future__ import annotations
 import sqlite3
 
 from .db import log_event, next_id
+from .opening import opening, assets as position_assets, cash as position_cash
 from .prices import next_available_close, price_on_or_before
 
 
@@ -20,6 +21,11 @@ def current_weights(con: sqlite3.Connection, account_id: str, asof: str) -> dict
                     (account_id, asof, account_id, asof)).fetchall()
     if h:
         return {r["asset_id"]: float(r["weight"]) for r in h}
+    inherited = opening(con, account_id, asof)
+    if inherited:
+        nav, quantities, _ = nav_before_trades(con, account_id, asof, 0)
+        return {asset: quantity * price_on_or_before(con, asset, asof)[0] / nav
+                for asset, quantity in quantities.items()}
     row = con.execute("SELECT weights_json FROM portfolio_targets WHERE account_id = ?"
                       " AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC, target_id DESC LIMIT 1",
                       (account_id, asof)).fetchone()
@@ -33,7 +39,9 @@ def holding_qty(con: sqlite3.Connection, account_id: str, asset_id: str, asof: s
     row = con.execute("SELECT COALESCE(SUM(quantity), 0) AS q FROM trades WHERE account_id = ?"
                       " AND asset_id = ? AND execution_at <= ?",
                       (account_id, asset_id, asof)).fetchone()
-    return float(row["q"])
+    inherited = opening(con, account_id, asof)
+    initial = next((float(p["quantity"]) for p in inherited["holdings"] if p["asset_id"] == asset_id), 0) if inherited else 0
+    return initial + float(row["q"])
 
 
 def within_band(target_w: float, current_w: float, band: dict | None) -> bool:
@@ -110,11 +118,22 @@ def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
     같은 계좌·자산에 같은 effective_at 로 대기 중(pending)인 주문이 이미 있으면
     새로 만들지 않는다. 배치를 두 번 돌려도 체결 전 주문이 중복되지 않는다.
     """
+    from .competition import account_gate
+    blocked, start_date = account_gate(con, account_id)
+    if blocked:
+        return []
+    if start_date:
+        effective_at = max(str(effective_at)[:10], start_date)
+    reuse_initial = bool(start_date and not opening(con, account_id) and not con.execute(
+        "SELECT 1 FROM trades WHERE account_id=? LIMIT 1", (account_id,)).fetchone())
     oids = []
     for row in plan_orders(target_w, baseline, band):
         if row["action"] != "order":
             continue
         asset, tw, cw = row["asset"], row["target"], row["current"]
+        if reuse_initial and con.execute("SELECT 1 FROM orders WHERE account_id=? AND asset_id=? AND status='pending'",
+                                      (account_id, asset)).fetchone():
+            continue  # Reuse the preserved initial order, even with an older effective date.
         if con.execute("SELECT 1 FROM orders WHERE account_id = ? AND asset_id = ?"
                        " AND effective_at = ? AND status = 'pending'",
                        (account_id, asset, effective_at)).fetchone():
@@ -135,8 +154,7 @@ def create_orders(con: sqlite3.Connection, account_id: str, target_w: dict,
 def nav_before_trades(con: sqlite3.Connection, account_id: str, exec_date: str,
                       initial_capital: float) -> tuple[float, dict, float]:
     """Holdings value + cash just before trades on exec_date. Returns (nav, qty, cash)."""
-    assets = [r["asset_id"] for r in con.execute(
-        "SELECT DISTINCT asset_id FROM trades WHERE account_id = ?", (account_id,)).fetchall()]
+    assets = position_assets(con, account_id, exec_date)
     qty, mv = {}, 0.0
     for a in assets:
         q = holding_qty(con, account_id, a, exec_date)
@@ -145,13 +163,7 @@ def nav_before_trades(con: sqlite3.Connection, account_id: str, exec_date: str,
             raise RuntimeError(f"execution price missing for {a} on {exec_date}")
         qty[a] = q
         mv += q * px
-    cash = initial_capital
-    for r in con.execute("SELECT quantity, gross_value, transaction_cost FROM trades"
-                         " WHERE account_id = ? AND execution_at <= ?", (account_id, exec_date)).fetchall():
-        if r["quantity"] > 0:
-            cash -= r["gross_value"] + r["transaction_cost"]
-        else:
-            cash += r["gross_value"] - r["transaction_cost"]
+    cash = position_cash(con, account_id, exec_date, initial_capital)
     return mv + cash, qty, cash
 
 
@@ -159,6 +171,10 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
                     cost_bps: float, model_version: str,
                     participant_id=None) -> list[str]:
     """Execute all pending orders whose next available close is <= asof_date."""
+    from .competition import account_gate
+    blocked, start_date = account_gate(con, account_id)
+    if blocked or (start_date and asof_date < start_date):
+        return []
     init = con.execute("SELECT initial_capital_krw FROM accounts WHERE account_id = ?",
                        (account_id,)).fetchone()
     capital = float(init["initial_capital_krw"])
@@ -169,13 +185,17 @@ def execute_pending(con: sqlite3.Connection, account_id: str, asof_date: str,
     plan: dict[str, list[dict]] = {}
     inception_floor = None
     try:
+        from .replay import inception_floor as replay_floor
         from .state import get_state as _get_state
-        inception_floor = _get_state(con, "forward_test_inception_at")
+        inception_floor = replay_floor(con) or _get_state(con, "forward_test_inception_at")
         inception_floor = inception_floor[:10] if inception_floor else None
     except Exception:
         inception_floor = None
     for o in pending:
-        d = next_available_close(con, o["asset_id"], o["effective_at"])
+        # Keep the original pending order and submission date. Only its actual
+        # execution-price lookup floor changes; earlier prices cannot be used.
+        effective_floor = max(o["effective_at"], start_date) if start_date else o["effective_at"]
+        d = next_available_close(con, o["asset_id"], effective_floor)
         if d is None or d < o["effective_at"] or d > asof_date:
             continue
         if inception_floor is not None and d < inception_floor:

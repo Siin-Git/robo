@@ -310,3 +310,38 @@ def test_active_cohort_includes_prepared_and_enrolled_users_only(client,env,monk
             invite_hash='TEST_FIXTURE_HASH_ONLY',draft_json={}))
         s.commit()
         assert {p.participant_id for p in members(s)}=={users[EMAILS[0]].participant_id,users[EMAILS[1]].participant_id}
+
+
+def test_public_theme_groups_use_observed_period_holdings_and_metric_denominators(client, env, monkeypatch):
+    from src.db.models import Holding
+    a, da = confirmed(client, monkeypatch, 'theme-ledger-a@example.com')
+    _, db = confirmed(client, monkeypatch, 'theme-ledger-b@example.com')
+    _, pending = confirmed(client, monkeypatch, 'theme-ledger-pending@example.com')
+    seed(env.factory, da, [('2026-10-01',100),('2026-10-02',110)])
+    seed(env.factory, db, [('2026-10-01',100),('2026-10-02',90)], core=False)
+    with env.factory() as s:
+        for decision, themes in [(da,['ai','nuclear']),(db,['ai'])]:
+            account=s.scalar(select(Account).where(Account.participant_id==decision['participant_id'],Account.account_type=='personal'))
+            for day in [date(2026,10,1),date(2026,10,2)]:
+                for tid in themes:
+                    s.add(Holding(account_id=account.account_id,date=day,asset_id='theme:'+tid,
+                                  quantity=1,price=10,market_value=10,weight=.1))
+        s.commit()
+    clock(monkeypatch,'2026-10-03')
+    normal=get_comparison(client,a)
+    risk=get_comparison(client,a,'?basis=volatility')
+    groups={g['theme_id']:g for g in normal['theme_selectors']}
+    assert normal['theme_basis']=='OBSERVED_PERIOD_ASSETS'
+    assert groups['ai']['count']==2
+    assert groups['ai']['cumulative_return']==pytest.approx(0)
+    assert groups['ai']['measured']=={'cumulative_return':2,'excess_return':1,'mdd':2}
+    assert groups['ai']['excess_return']==pytest.approx(.1)
+    assert groups['nuclear']['count']==1
+    assert groups['nuclear']['cumulative_return']==pytest.approx(.1)
+    assert risk['theme_selectors']==normal['theme_selectors']
+    assert risk['ranked']==0 and risk['return_ranked']==2
+    assert {r['participant_id']:r['return_rank'] for r in risk['items']}=={r['participant_id']:r['rank'] for r in normal['items']}
+    unmeasured=next(r for r in normal['items'] if r['participant_id']==pending['participant_id'])
+    assert unmeasured['themes']==[] and unmeasured['return_rank'] is None
+    for row in normal['items']:
+        assert not {'account_id','weights','holdings','nav_krw','decision_id','orders','user_id'} & row.keys()

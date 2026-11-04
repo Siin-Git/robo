@@ -3,26 +3,38 @@ name: daily-forward
 on:
   schedule:
     # 22:30 UTC = 07:30 KST next day (after US close, before KR open).
-    # Engine executes only on available prices; never invents future data.
+    # Price-only collector filters actual completed sessions even when delayed.
     - cron: "30 22 * * *"
+    # 09:17/17:17 KST retry after FX date rollover and Korean close.
+    - cron: "17 0 * * *"
+    - cron: "17 8 * * *"
   workflow_dispatch:
     inputs:
       date:
-        description: "Scheduled-for date YYYY-MM-DD (default: today KST)"
+        description: "Audit label YYYY-MM-DD; closure uses actual current time"
         required: false
       dry_run:
-        description: "Plan only, zero writes"
+        description: "Database-enforced read-only price preflight; zero writes"
         type: boolean
         default: false
+      competition_start_date:
+        description: "Optional one-time shared start YYYY-MM-DD (future KST date); blank preserves current start"
+        type: string
+        required: false
+        default: ""
 
 concurrency:
   group: forward-jobs
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   daily:
     if: ${{ vars.FORWARD_EXECUTOR == 'actions' || inputs.dry_run == true }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,32 +42,69 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Read-only operating target inventory
-        if: ${{ inputs.dry_run == true }}
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
-        run: python -m scripts.operating_db_inventory --output "$RUNNER_TEMP/operating-db-inventory.json"
-      - name: Preserve private target inventory
-        if: ${{ always() && inputs.dry_run == true }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: operating-db-inventory-${{ github.run_id }}
-          path: ${{ runner.temp }}/operating-db-inventory.json
-          retention-days: 7
-      - name: Daily forward run
+      - name: Collect completed prices only
         env:
           APP_PROFILE: local
           CAPSTONE_DEMO: "1"
           FORWARD_EXECUTOR: actions
           CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
           TZ: Asia/Seoul
-          # 없으면 get_backend() 기본값 sqlite 가 적용되어 DATABASE_URL 을
-          # 무시하고 러너의 빈 SQLite 파일에 기록한다(조용한 실패).
+          DATABASE_BACKEND: postgres
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          SCHEDULED_FOR: ${{ inputs.date }}
+          READ_ONLY: ${{ inputs.dry_run }}
+        run: |
+          args=(--start 2026-10-05 --expected-database robo_design --expected-revision 0008 --output "$RUNNER_TEMP/closed-price-report.json")
+          if [ -n "$SCHEDULED_FOR" ]; then args+=(--scheduled-for "$SCHEDULED_FOR"); fi
+          if [ "$READ_ONLY" = "true" ]; then args+=(--dry-run); fi
+          python -m src.forward.run_prices "${args[@]}"
+      - name: Schedule explicitly requested shared start
+        if: >-
+          ${{ success() && github.event_name == 'workflow_dispatch' &&
+              github.ref == 'refs/heads/release/public-operation' &&
+              inputs.dry_run != true && inputs.competition_start_date != '' }}
+        env:
+          APP_PROFILE: local
+          CAPSTONE_DEMO: "1"
+          FORWARD_EXECUTOR: actions
           DATABASE_BACKEND: postgres
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          TZ: Asia/Seoul
+          SHARED_START_DATE: ${{ inputs.competition_start_date }}
+        run: |
+          # Existing command validates all 15 decisions, equal capital, pending
+          # compatibility and empty operating history before one atomic write.
+          # Never interpolate an operator input directly into shell source.
+          python -m src.forward.competition --start-date "$SHARED_START_DATE"
+      # Restore the former Daily forward run as a dry-run by default.
+      # A daily-only opt-in does not activate weekly/monthly trading workflows.
+      - name: Daily forward run
+        if: >-
+          ${{ success() && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 8 * * *') }}
+        env:
+          APP_PROFILE: local
+          CAPSTONE_DEMO: "1"
+          FORWARD_EXECUTOR: actions
+          DATABASE_BACKEND: postgres
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CAPSTONE_DESIGN_DATABASE_URL: ${{ secrets.CAPSTONE_DESIGN_DATABASE_URL }}
+          TZ: Asia/Seoul
           GITHUB_RUN_ID: ${{ github.run_id }}
-        run: >
-          python -m src.forward.run_daily
-          ${{ inputs.date && format('--scheduled-for {0}', inputs.date) || '' }}
-          ${{ inputs.dry_run && '--dry-run' || '' }}
+          DAILY_ENABLED: ${{ vars.FORWARD_DAILY_ENABLED }}
+          REQUESTED_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=(--use-stored-prices)
+          if [ "$DAILY_ENABLED" != "true" ] || [ "$REQUESTED_DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          # Current KST scheduling slot; dispatch date remains a price audit label.
+          # Keep market guards; never use another job DB/slot to bypass a prior run.
+          python -m src.forward.run_daily "${args[@]}"
+      - name: Preserve price collection report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: closed-price-report-${{ github.run_id }}
+          path: ${{ runner.temp }}/closed-price-report.json
+          retention-days: 7

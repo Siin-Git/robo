@@ -8,6 +8,7 @@ import { post } from "@/lib/api/client";
 import { fmtPct } from "@/lib/format";
 import { CATEGORIES, Category, THEME_INFO } from "./theme-content";
 import { useSetupStyles } from "../style-context";
+import { StrategyCatalog } from '@/components/strategies/StrategyCatalog';
 
 interface Theme { theme_id: string; display_name: string; ticker: string | null; active: boolean }
 interface Props {
@@ -35,7 +36,7 @@ const validCategory = (value?: string | null): Category => CATEGORIES.find(c => 
 export function ThemesStep(props: Props) {
   if (props.themesQ.isError) return <div><ErrorState message="관심 분야 목록을 불러오지 못했습니다." onRetry={props.themesQ.refetch} /><button className="btn-secondary mt-[16px]" onClick={props.onBack}>이전: 위험 수준</button></div>;
   if (props.themesQ.isLoading || !props.themesQ.data) return <div><p role="status" className="mb-[16px] text-[14px]">관심 분야 목록을 불러오는 중입니다.</p><LoadingSkeleton rows={4} /><button className="btn-secondary mt-[16px]" onClick={props.onBack}>이전: 위험 수준</button></div>;
-  return <ThemeCatalog {...props} themes={props.themesQ.data.items} />;
+  return <><ThemeCatalog {...props} themes={props.themesQ.data.items} /><StrategyCatalog/></>;
 }
 
 function ThemeCatalog({ themes, selected, setSelected, onBack, onNext, onIssues, pending, saveError, selectedBase, initialCategory, experiment, selectionReason }: Props & { themes: Theme[] }) {

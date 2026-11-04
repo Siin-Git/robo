@@ -6,14 +6,16 @@ import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { ErrorState, LoadingSkeleton } from "@/components/shared/ui";
 import { post } from "@/lib/api/client";
 import { fmtActivePp, fmtPct } from "@/lib/format";
-import { ASSET_COLORS, FrontierChart, type FrontierData } from "./FrontierChart";
+import { ASSET_COLORS, StrategyFrontierChart as FrontierChart, type FrontierData } from "./FrontierChart";
 import { ASSET_META } from "./asset-meta";
 import { THEME_INFO } from "./theme-content";
 import { ReviewData, reviewRows } from "./review-data";
 import { useSetupStyles } from "../style-context";
+import Link from "next/link";
+import {getForwardLedger} from "@/lib/api/ledger";
 import { REBALANCE_LABELS, type RebalanceFrequency } from "@/lib/rebalance";
 
-const THEME_COLORS = ["#7654c8", "#aa74d6"];
+const THEME_COLORS = ["#baa0f3", "#aa74d6"];
 const GROUPS = [
   { key: "broad_equity", base: "equity", name: "일반 주식", color: "#3b72e8" },
   { key: "themes", base: "themes", name: "선택 테마", color: "#8560cd" },
@@ -22,12 +24,14 @@ const GROUPS = [
   { key: "cash", base: "cash", name: "현금", color: "#c2cad6" },
 ];
 
-export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, experiment, rebalanceFrequency }: {
-  basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean;
+interface ReviewProps {
+  basePoint: { frontier_id: string }; themeIds: string[]; onBack: () => void; onComplete: () => void; pending: boolean; error: boolean; errorMessage?: string;
   frontierData?: FrontierData;
   rebalanceFrequency?: RebalanceFrequency;
   experiment?: { reason: string; notice: ReactNode };
-}) {
+  selectionReason?: {value: string; onChange: (value: string) => void};
+}
+export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComplete, pending, error, errorMessage, experiment, rebalanceFrequency, selectionReason }: ReviewProps) {
   const { review: s } = useSetupStyles();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [inspectedAssetId, setInspectedAssetId] = useState<string | null>(null);
@@ -35,16 +39,19 @@ export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComple
     queryKey: [experiment ? "experiment-review-preview" : "onboarding-preview", basePoint.frontier_id, themeIds.join(",")],
     queryFn: () => post<ReviewData>(experiment ? "/api/v1/me/experiment/preview" : "/api/v1/me/onboarding/preview", experiment ? {core_id:basePoint.frontier_id, theme_ids:themeIds} : { frontier_id: basePoint.frontier_id, theme_ids: themeIds }),
   });
+  const orders = useQuery({queryKey:["forward-ledger"],queryFn:getForwardLedger,enabled:!experiment,refetchInterval:15_000,refetchIntervalInBackground:false,retry:1});
+  const waitingOrders = !experiment ? orders.data?.orders?.filter(o=>o.status==="pending") ?? [] : [];
+  const ordersUnknown = !experiment && (orders.isLoading || orders.isError || !Array.isArray(orders.data?.orders));
   if (preview.isLoading) return <LoadingSkeleton rows={6} />;
   if (preview.isError || !preview.data) return <div><ErrorState message="최종 구성을 불러오지 못했습니다." onRetry={() => preview.refetch()} /><button className="btn-secondary" onClick={onBack}>테마 다시 고르기</button></div>;
-  const p = preview.data;
+  const p = preview.data!;
   const rows = reviewRows(p);
   const allocations = rows.filter(r => r.final > 0);
   const total = allocations.reduce((sum, r) => sum + r.final, 0);
   const selected = allocations.find(r => r.id === activeId);
   const color = (id: string) => {
     const index = p.themes.findIndex(t => t.theme_id === id);
-    return index >= 0 ? THEME_COLORS[index % THEME_COLORS.length] : ASSET_COLORS[id] ?? "#8292a9";
+    return index >= 0 ? THEME_COLORS[index % THEME_COLORS.length] : ASSET_COLORS[id] ?? "var(--text-secondary)";
   };
   const themeName = (id: string) => THEME_INFO[id]?.name ?? p.themes.find(t => t.theme_id === id)?.display_name ?? id;
   const themeTotal = rows.filter(r => r.isTheme).reduce((sum, r) => sum + r.final, 0);
@@ -119,8 +126,12 @@ export function ReviewStep({ basePoint, frontierData, themeIds, onBack, onComple
 
     <details open className={s.details}><summary>자산별 변경 내역 보기<span>기본 비중 · 최종 비중 · 변화</span></summary><div className={s.tableWrap}><table><thead><tr><th>자산</th><th>기본 비중</th><th>최종 비중</th><th>변화</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} data-theme={row.isTheme}><th scope="row">{row.name}{row.isTheme && <small>선택 테마</small>}</th><td>{fmtPct(row.base)}</td><td>{fmtPct(row.final)}</td><td>{Math.abs(row.change) < 1e-9 ? "변동 없음" : fmtActivePp(row.change)}</td></tr>)}</tbody></table></div></details>
     <p className={s.explanation}>예상 변동성은 모형의 추정치이며 실제 결과와 다를 수 있습니다.{limit != null && ` 테마 반영에 따른 변동성 증가는 같은 모형으로 계산한 기본 구성 대비 ${limit.toFixed(1)}%p 이내로 관리합니다.`}</p>
+    {selectionReason&&<details className={s.selectionReason}><summary>{selectionReason.value.trim()?"선택 이유 보기·수정":"선택 이유 남기기 (선택)"}</summary><textarea aria-label="확정 전 선택 이유" value={selectionReason.value} maxLength={1024} disabled={pending} onChange={e=>selectionReason.onChange(e.target.value)} placeholder="나중에 다시 검토할 선택 이유를 남겨 주세요."/></details>}
+    {!experiment && <section className={s.orderNotice} aria-label="구성 확정 조건" aria-live="polite">
+      {ordersUnknown ? <><p>{orders.isLoading?"대기 주문을 확인하고 있습니다.":"주문 상태를 불러오지 못했습니다. 확정 시 서버에서 조건을 다시 확인합니다."}</p>{!orders.isLoading&&<button className="btn-secondary" onClick={()=>void orders.refetch()}>주문 상태 다시 조회</button>}</> : waitingOrders.length > 0 ? <><strong>대기 주문 {waitingOrders.length}건 · 기존 주문 처리 중</strong><p>새로운 구성으로 변경하려면 기존 주문이 먼저 처리되어야 합니다.</p><div><Link href="/dashboard#dark-records">대기 주문 보기</Link><button className="btn-secondary" onClick={()=>void orders.refetch()}>주문 상태 새로고침</button></div></> : <p>대기 주문 없음</p>}
+    </section>}
     {experiment&&<section className="ui-note"><p>선택 이유: {experiment.reason}</p>{experiment.notice}</section>}
     <footer className={s.footer}><div><strong>이 투자 구성으로 시작할까요?</strong><p>{p.themes.length ? `${p.themes.length}개 테마를 반영한 구성으로 시작합니다.` : "기본 자산배분으로 포트폴리오를 시작합니다."}</p></div><div className={s.actions}><button className={s.back} onClick={onBack} disabled={pending}><ArrowLeft size={16} />테마 다시 고르기</button><button className={s.confirm} onClick={onComplete} disabled={pending}>{pending ? "설정 중…" : experiment ? "포트폴리오 생성" : "포트폴리오 확정 · 성과 확인"}<ArrowRight size={17} /></button></div></footer>
-    {error && <p className={s.error} role="alert">구성을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
+    {error && <p className={s.error} role="alert">{errorMessage || "구성을 저장하지 못했습니다. 다시 시도해 주세요."}</p>}
   </div>;
 }

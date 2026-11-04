@@ -26,9 +26,9 @@ export function RiskReturnMap({reports,highlight,highlightLabel="내 포트폴�
   const intervals = Math.max(1, Math.ceil((Math.max(xStart, ...volatilities) + .005 - xStart) / xStep));
   const xTicks = Array.from({length: intervals + 1}, (_, i) => Number((xStart + i * xStep).toFixed(6)));
   const xEnd = xTicks[xTicks.length - 1];
-  return <section className="analytics-panel" aria-label="Risk–Return Map"><h2>위험과 수익 비교</h2><p className="caption">위로 갈수록 수익률이 높고, 오른쪽으로 갈수록 가격 변동이 큽니다.</p><div className="chart"><ResponsiveContainer><ScatterChart margin={{top:25,right:25,bottom:30,left:5}}><CartesianGrid strokeDasharray="3 3"/><XAxis type="number" dataKey="x" domain={[xStart, xEnd]} ticks={xTicks} allowDataOverflow tickFormatter={n=>fmtPct(n,1)} name="Volatility" label={{value:"변동성 · 연율",position:"bottom",offset:12}}/><YAxis type="number" dataKey="y" tickFormatter={n=>fmtPct(n,1)} name="Return"/><Tooltip cursor={{strokeDasharray:"3 3"}} content={({active,payload})=>{const p=payload?.[0]?.payload;return active&&p?<div className="analytics-tooltip"><strong>{p.name}</strong><p>{p.themes.map(themeLabel).join(" · ")}</p><p>수익률 {fmtReturn(p.y)} · 최대 낙폭 {fmtPct(p.mdd)}</p><p>변동성 {fmtPct(p.x)} · 샤프 지수 {p.sharpe?.toFixed(2)??"—"}</p></div>:null;}}/><Scatter name="참가자" data={points} onClick={p=>router.push(`/participants/${p.id}?source=demo`)}>{points.map(p=><Cell key={p.id} fill={p.id===highlight?"#2563eb":"#94a3b8"} stroke={p.id===highlight?"#1745a8":"#64748b"} strokeWidth={p.id===highlight?4:1}/>)}</Scatter><Scatter name="CORE" data={core} shape="diamond" fill="#111827"/></ScatterChart></ResponsiveContainer></div><ul className="race-legend point-legend" aria-label="차트 점 색상 안내">
-      <li><i style={{background:"#2563eb"}}/>{highlightLabel}</li>
-      <li><i className="benchmark-dot" style={{background:"#111827"}}/>기준 포트폴리오 (CORE)</li>
+  return <section className="analytics-panel" aria-label="Risk–Return Map"><h2>위험과 수익 비교</h2><p className="caption">위로 갈수록 수익률이 높고, 오른쪽으로 갈수록 가격 변동이 큽니다.</p><div className="chart"><ResponsiveContainer><ScatterChart margin={{top:25,right:25,bottom:30,left:5}}><CartesianGrid strokeDasharray="3 3"/><XAxis type="number" dataKey="x" domain={[xStart, xEnd]} ticks={xTicks} allowDataOverflow tickFormatter={n=>fmtPct(n,1)} name="Volatility" label={{value:"변동성 · 연율",position:"bottom",offset:12}}/><YAxis type="number" dataKey="y" tickFormatter={n=>fmtPct(n,1)} name="Return"/><Tooltip cursor={{strokeDasharray:"3 3"}} content={({active,payload})=>{const p=payload?.[0]?.payload;return active&&p?<div className="analytics-tooltip"><strong>{p.name}</strong><p>{p.themes.map(themeLabel).join(" · ")}</p><p>수익률 {fmtReturn(p.y)} · 최대 낙폭 {fmtPct(p.mdd)}</p><p>변동성 {fmtPct(p.x)} · 샤프 지수 {p.sharpe?.toFixed(2)??"—"}</p></div>:null;}}/><Scatter name="참가자" data={points} onClick={p=>router.push(`/participants/${p.id}?source=demo`)}>{points.map(p=><Cell key={p.id} fill={p.id===highlight?"#74a8ff":"#94a3b8"} stroke={p.id===highlight?"#aed0ff":"#64748b"} strokeWidth={p.id===highlight?4:1}/>)}</Scatter><Scatter name="CORE" data={core} shape="diamond" fill="#c7d3e6"/></ScatterChart></ResponsiveContainer></div><ul className="race-legend point-legend" aria-label="차트 점 색상 안내">
+      <li><i style={{background:"#74a8ff"}}/>{highlightLabel}</li>
+      <li><i className="benchmark-dot" style={{background:"#c7d3e6"}}/>기준 포트폴리오 (CORE)</li>
       <li><i style={{background:"#94a3b8"}}/>다른 참가자</li>
     </ul><p className="caption">점을 선택하면 참가자 상세로 이동합니다.</p><div className="scenario-grid">{points.map(p=><Link className="btn-secondary" key={p.id} href={`/participants/${p.id}?source=demo`}>{p.name}{p.id===highlight?" · 선택":""}</Link>)}</div>{!c&&<p>CORE 위험지표 없음</p>}</section>;
 }
@@ -63,19 +63,19 @@ export function PortfolioRace({data,participantId}:{data:Analytics;participantId
       {filter === "selected" && mine && <Link href={`/participants/${mine.participant_id}?source=demo`} className="race-participant-detail">상세 성과 보기 →</Link>}
     </div>
     <ul className="race-legend" aria-label="차트 선 색상 안내">
-      {mine && visible.includes(mine) && <li><i style={{background:"#2563eb"}}/>{isOwn ? "내 포트폴리오" : mine.display_name}</li>}
-      <li><i style={{background:"#101d38"}}/>기준 포트폴리오 (CORE)</li>
-      {visible.some(r=>r.participant_id !== focusedId) && <li><i style={{background:"#c6cdd8"}}/>다른 참가자</li>}
+      {mine && visible.includes(mine) && <li><i style={{background:"#74a8ff"}}/>{isOwn ? "내 포트폴리오" : mine.display_name}</li>}
+      <li><i style={{background:"#c7d3e6"}}/>기준 포트폴리오 (CORE)</li>
+      {visible.some(r=>r.participant_id !== focusedId) && <li><i style={{background:"#647a98"}}/>다른 참가자</li>}
     </ul>
     <div className="chart"><ResponsiveContainer><LineChart data={rows} margin={{top:25,right:12,bottom:5,left:0}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" minTickGap={60} tickFormatter={d=>d.slice(5)}/><YAxis domain={["auto","auto"]} tickFormatter={n=>n.toFixed(0)}/><Tooltip content={({active,payload,label})=>{if(!active||!payload?.length)return null;const id=hoverId??focusedId;const focused=payload.find(p=>p.dataKey===id)??payload[0];const person=ready.find(r=>r.participant_id===focused?.dataKey);return <div className="analytics-tooltip"><strong>{person?.display_name??"CORE"}</strong><p>{person?.themes.map(themeLabel).join(" · ")}</p><p>{String(label)} · 평가액 {Number(focused?.value).toFixed(2)}</p><p>기준일 {person?.end??base?.end} 누적수익률 {fmtReturn(person?.metrics.cumulative_return??base?.metrics.core_return)}</p></div>;}}/>
-    {visible.filter(r=>r.participant_id!==focusedId).map(r=><Line key={r.participant_id} dataKey={r.participant_id} name={r.display_name} type="linear" stroke="#c6cdd8" strokeWidth={1} dot={false} activeDot={{r:5,onClick:()=>selectParticipant(r.participant_id)}} isAnimationActive={false} onMouseEnter={()=>setHoverId(r.participant_id)} onClick={()=>selectParticipant(r.participant_id)}/>)}
-    <Line dataKey="core" name="CORE" type="linear" stroke="#101d38" strokeWidth={2.5} dot={false} isAnimationActive={false} onMouseEnter={()=>setHoverId("core")}/>
-    {mine&&visible.includes(mine)&&<Line dataKey={mine.participant_id} name={mine.display_name} type="linear" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} onMouseEnter={()=>setHoverId(mine.participant_id)} activeDot={{r:6,onClick:()=>selectParticipant(mine.participant_id)}}/>}
+    {visible.filter(r=>r.participant_id!==focusedId).map(r=><Line key={r.participant_id} dataKey={r.participant_id} name={r.display_name} type="linear" stroke="#647a98" strokeWidth={1} dot={false} activeDot={{r:5,onClick:()=>selectParticipant(r.participant_id)}} isAnimationActive={false} onMouseEnter={()=>setHoverId(r.participant_id)} onClick={()=>selectParticipant(r.participant_id)}/>)}
+    <Line dataKey="core" name="CORE" type="linear" stroke="#c7d3e6" strokeWidth={2.5} dot={false} isAnimationActive={false} onMouseEnter={()=>setHoverId("core")}/>
+    {mine&&visible.includes(mine)&&<Line dataKey={mine.participant_id} name={mine.display_name} type="linear" stroke="#74a8ff" strokeWidth={3.5} dot={false} isAnimationActive={false} onMouseEnter={()=>setHoverId(mine.participant_id)} activeDot={{r:6,onClick:()=>selectParticipant(mine.participant_id)}}/>}
     </LineChart></ResponsiveContainer></div>
   </section>;
 }
 
-export function ThemeComparison({data}:{data:Analytics}) {
+export function ThemeComparison({data,ledger=false}:{data:{comparable:number;theme_selectors:{theme_id:string;count:number;cumulative_return:number|null;excess_return:number|null;mdd:number|null;measured?:Record<string,number>}[]};ledger?:boolean}) {
   const [sort, setSort] = useState("count");
   const rows = [...data.theme_selectors].sort((a, b) => {
     const field = sort === "return" ? "cumulative_return" : sort === "excess" ? "excess_return" : sort === "mdd" ? "mdd" : "count";
@@ -85,19 +85,19 @@ export function ThemeComparison({data}:{data:Analytics}) {
   const metrics = [
     { key: "cumulative_return", label: "평균 수익률", format: fmtReturn },
     { key: "excess_return", label: "평균 기준 대비", format: fmtActivePp },
-    { key: "mdd", label: "평균 최대낙폭", format: fmtPct },
+    { key: "mdd", label: ledger ? "평균 관측 최대낙폭" : "평균 최대낙폭", format: fmtPct },
   ] as const;
   return <section className="analytics-panel" aria-label="Theme 선택자 비교">
-    <div className="theme-count-header"><div><h2>테마별 선택과 성과</h2><p className="caption">선택 인원과 테마별 참여자들의 평균 성과를 비교하세요.</p></div>
+    <div className="theme-count-header"><div><h2>{ledger ? "편입 테마별 성과" : "테마별 선택과 성과"}</h2><p className="caption">{ledger ? "같은 기간에 해당 테마를 보유한 참여자들의 포트폴리오 평균입니다." : "선택 인원과 테마별 참여자들의 평균 성과를 비교하세요."}</p></div>
       <label>정렬 기준<select className="input" value={sort} onChange={e => setSort(e.target.value)}>
         <option value="count">많이 선택한 순</option><option value="return">평균 수익률 높은 순</option><option value="excess">기준 대비 수익률 높은 순</option><option value="mdd">최대낙폭 작은 순</option>
       </select></label>
     </div>
-    <div className="theme-count-scroll">
+    <div className="theme-count-scroll" tabIndex={0} aria-label="좌우로 이동 가능한 테마 성과 표">
       <table className="theme-count-table"><caption className="sr-only">테마별 선택 인원과 포트폴리오 평균 성과 막대그래프</caption>
         <thead><tr><th scope="col">테마</th>{rows.map(t=><th scope="col" key={t.theme_id}>{themeLabel(t.theme_id)}</th>)}</tr></thead>
         <tbody>
-          <tr className="theme-selection-count"><th scope="row">선택 인원</th>{rows.map(t=><td key={t.theme_id}><strong>{t.count}</strong><small>명</small></td>)}</tr>
+          <tr className="theme-selection-count"><th scope="row">{ledger ? "편입 인원" : "선택 인원"}</th>{rows.map(t=><td key={t.theme_id}><strong>{t.count}</strong><small>명</small></td>)}</tr>
           {metrics.map(metric => {
             const values = rows.map(t => t[metric.key]).filter((v): v is number => v != null && Number.isFinite(v));
             const low = Math.min(0, ...values), high = Math.max(0, ...values);
@@ -116,6 +116,7 @@ export function ThemeComparison({data}:{data:Analytics}) {
                     {valid && <span className="theme-metric-bar" data-negative={value < 0} data-risk={metric.key === "mdd"} style={{top:`${top}%`,height:`${height}%`}}/>}
                   </div>
                   <strong className="theme-metric-value">{metric.format(value)}</strong>
+                  {ledger && <small className="caption" style={{display:"block"}}>관측 {t.measured?.[metric.key] ?? 0}명</small>}
                 </td>;
               })}
             </tr>;
@@ -123,7 +124,7 @@ export function ThemeComparison({data}:{data:Analytics}) {
         </tbody>
       </table>
     </div>
-    <p className="caption">같은 행의 막대끼리 비교하세요. 행마다 눈금이 다르며 가로선은 0입니다. 테마 자체 수익률이 아닌 선택자들의 포트폴리오 평균입니다. 두 테마 선택자는 양쪽에 포함됩니다. · {data.comparable}명 기준</p>
+    <p className="caption">같은 행의 막대끼리 비교하세요. 행마다 눈금이 다르며 가로선은 0입니다. 테마 자체 수익률이 아닌 {ledger ? "기간 내 편입자" : "선택자"}들의 포트폴리오 평균입니다. 두 테마 {ledger ? "편입자" : "선택자"}는 양쪽에 포함됩니다. · {data.comparable}명 기준{ledger && " · 최대낙폭은 관측값이며 위험 순위를 뜻하지 않습니다."}</p>
   </section>;
 }
 

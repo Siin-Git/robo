@@ -136,8 +136,11 @@ def claim_job(db_url: str | None, job_type: str, scheduled_for: str,
         done = conn.execute(select(table).where(
             table.c.job_type == job_type,
             table.c.scheduled_for == sched,
-            table.c.status == "success")).fetchone()
-        if done is not None:
+            table.c.status == "success")).fetchall()
+        from .job_outcome import incomplete_daily
+        consumed = any(job_type != "daily" or not incomplete_daily(r._mapping["stats_json"] or {})
+                       for r in done)
+        if consumed:
             conn.execute(insert(table).values(
                 job_id=job_id, job_type=job_type, scheduled_for=sched,
                 started_at=_now(), completed_at=_now(), status="skipped",
@@ -170,12 +173,27 @@ def complete_job(db_url: str | None, job_id: str, stats: dict | None = None,
             status="success", completed_at=_now(), stats_json=dict(stats or {})))
 
 
-def fail_job(db_url: str | None, job_id: str, error: str, sqlite_path=None) -> None:
+def wait_job(db_url: str | None, job_id: str, stats: dict, sqlite_path=None) -> None:
+    """Expected start-gate wait, retryable in the same scheduling slot.
+
+    Reuse the existing skipped status. Unlike successful financial work this
+    must not permanently consume the date; the original attempt is retained.
+    """
+    engine = _engine_for(db_url, sqlite_path)
+    with engine.begin() as conn:
+        table = _table()
+        conn.execute(update(table).where(table.c.job_id == job_id).values(
+            status="skipped", completed_at=_now(), stats_json=dict(stats)))
+
+
+def fail_job(db_url: str | None, job_id: str, error: str, sqlite_path=None,
+             stats: dict | None = None) -> None:
     engine = _engine_for(db_url, sqlite_path)
     table = _table()
     with engine.begin() as conn:
         conn.execute(update(table).where(table.c.job_id == job_id).values(
-            status="failed", completed_at=_now(), error_message=str(error)[:2048]))
+            status="failed", completed_at=_now(), error_message=str(error)[:2048],
+            stats_json=dict(stats or {})))
 
 
 def recent_jobs(db_url: str | None, limit: int = 20, sqlite_path=None) -> list[dict]:

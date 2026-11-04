@@ -25,7 +25,7 @@ export function DataTable<T extends object>({
 }) {
   if (rows.length === 0 && empty) return <>{empty}</>;
   return (
-    <div className="overflow-x-auto border border-border bg-white">
+    <div className="rounded-[12px] overflow-x-auto border border-border bg-surface">
       <table className="fin-table">
         <thead>
           <tr>

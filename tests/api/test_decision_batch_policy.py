@@ -16,6 +16,9 @@ from sqlalchemy import select
 
 def test_no_preconfirmation_execution_keep_preserves_composition_and_repeat_is_safe(client,env,identity,monkeypatch):
     monkeypatch.setenv('CAPSTONE_DEMO','1');monkeypatch.setenv('APP_PROFILE','local')
+    # Match the API dependency override: this isolated legacy fixture has no
+    # active competition cohort. Never read a developer's real auth database.
+    monkeypatch.setattr('src.forward.competition.get_database_url', lambda: f'sqlite:///{env.dbfile}')
     # Direct fixture DB, not the API's routed design store or an external DB.
     from src.api.services import onboarding_service
     cookies,_=identity

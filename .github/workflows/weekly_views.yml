@@ -20,7 +20,9 @@ concurrency:
 
 jobs:
   weekly:
-    if: ${{ vars.FORWARD_EXECUTOR == 'actions' || inputs.dry_run == true }}
+    # Price collection permission does not authorize a trading cycle.
+    # Gate dry runs too: the legacy CLI may prepare its database connection.
+    if: ${{ vars.FORWARD_EXECUTOR == 'actions' && vars.FORWARD_TRADING_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
